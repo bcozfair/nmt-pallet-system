@@ -1,20 +1,20 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&amp;color=0:0ea5e9,50:6366f1,100:22d3ee&amp;height=200&amp;section=header&amp;text=NMT%20Pallet%20System&amp;fontSize=42&amp;fontColor=ffffff&amp;fontAlignY=36&amp;desc=Pallet%20Management%20%26%20Real-time%20Tracking%20System&amp;descAlignY=55&amp;descSize=15&amp;animation=fadeIn" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0ea5e9,50:6366f1,100:22d3ee&height=200&section=header&text=NMT%20Pallet%20System&fontSize=42&fontColor=ffffff&fontAlignY=36&desc=Pallet%20Management%20%26%20Real-time%20Tracking&descAlignY=55&descSize=15&animation=fadeIn" width="100%"/>
 
 <br/>
 
-<img src="https://img.shields.io/badge/React-0ea5e9?style=flat-square&amp;logo=react&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/TypeScript-6366f1?style=flat-square&amp;logo=typescript&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/Vite-22d3ee?style=flat-square&amp;logo=vite&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/Tailwind%20CSS-0ea5e9?style=flat-square&amp;logo=tailwind-css&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/Supabase-6366f1?style=flat-square&amp;logo=supabase&amp;logoColor=white"/>
+<img src="https://img.shields.io/badge/React-0ea5e9?style=flat-square&logo=react&logoColor=white"/>
+<img src="https://img.shields.io/badge/TypeScript-6366f1?style=flat-square&logo=typescript&logoColor=white"/>
+<img src="https://img.shields.io/badge/Vite-22d3ee?style=flat-square&logo=vite&logoColor=white"/>
+<img src="https://img.shields.io/badge/Tailwind%20CSS-0ea5e9?style=flat-square&logo=tailwind-css&logoColor=white"/>
+<img src="https://img.shields.io/badge/Supabase-6366f1?style=flat-square&logo=supabase&logoColor=white"/>
 
 <br/><br/>
 
-<a href="https://github.com/bcozfair/nmt-pallet-system/stargazers"><img src="https://img.shields.io/github/stars/bcozfair/nmt-pallet-system?color=22d3ee&amp;style=flat-square&amp;logo=github"/></a>
-<a href="https://github.com/bcozfair/nmt-pallet-system/network/members"><img src="https://img.shields.io/github/forks/bcozfair/nmt-pallet-system?color=6366f1&amp;style=flat-square&amp;logo=github"/></a>
-<a href="https://github.com/bcozfair/nmt-pallet-system/issues"><img src="https://img.shields.io/github/issues/bcozfair/nmt-pallet-system?color=0ea5e9&amp;style=flat-square"/></a>
+<a href="https://github.com/bcozfair/nmt-pallet-system/stargazers"><img src="https://img.shields.io/github/stars/bcozfair/nmt-pallet-system?color=22d3ee&style=flat-square&logo=github"/></a>
+<a href="https://github.com/bcozfair/nmt-pallet-system/network/members"><img src="https://img.shields.io/github/forks/bcozfair/nmt-pallet-system?color=6366f1&style=flat-square&logo=github"/></a>
+<a href="https://github.com/bcozfair/nmt-pallet-system/issues"><img src="https://img.shields.io/github/issues/bcozfair/nmt-pallet-system?color=0ea5e9&style=flat-square"/></a>
 
 </div>
 
@@ -43,17 +43,17 @@
 
 **Frontend**
 
-<img src="https://img.shields.io/badge/React-0ea5e9?style=flat-square&amp;logo=react&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/TypeScript-6366f1?style=flat-square&amp;logo=typescript&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/Vite-22d3ee?style=flat-square&amp;logo=vite&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/Tailwind%20CSS-0ea5e9?style=flat-square&amp;logo=tailwind-css&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/Lucide%20React-6366f1?style=flat-square&amp;logo=lucide&amp;logoColor=white"/>
+<img src="https://img.shields.io/badge/React-0ea5e9?style=flat-square&logo=react&logoColor=white"/>
+<img src="https://img.shields.io/badge/TypeScript-6366f1?style=flat-square&logo=typescript&logoColor=white"/>
+<img src="https://img.shields.io/badge/Vite-22d3ee?style=flat-square&logo=vite&logoColor=white"/>
+<img src="https://img.shields.io/badge/Tailwind%20CSS-0ea5e9?style=flat-square&logo=tailwind-css&logoColor=white"/>
+<img src="https://img.shields.io/badge/Lucide%20React-6366f1?style=flat-square&logo=lucide&logoColor=white"/>
 
-**Backend &amp; Database**
+**Backend & Database**
 
-<img src="https://img.shields.io/badge/Supabase-22d3ee?style=flat-square&amp;logo=supabase&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/PostgreSQL-0ea5e9?style=flat-square&amp;logo=postgresql&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/LINE%20Messaging%20API-6366f1?style=flat-square&amp;logo=line&amp;logoColor=white"/>
+<img src="https://img.shields.io/badge/Supabase-22d3ee?style=flat-square&logo=supabase&logoColor=white"/>
+<img src="https://img.shields.io/badge/PostgreSQL-0ea5e9?style=flat-square&logo=postgresql&logoColor=white"/>
+<img src="https://img.shields.io/badge/LINE%20Messaging%20API-6366f1?style=flat-square&logo=line&logoColor=white"/>
 
 ---
 
@@ -139,14 +139,14 @@ npm run build
 
 **Natchaphat (Fair)**
 
-<a href="https://github.com/bcozfair"><img src="https://img.shields.io/badge/GitHub-bcozfair-0ea5e9?style=flat-square&amp;logo=github&amp;logoColor=white"/></a>
-<a href="https://www.linkedin.com/in/natchaphat-fair/"><img src="https://img.shields.io/badge/LinkedIn-natchaphat--fair-6366f1?style=flat-square&amp;logo=linkedin&amp;logoColor=white"/></a>
-<a href="mailto:bcozfair@gmail.com"><img src="https://img.shields.io/badge/Email-bcozfair%40gmail.com-22d3ee?style=flat-square&amp;logo=gmail&amp;logoColor=white"/></a>
+<a href="https://github.com/bcozfair"><img src="https://img.shields.io/badge/GitHub-bcozfair-0ea5e9?style=flat-square&logo=github&logoColor=white"/></a>
+<a href="https://www.linkedin.com/in/natchaphat-fair/"><img src="https://img.shields.io/badge/LinkedIn-natchaphat--fair-6366f1?style=flat-square&logo=linkedin&logoColor=white"/></a>
+<a href="mailto:bcozfair@gmail.com"><img src="https://img.shields.io/badge/Email-bcozfair%40gmail.com-22d3ee?style=flat-square&logo=gmail&logoColor=white"/></a>
 
 ---
 
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&amp;color=0:22d3ee,50:6366f1,100:0ea5e9&amp;height=100&amp;section=footer" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:22d3ee,50:6366f1,100:0ea5e9&height=100&section=footer" width="100%"/>
 
 </div>
