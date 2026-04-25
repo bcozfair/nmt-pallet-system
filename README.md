@@ -1,20 +1,25 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&amp;color=0:0ea5e9,50:6366f1,100:22d3ee&amp;height=200&amp;section=header&amp;text=NMT%20Pallet%20System&amp;fontSize=42&amp;fontColor=ffffff&amp;fontAlignY=36&amp;desc=Pallet%20Management%20%26%20Real-time%20Tracking&amp;descAlignY=55&amp;descSize=15&amp;animation=fadeIn" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0ea5e9,50:6366f1,100:22d3ee&height=200&section=header&text=Smart%20Parcel%20Box&fontSize=42&fontColor=ffffff&fontAlignY=36&desc=IoT-Powered%20Intelligent%20Parcel%20Receiving%20System&descAlignY=55&descSize=15&animation=fadeIn" width="100%"/>
 
 <br/>
 
-<img src="https://img.shields.io/badge/React-0ea5e9?style=flat-square&amp;logo=react&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/TypeScript-6366f1?style=flat-square&amp;logo=typescript&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/Vite-22d3ee?style=flat-square&amp;logo=vite&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/Tailwind%20CSS-0ea5e9?style=flat-square&amp;logo=tailwind-css&amp;logoColor=white"/>
-<img src="https://img.shields.io/badge/Supabase-6366f1?style=flat-square&amp;logo=supabase&amp;logoColor=white"/>
+<!-- Trophy Badge -->
+<img src="https://img.shields.io/badge/%F0%9F%8F%86%20First%20Prize-Productive%20Learning%20Contest%202026-FFD700?style=for-the-badge"/>
 
 <br/><br/>
 
-<a href="https://github.com/bcozfair/nmt-pallet-system/stargazers"><img src="https://img.shields.io/github/stars/bcozfair/nmt-pallet-system?color=22d3ee&amp;style=flat-square&amp;logo=github"/></a>
-<a href="https://github.com/bcozfair/nmt-pallet-system/network/members"><img src="https://img.shields.io/github/forks/bcozfair/nmt-pallet-system?color=6366f1&amp;style=flat-square&amp;logo=github"/></a>
-<a href="https://github.com/bcozfair/nmt-pallet-system/issues"><img src="https://img.shields.io/github/issues/bcozfair/nmt-pallet-system?color=0ea5e9&amp;style=flat-square"/></a>
+<img src="https://img.shields.io/badge/ESP32-0ea5e9?style=flat-square&logo=espressif&logoColor=white"/>
+<img src="https://img.shields.io/badge/ESP32--CAM-6366f1?style=flat-square&logo=espressif&logoColor=white"/>
+<img src="https://img.shields.io/badge/C%2FC++-22d3ee?style=flat-square&logo=cplusplus&logoColor=white"/>
+<img src="https://img.shields.io/badge/Arduino%20IDE-0ea5e9?style=flat-square&logo=arduino&logoColor=white"/>
+<img src="https://img.shields.io/badge/IoT-6366f1?style=flat-square&logo=internetofthings&logoColor=white"/>
+
+<br/><br/>
+
+<a href="https://github.com/bcozfair/Smart-Parcel-Box/stargazers"><img src="https://img.shields.io/github/stars/bcozfair/Smart-Parcel-Box?color=22d3ee&style=flat-square&logo=github"/></a>
+<a href="https://github.com/bcozfair/Smart-Parcel-Box/network/members"><img src="https://img.shields.io/github/forks/bcozfair/Smart-Parcel-Box?color=6366f1&style=flat-square&logo=github"/></a>
+<a href="https://github.com/bcozfair/Smart-Parcel-Box/issues"><img src="https://img.shields.io/github/issues/bcozfair/Smart-Parcel-Box?color=0ea5e9&style=flat-square"/></a>
 
 </div>
 
