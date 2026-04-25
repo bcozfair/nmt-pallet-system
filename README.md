@@ -43,17 +43,17 @@
 
 **Frontend**
 
-![React](https://img.shields.io/badge/React-0ea5e9?style=flat-square&logo=react&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-6366f1?style=flat-square&logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-22d3ee?style=flat-square&logo=vite&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-0ea5e9?style=flat-square&logo=tailwind-css&logoColor=white)
-![Lucide React](https://img.shields.io/badge/Lucide%20React-6366f1?style=flat-square&logo=lucide&logoColor=white)
+<img src="https://img.shields.io/badge/React-0ea5e9?style=flat-square&amp;logo=react&amp;logoColor=white"/>
+<img src="https://img.shields.io/badge/TypeScript-6366f1?style=flat-square&amp;logo=typescript&amp;logoColor=white"/>
+<img src="https://img.shields.io/badge/Vite-22d3ee?style=flat-square&amp;logo=vite&amp;logoColor=white"/>
+<img src="https://img.shields.io/badge/Tailwind%20CSS-0ea5e9?style=flat-square&amp;logo=tailwind-css&amp;logoColor=white"/>
+<img src="https://img.shields.io/badge/Lucide%20React-6366f1?style=flat-square&amp;logo=lucide&amp;logoColor=white"/>
 
-**Backend & Database**
+**Backend &amp; Database**
 
-![Supabase](https://img.shields.io/badge/Supabase-22d3ee?style=flat-square&logo=supabase&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-0ea5e9?style=flat-square&logo=postgresql&logoColor=white)
-![LINE API](https://img.shields.io/badge/LINE%20Messaging%20API-6366f1?style=flat-square&logo=line&logoColor=white)
+<img src="https://img.shields.io/badge/Supabase-22d3ee?style=flat-square&amp;logo=supabase&amp;logoColor=white"/>
+<img src="https://img.shields.io/badge/PostgreSQL-0ea5e9?style=flat-square&amp;logo=postgresql&amp;logoColor=white"/>
+<img src="https://img.shields.io/badge/LINE%20Messaging%20API-6366f1?style=flat-square&amp;logo=line&amp;logoColor=white"/>
 
 ---
 
@@ -139,9 +139,9 @@ npm run build
 
 **Natchaphat (Fair)**
 
-[![GitHub](https://img.shields.io/badge/GitHub-bcozfair-0ea5e9?style=flat-square&logo=github)](https://github.com/bcozfair)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-natchaphat--fair-6366f1?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/natchaphat-fair/)
-[![Email](https://img.shields.io/badge/Email-bcozfair%40gmail.com-22d3ee?style=flat-square&logo=gmail)](mailto:bcozfair@gmail.com)
+<a href="https://github.com/bcozfair"><img src="https://img.shields.io/badge/GitHub-bcozfair-0ea5e9?style=flat-square&amp;logo=github&amp;logoColor=white"/></a>
+<a href="https://www.linkedin.com/in/natchaphat-fair/"><img src="https://img.shields.io/badge/LinkedIn-natchaphat--fair-6366f1?style=flat-square&amp;logo=linkedin&amp;logoColor=white"/></a>
+<a href="mailto:bcozfair@gmail.com"><img src="https://img.shields.io/badge/Email-bcozfair%40gmail.com-22d3ee?style=flat-square&amp;logo=gmail&amp;logoColor=white"/></a>
 
 ---
 
