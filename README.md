@@ -17,9 +17,7 @@
 
 <br/><br/>
 
-<a href="https://github.com/bcozfair/Smart-Parcel-Box/stargazers"><img src="https://img.shields.io/github/stars/bcozfair/Smart-Parcel-Box?color=22d3ee&style=flat-square&logo=github"/></a>
-<a href="https://github.com/bcozfair/Smart-Parcel-Box/network/members"><img src="https://img.shields.io/github/forks/bcozfair/Smart-Parcel-Box?color=6366f1&style=flat-square&logo=github"/></a>
-<a href="https://github.com/bcozfair/Smart-Parcel-Box/issues"><img src="https://img.shields.io/github/issues/bcozfair/Smart-Parcel-Box?color=0ea5e9&style=flat-square"/></a>
+
 
 </div>
 
