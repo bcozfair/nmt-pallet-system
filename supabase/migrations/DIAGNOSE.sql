@@ -1,23 +1,28 @@
--- Diagnostic for the 20260719_02_enable_rls.sql apply.
+-- Health check: is row level security still in the state 00_current_schema.sql
+-- defines? Run this after touching policies, or after adding anything through
+-- the Supabase dashboard.
 --
 -- ONE statement on purpose: the Supabase SQL Editor only displays the result of
 -- the LAST statement when several are run together, so a multi-query script
 -- silently hides everything but its final SELECT.
 --
--- Run this whole file and send back the full table.
---
--- What to expect once 02 AND 05 have both been applied:
---   4  rows  kind='1_RLS'    detail='true'   (one per table)
+-- Expected:
+--   5  rows  kind='1_RLS'    detail='true'  (users, pallets, transactions,
+--                                            departments, system_settings)
 --   12 rows  kind='2_POLICY' on users/pallets/transactions/departments, all
---            named in the new style (users_select_self_or_admin, ...)
---   3  rows  kind='2_POLICY' on system_settings -- expected, leave them alone
+--            named in the schema's style (users_select_self_or_admin, ...)
+--   3  rows  kind='2_POLICY' on system_settings ("Allow public read access",
+--            "Allow admin update", "Allow admin insert") -- expected
 --
 -- Danger signs:
 --   detail='false' on any 1_RLS row -> RLS is off, that table is wide open
---   ANY other policy name on those four tables -> a legacy dashboard-created
---     policy. Permissive policies are OR'ed together, so a single leftover
---     "... viewable by everyone" re-opens the table no matter what else exists.
---     Add it to 20260719_05_drop_legacy_policies.sql and re-run.
+--   ANY policy name outside the list above -> most likely created through the
+--     dashboard. Permissive policies are OR'ed together, so one leftover
+--     "... viewable by everyone" re-opens the table regardless of what else is
+--     defined. Drop it, and add it to 00_current_schema.sql if it belongs.
+--
+-- Configuration looking right is not proof. Confirm with an external probe
+-- using only the anon key -- see README_SECURITY_FIX.md.
 
 select '1_RLS' as kind,
        tablename as name,
