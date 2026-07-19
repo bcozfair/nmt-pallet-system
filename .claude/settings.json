@@ -9,7 +9,14 @@
       "Bash(openssl rand *)",
       "Bash(git diff *)",
       "PowerShell(Write-Output \"--- ทดสอบ syntax ด้วย 4 bytes \\(ไม่ใช่ secret จริง\\) ---\"; $b = New-Object byte[] 4; [System.Security.Cryptography.RandomNumberGenerator]::Create\\(\\).GetBytes\\($b\\); \\($b | ForEach-Object { $_.ToString\\('x2'\\) }\\) -join '')",
-      "PowerShell(Write-Output \"=== โปรไฟล์เครือข่าย Wi-Fi \\(ต้องเป็น Private\\) ===\"; Get-NetConnectionProfile | Select-Object Name, InterfaceAlias, NetworkCategory | Format-Table -AutoSize; Write-Output \"=== firewall เปิดอยู่ไหม ===\"; Get-NetFirewallProfile | Select-Object Name, Enabled | Format-Table -AutoSize; Write-Output \"=== มี rule อนุญาต node.exe หรือ port 3000 ไหม ===\"; $r = Get-NetFirewallRule -Direction Inbound -Enabled True -Action Allow -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match 'node|vite|3000' }; if \\($r\\) { $r | Select-Object DisplayName, Profile | Format-Table -AutoSize } else { Write-Output \"ไม่พบ rule ที่ชื่อเกี่ยวกับ node/vite/3000\" })"
+      "PowerShell(Write-Output \"=== โปรไฟล์เครือข่าย Wi-Fi \\(ต้องเป็น Private\\) ===\"; Get-NetConnectionProfile | Select-Object Name, InterfaceAlias, NetworkCategory | Format-Table -AutoSize; Write-Output \"=== firewall เปิดอยู่ไหม ===\"; Get-NetFirewallProfile | Select-Object Name, Enabled | Format-Table -AutoSize; Write-Output \"=== มี rule อนุญาต node.exe หรือ port 3000 ไหม ===\"; $r = Get-NetFirewallRule -Direction Inbound -Enabled True -Action Allow -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match 'node|vite|3000' }; if \\($r\\) { $r | Select-Object DisplayName, Profile | Format-Table -AutoSize } else { Write-Output \"ไม่พบ rule ที่ชื่อเกี่ยวกับ node/vite/3000\" })",
+      "Bash(git rm *)",
+      "Bash(git ls-tree *)",
+      "Bash(xargs -I{} echo \"{} bytes\")",
+      "Bash(PYTHONIOENCODING=utf-8 python \"C:/Users/bcozf/AppData/Local/Temp/claude/c--Users-bcozf-Downloads-nmt-pallet-system/dfd63fb3-e807-4db2-ac33-4420b92939fa/scratchpad/make_icons.py\")",
+      "Bash(PYTHONIOENCODING=utf-8 python -)",
+      "Bash(python -c \"import json;m=json.load\\(open\\('dist/manifest.json'\\)\\);print\\('valid JSON,',len\\(m['icons']\\),'icons,',len\\(m['shortcuts']\\),'shortcuts'\\)\")",
+      "Bash(openssl x509 *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\bcozf\\Downloads\\nmt-pallet-system"

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <title>NMT</title>
+
+  <!-- Rounded white plate: matches the square brand asset and keeps the mark
+       legible on dark browser themes, where bare blue letters would sink. -->
+  <rect width="120" height="120" rx="26" fill="#ffffff"/>
+
+  <!-- Letterforms are drawn as stroked paths rather than filled outlines.
+       The NMT wordmark is geometric (straight strokes, uniform weight), so a
+       stroke reproduces it accurately in a fraction of the path data, and the
+       weight can be retuned by changing one number. -->
+  <g fill="none" stroke-width="9" stroke-linecap="butt" stroke-linejoin="miter">
+
+    <!-- N -->
+    <path d="M16.5,85 V45 L38.5,85 V45" stroke="#1A51A4"/>
+
+    <!-- M drawn whole in blue first so the corner joins mitre cleanly... -->
+    <path d="M52,85 V45 L66,81 L80,45 V85" stroke="#1A51A4"/>
+    <!-- ...then the centre V is laid over it in teal, which is the accent that
+         carries the brand at small sizes. -->
+    <path d="M52,45 L66,81 L80,45" stroke="#01B5B4"/>
+
+    <!-- T: crossbar sits at y=49.5 so its top edge lands on the 45 baseline
+         shared with the other letters (a 9-wide stroke extends 4.5 each way). -->
+    <path d="M89,49.5 H108" stroke="#1A51A4"/>
+    <path d="M98.5,45 V85" stroke="#1A51A4"/>
+    <!-- Teal flag on the top right of the T, echoing the full logo. -->
+    <path d="M99.5,49.5 H108" stroke="#01B5B4"/>
+  </g>
+</svg>
