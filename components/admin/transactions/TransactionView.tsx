@@ -13,6 +13,7 @@ import { ImageViewerModal } from '../common/ImageViewerModal';
 import { TransactionHeader } from './TransactionHeader';
 import { ConfirmationModal } from '../common/ConfirmationModal';
 import { generateCSV } from '../../../utils/exportHelpers';
+import { getEvidenceSignedUrl } from '../../../services/storageService';
 
 
 export const TransactionView = () => {
@@ -45,6 +46,18 @@ export const TransactionView = () => {
 
     // Modal State for Image View
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+    // evidence_image_url holds a storage object name, not a renderable URL --
+    // the damage_reports bucket is private. Sign on demand, only for the one
+    // image actually being opened.
+    const handleViewImage = async (stored: string) => {
+        const signed = await getEvidenceSignedUrl(stored);
+        if (signed) {
+            setPreviewImage(signed);
+        } else {
+            toast.error("Could not load the evidence image.");
+        }
+    };
 
     // Confirmation Modal State
     const [confirmAction, setConfirmAction] = useState<{
@@ -180,7 +193,7 @@ export const TransactionView = () => {
     const handleExport = () => {
         // ... (Export logic, add Notes column)
         try {
-            const headers = ['Timestamp', 'Pallet ID', 'Action', 'User', 'Destination', 'Remark', 'Evidence URL'];
+            const headers = ['Timestamp', 'Pallet ID', 'Action', 'User', 'Destination', 'Remark', 'Evidence File'];
             const rows = processedTransactions.map(tx => [
                 formatDateTime(tx.timestamp),
                 tx.pallet_id,
@@ -327,7 +340,7 @@ export const TransactionView = () => {
                     setCurrentPage={setCurrentPage}
                     userMap={users}
                     onClearFilters={handleClearFilters}
-                    onViewImage={setPreviewImage}
+                    onViewImage={handleViewImage}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                 />

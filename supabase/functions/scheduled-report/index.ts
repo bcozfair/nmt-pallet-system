@@ -6,6 +6,67 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+/**
+ * Authorizes a request. This function is deployed with --no-verify-jwt (the
+ * cron job cannot mint a user JWT), which previously left it completely open:
+ * anyone who learned the URL could invoke a service-role context.
+ *
+ * Two accepted callers:
+ *   1. The pg_cron job, proving itself with the REPORT_TRIGGER_SECRET header.
+ *   2. A signed-in admin pressing "Test send" in Settings, proving itself with
+ *      a normal user JWT that is then checked against public.is_admin().
+ */
+// Returns null when the caller is authorized, or a {status, message} rejection.
+// (Deliberately not a discriminated union: this project compiles with `strict`
+// off, and without strictNullChecks TypeScript will not narrow `ok: true |
+// false` correctly at the call site.)
+async function authorize(req: Request, adminClient: any): Promise<{ status: number; message: string } | null> {
+    // Path 1 -- the pg_cron job. It cannot mint a user JWT, so it proves itself
+    // with a shared secret instead. If REPORT_TRIGGER_SECRET is not configured
+    // this path is simply unavailable: scheduled reports stop, but the manual
+    // path below still works. (It is not treated as a fatal error, so a missing
+    // secret cannot break the admin's "Test send" button.)
+    const expectedSecret = Deno.env.get('REPORT_TRIGGER_SECRET') ?? ''
+    const providedSecret = req.headers.get('x-report-secret') ?? ''
+
+    if (expectedSecret && providedSecret && timingSafeEqual(providedSecret, expectedSecret)) {
+        return null
+    }
+
+    if (!expectedSecret) {
+        console.warn('[Scheduled Report] REPORT_TRIGGER_SECRET is not set -- cron-triggered reports will be rejected.')
+    }
+
+    // Manual trigger path: verify the bearer token belongs to an admin.
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const jwt = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+
+    // The anon key is also sent as a bearer token by supabase-js, so an
+    // unauthenticated call lands here too -- getUser() rejects it.
+    if (jwt) {
+        const { data, error } = await adminClient.auth.getUser(jwt)
+        if (!error && data?.user) {
+            const { data: profile } = await adminClient
+                .from('users')
+                .select('role')
+                .eq('id', data.user.id)
+                .maybeSingle()
+
+            if (profile?.role === 'admin') return null
+        }
+    }
+
+    return { status: 401, message: 'Unauthorized' }
+}
+
+/** Constant-time comparison so the secret cannot be recovered byte by byte. */
+function timingSafeEqual(a: string, b: string): boolean {
+    if (a.length !== b.length) return false
+    let diff = 0
+    for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+    return diff === 0
+}
+
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
@@ -18,6 +79,31 @@ Deno.serve(async (req) => {
             Deno.env.get('SUPABASE_URL') ?? '',
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
+
+        // 1b. Authorize BEFORE touching any data. Everything below runs with the
+        // service role key and can read the LINE channel token.
+        const authError = await authorize(req, supabaseClient)
+        if (authError) {
+            return new Response(JSON.stringify({ error: authError.message }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: authError.status,
+            })
+        }
+
+        // Manual "Test send" from the Settings screen: run a specific report now
+        // and skip the schedule/idempotency gates. Only reachable by an admin,
+        // per authorize() above.
+        let forceType: 'morning' | 'evening' | null = null
+        if (req.method === 'POST') {
+            try {
+                const body = await req.json()
+                if (body?.force === true && (body?.type === 'morning' || body?.type === 'evening')) {
+                    forceType = body.type
+                }
+            } catch {
+                // No body / not JSON -- normal cron invocation.
+            }
+        }
 
         // 2. Fetch System Settings
         const { data: settingsData, error: settingsError } = await supabaseClient
@@ -58,6 +144,30 @@ Deno.serve(async (req) => {
         const currentDay = weekdays[bkkDate.getUTCDay()]
         console.log(`[Scheduled Report] Current Day (BKK): ${currentDay}`);
 
+        // Admin-initiated test send: run now, ignore schedule and last-sent
+        // markers, and do NOT record it as today's scheduled run -- otherwise a
+        // test at 09:00 would suppress the real 16:00 report.
+        if (forceType) {
+            console.log(`[Scheduled Report] Manual test send: ${forceType}`);
+            if (!channelToken || !targetId) {
+                return new Response(
+                    JSON.stringify({ error: 'LINE channel token / target ID is not configured in Settings.' }),
+                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+                )
+            }
+
+            if (forceType === 'morning') {
+                await sendMorningReport(supabaseClient, settings)
+            } else {
+                await sendEveningReport(supabaseClient, settings)
+            }
+
+            return new Response(
+                JSON.stringify({ message: 'Test report sent', sent: forceType }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+        }
+
         if (!daysConfig.includes(currentDay)) {
             console.log(`[Scheduled Report] Skipping: ${currentDay} not in schedule.`);
             return new Response(JSON.stringify({ message: `Skipping: Today (${currentDay}) is not in schedule.` }), {
@@ -92,17 +202,24 @@ Deno.serve(async (req) => {
             } else {
                 console.log(`[Scheduled Report] Morning report already sent today.`);
             }
-        } else if (bkkHour === eveningHour) {
+        }
+
+        // Deliberately a separate `if`, not `else if`. When an admin sets the
+        // morning and evening times to the same hour, the chained version made
+        // the evening report unreachable forever.
+        if (bkkHour === eveningHour) {
             console.log(`[Scheduled Report] Checking Evening Report...`);
             if (!lastEveningStr.startsWith(todayDashDate)) {
                 console.log(`[Scheduled Report] Sending Evening Report...`);
                 await sendEveningReport(supabaseClient, settings)
                 await supabaseClient.from('system_settings').upsert({ key: 'last_sent_evening', value: bkkDate.toISOString() })
-                reportSent = 'Evening'
+                reportSent = reportSent === 'Morning' ? 'Morning+Evening' : 'Evening'
             } else {
                 console.log(`[Scheduled Report] Evening report already sent today.`);
             }
-        } else {
+        }
+
+        if (bkkHour !== morningHour && bkkHour !== eveningHour) {
             console.log(`[Scheduled Report] No report scheduled for this hour (${bkkHour}).`);
         }
 

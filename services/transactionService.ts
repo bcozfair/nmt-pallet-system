@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { Pallet, Transaction } from '../types';
 import { fetchPallets, deletePallet } from './palletService';
+import { DAMAGE_BUCKET, IMAGE_DELETED, extractObjectName } from './storageService';
 
 // --- TRANSACTIONS (Check In/Out/Damage) ---
 
@@ -128,26 +129,15 @@ export const resolveDamage = async (palletId: string, action: 'repair' | 'discar
         .limit(1)
         .maybeSingle();
 
-    if (transData && transData.evidence_image_url && transData.evidence_image_url !== 'image_deleted') {
+    if (transData && transData.evidence_image_url && transData.evidence_image_url !== IMAGE_DELETED) {
         try {
-            // Extract filename from URL
-            // URL format: .../storage/v1/object/public/damage_reports/filename.jpg
-            const urlParts = transData.evidence_image_url.split('/');
-            let fileName = urlParts[urlParts.length - 1];
-
-            // 2. Remove any query parameters (e.g. ?token=...)
-            if (fileName.includes('?')) {
-                fileName = fileName.split('?')[0];
-            }
-
-            // 3. Decode URI component (spaces, special chars)
-            fileName = decodeURIComponent(fileName);
-
-            console.log(`[resolveDamage] Extracted filename: ${fileName}`);
+            // Handles both shapes: legacy rows hold a full public URL, new rows
+            // hold the bare object name.
+            const fileName = extractObjectName(transData.evidence_image_url);
 
             if (fileName) {
                 // Delete from Storage
-                const { error: storageError } = await supabase.storage.from('damage_reports').remove([fileName]);
+                const { error: storageError } = await supabase.storage.from(DAMAGE_BUCKET).remove([fileName]);
                 if (storageError) {
                     console.error("[resolveDamage] Storage delete failed:", storageError);
                 } else {
@@ -156,7 +146,7 @@ export const resolveDamage = async (palletId: string, action: 'repair' | 'discar
 
                 // Update Transaction Record
                 const { error: updateError } = await supabase.from('transactions')
-                    .update({ evidence_image_url: 'image_deleted' })
+                    .update({ evidence_image_url: IMAGE_DELETED })
                     .eq('id', transData.id);
 
                 if (updateError) {
@@ -195,20 +185,30 @@ export const resolveDamage = async (palletId: string, action: 'repair' | 'discar
 export const checkOutPallet = async (palletId: string, destinationId: string, destinationName: string, userId: string): Promise<boolean> => {
     const timestamp = new Date().toISOString();
 
-    // Real DB Impl
-    // 1. Verify pallet exists or Upsert (Assume user scanned a valid QR code, if it doesn't exist, we create it?)
-    // For safety in this specific workflow, we will UPSERT the pallet presence.
-    const { error: palletError } = await supabase.from('pallets').upsert({
-        pallet_id: palletId,
-        status: 'in_use',
-        current_location: destinationName,
-        last_checkout_date: timestamp,
-        last_transaction_date: timestamp,
-        // If it's a new pallet, created_at will be auto-set by DB default, but upsert needs to be careful not to overwrite valid data if not needed.
-        // However, upsert here is convenient for "Scanned something new".
-    }, { onConflict: 'pallet_id' }); // Update existing if ID matches
+    // UPDATE, not upsert. The previous upsert meant scanning any unrecognised QR
+    // code silently created a pallet record, so the inventory could be polluted
+    // by anything that happened to be a valid QR. Pallet INSERT is now
+    // admin-only at the database level too
+    // (supabase/migrations/20260719_02_enable_rls.sql), so an upsert here would
+    // fail the policy check on its insert path regardless.
+    //
+    // The caller already verified existence: handleScan() rejects unknown ids
+    // via getPalletById() before an item can reach the pending list.
+    const { data: updated, error: palletError } = await supabase
+        .from('pallets')
+        .update({
+            status: 'in_use',
+            current_location: destinationName,
+            last_checkout_date: timestamp,
+            last_transaction_date: timestamp,
+        })
+        .eq('pallet_id', palletId)
+        .select('pallet_id');
 
     if (palletError) throw palletError;
+    if (!updated || updated.length === 0) {
+        throw new Error(`Pallet ${palletId} not found. Add it in Inventory before checking it out.`);
+    }
 
     const { error: transError } = await supabase.from('transactions').insert({
         pallet_id: palletId,
@@ -251,17 +251,19 @@ export const reportDamage = async (palletId: string, userId: string, imageFile: 
     const timestamp = new Date().toISOString();
     let imageUrl: string | null = null;
 
-    // Storage Logic 
+    // Storage Logic
     if (imageFile) {
         const fileName = `${palletId}_${Date.now()}.jpg`;
         try {
-            const { data, error } = await supabase.storage.from('damage_reports').upload(fileName, imageFile);
+            const { data, error } = await supabase.storage.from(DAMAGE_BUCKET).upload(fileName, imageFile);
             if (error) {
                 console.error("Upload error details:", error);
                 throw new Error(`Image Upload Failed: ${error.message}`);
             } else if (data) {
-                const { data: publicUrlData } = supabase.storage.from('damage_reports').getPublicUrl(fileName);
-                imageUrl = publicUrlData.publicUrl;
+                // Store the object NAME, not a public URL. The bucket is private
+                // now, so a public URL would not resolve; readers mint a
+                // short-lived signed URL via getEvidenceSignedUrl() instead.
+                imageUrl = fileName;
             }
         } catch (e: any) {
             console.error("Storage upload exception", e);

@@ -6,12 +6,16 @@ import { fetchPalletHistory } from '../../../services/transactionService';
 import { formatDate, formatDateTime, StatusBadge } from '../common/AdminHelpers';
 import { X, MapPin, Clock, History } from 'lucide-react';
 import { ImageViewerModal } from '../common/ImageViewerModal';
+import { getEvidenceSignedUrlMap, IMAGE_DELETED } from '../../../services/storageService';
 
 export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose: () => void }) => {
     const [history, setHistory] = useState<Transaction[]>([]);
     const [userMap, setUserMap] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    // The damage_reports bucket is private, so stored values are object names,
+    // not renderable URLs. Sign them once per load rather than per <img>.
+    const [evidenceUrls, setEvidenceUrls] = useState<Record<string, string>>({});
 
     useEffect(() => {
         let active = true;
@@ -29,6 +33,9 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
                     setHistory(hist);
                     setLoading(false);
                 }
+
+                const signed = await getEvidenceSignedUrlMap(hist.map(t => t.evidence_image_url));
+                if (active) setEvidenceUrls(signed);
             } catch (e) {
                 console.error("Failed to load details", e);
                 if (active) setLoading(false);
@@ -118,17 +125,17 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
                                                 )}
 
                                                 {/* Evidence Image */}
-                                                {tx.evidence_image_url && tx.evidence_image_url !== 'image_deleted' && (
+                                                {tx.evidence_image_url && tx.evidence_image_url !== IMAGE_DELETED && evidenceUrls[tx.evidence_image_url] && (
                                                     <div className="mt-2">
                                                         <img
-                                                            src={tx.evidence_image_url}
+                                                            src={evidenceUrls[tx.evidence_image_url]}
                                                             alt="Evidence"
                                                             className="h-20 w-auto rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:scale-105 transition"
-                                                            onClick={() => setPreviewImage(tx.evidence_image_url)}
+                                                            onClick={() => setPreviewImage(evidenceUrls[tx.evidence_image_url!])}
                                                         />
                                                     </div>
                                                 )}
-                                                {tx.evidence_image_url === 'image_deleted' && (
+                                                {tx.evidence_image_url === IMAGE_DELETED && (
                                                     <div className="mt-2 text-xs text-gray-400 italic flex items-center gap-1">
                                                         Original evidence image was deleted upon repair.
                                                     </div>

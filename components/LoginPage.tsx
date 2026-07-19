@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { signIn, resetPassword, getActiveAdmins, constructAliasEmail } from '../services/authService';
-import { User as UserIcon, Lock, ArrowRight, ShieldCheck, CheckSquare, KeyRound, ChevronLeft, Mail, Eye, EyeOff } from 'lucide-react';
+import { signIn, resetPassword } from '../services/authService';
+import { Lock, ArrowRight, ShieldCheck, CheckSquare, KeyRound, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 
 type AuthMode = 'login' | 'forgot_password';
 
@@ -10,45 +10,31 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const [admins, setAdmins] = useState<{ employee_id: string; full_name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [rememberMe, setRememberMe] = useState(false);
 
+  // Only the employee id is remembered. The password used to be persisted here
+  // in plaintext so the form could be pre-filled; anything able to read
+  // localStorage (any XSS, any shared device) could read the credential. The
+  // session itself now persists via localStorage in services/supabase.ts, which
+  // is what "remember me" actually needs.
   useEffect(() => {
     const savedId = localStorage.getItem('nmt_remember_id');
-    const savedPass = localStorage.getItem('nmt_remember_pass');
-    if (savedId && savedPass) {
+    if (savedId) {
       setIdentifier(savedId);
-      setPassword(savedPass);
       setRememberMe(true);
     }
+    // Clear the credential left behind by older builds.
+    localStorage.removeItem('nmt_remember_pass');
   }, []);
 
   // Clear errors when switching modes
   useEffect(() => {
     setError(null);
     setSuccessMsg(null);
-  }, [authMode]);
-
-  // Load admins when entering forgot password mode
-  useEffect(() => {
-    if (authMode === 'forgot_password') {
-      getActiveAdmins()
-        .then(data => {
-          setAdmins(data);
-          // Set default only if identifier is empty or not in list
-          if (data.length > 0 && !identifier) {
-            setIdentifier(data[0].employee_id);
-          }
-        })
-        .catch(err => {
-          console.error("Failed to load admins", err);
-          setError("Failed to load admin list. Please check network connection.");
-        });
-    }
   }, [authMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,31 +45,40 @@ const LoginPage: React.FC = () => {
 
     try {
       if (authMode === 'forgot_password') {
-        // Forgot Password
+        // The response is deliberately identical whether or not the account
+        // exists, and the destination mailbox is never echoed back. Supabase's
+        // resetPasswordForEmail already succeeds for unknown addresses, so this
+        // reveals nothing an attacker could use to enumerate employee ids.
+        // (The previous screen went further and listed every admin by name.)
         await resetPassword(identifier);
-        const fullEmail = identifier.includes('@') ? identifier : await constructAliasEmail(identifier);
-        // Display clean email (remove +tag)
-        const displayEmail = fullEmail.replace(/\+.*@/, '@');
-        setSuccessMsg(`Password reset instructions have been sent to ${displayEmail}.`);
+        setSuccessMsg(
+          "If that ID belongs to an account, a reset link has been sent to the registered administrator mailbox. Contact your administrator if you do not receive it."
+        );
       }
       else {
         // Login
         await signIn(identifier, password);
 
-        // Handle Remember Me
+        // Remember the employee id only -- never the password.
         if (rememberMe) {
           localStorage.setItem('nmt_remember_id', identifier);
-          localStorage.setItem('nmt_remember_pass', password);
         } else {
           localStorage.removeItem('nmt_remember_id');
-          localStorage.removeItem('nmt_remember_pass');
         }
 
         // App.tsx listener will handle redirection
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Operation failed. Please check your credentials.");
+      if (authMode === 'forgot_password') {
+        // Do not leak *why* it failed -- "no such user" is exactly the signal
+        // an enumeration attack is looking for.
+        setSuccessMsg(
+          "If that ID belongs to an account, a reset link has been sent to the registered administrator mailbox. Contact your administrator if you do not receive it."
+        );
+      } else {
+        setError(err.message || "Operation failed. Please check your credentials.");
+      }
     } finally {
       setLoading(false);
     }
@@ -92,7 +87,7 @@ const LoginPage: React.FC = () => {
   const renderHeader = () => {
     switch (authMode) {
       case 'forgot_password':
-        return { title: "Password Recovery", subtitle: "Enter your ID to reset access" };
+        return { title: "Password Recovery", subtitle: "Enter your Employee ID or email" };
       default:
         return { title: "NMT Pallet System", subtitle: "Secure Access Portal" };
     }
@@ -129,44 +124,25 @@ const LoginPage: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                {authMode === 'forgot_password' ? "Select Admin Account" : "Email or Employee ID"}
+                Email or Employee ID
               </label>
               <div className="relative">
-                {authMode === 'forgot_password' ? (
-                  <>
-                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                    <select
-                      required
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white text-gray-900 appearance-none cursor-pointer"
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                    >
-                      <option value="" disabled>Select Admin Account</option>
-                      {admins.map(admin => (
-                        <option key={admin.employee_id} value={admin.employee_id}>
-                          {admin.full_name} ({admin.employee_id})
-                        </option>
-                      ))}
-                    </select>
-                    {/* Add custom arrow if needed, but keeping it simple for now */}
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
-                      <ChevronLeft className="rotate-[-90deg]" size={16} />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input
-                      type="text"
-                      required
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white text-gray-900"
-                      placeholder="admin@nmt.com or EMP001"
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                    />
-                  </>
-                )}
+                <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  required
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white text-gray-900"
+                  placeholder="admin@nmt.com or EMP001"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                />
               </div>
+              {authMode === 'forgot_password' && (
+                <p className="mt-2 text-xs text-gray-500">
+                  Reset links are delivered to the registered administrator mailbox.
+                  Staff should ask an administrator to reset their password.
+                </p>
+              )}
             </div>
 
             {authMode !== 'forgot_password' && (

@@ -4,16 +4,14 @@ import { User } from '../types';
 // --- USER MANAGEMENT ---
 
 export const fetchUsers = async (): Promise<User[]> => {
-    // Use the RPC function to get users with auth data (created_at, last_sign_in_at)
+    // get_users_with_auth() is admin-gated in the database. There is deliberately
+    // no fallback to `from('users').select('*')` here: the old fallback ran on
+    // every RPC failure including "Access denied", so a non-admin who was refused
+    // by the RPC simply got the full user list by the other route. That defeated
+    // the gate entirely. Let the error surface instead.
     const { data, error } = await supabase.rpc('get_users_with_auth');
 
-    if (error) {
-        console.error('Error fetching users with auth data:', error);
-        // Fallback to regular fetch if RPC fails (e.g. before migration is run)
-        const { data: fallbackData, error: fallbackError } = await supabase.from('users').select('*');
-        if (fallbackError) throw fallbackError;
-        return fallbackData || [];
-    }
+    if (error) throw error;
 
     return data || [];
 };

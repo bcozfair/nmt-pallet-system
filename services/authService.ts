@@ -34,6 +34,12 @@ export const getSession = async () => {
   }
 };
 
+// Admin-only since 20260719_03. This used to be callable anonymously to
+// populate a dropdown on the forgot-password screen, which handed every
+// admin's employee_id and full_name to unauthenticated visitors -- and since
+// login emails are deterministically {base}+{employee_id}@{domain}, that was
+// enough to derive their exact login identity. The forgot-password flow no
+// longer needs it; see components/LoginPage.tsx.
 export const getActiveAdmins = async () => {
   const { data, error } = await supabase.rpc('get_active_admins');
   if (error) throw error;
@@ -74,11 +80,15 @@ export const signIn = async (identifier: string, password: string) => {
   return data;
 };
 
+// NOTE: not referenced by any screen -- there is no public sign-up page. Kept
+// only as a scripting helper. Disable email sign-ups in the Supabase dashboard
+// (Authentication > Providers > Email) so the anon key cannot create accounts
+// at all; account creation should go through createAccountByAdmin() below.
 export const registerStaff = async (employeeId: string, fullName: string, password: string) => {
   const email = await constructAliasEmail(employeeId);
 
-
-  // Pass metadata to allow DB Trigger to create the public.users row
+  // Metadata feeds the handle_new_user trigger. `role` is not passed and would
+  // be ignored if it were -- the trigger hardcodes 'staff'.
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
@@ -86,13 +96,10 @@ export const registerStaff = async (employeeId: string, fullName: string, passwo
       data: {
         employee_id: employeeId,
         full_name: fullName,
-        role: 'staff',
         department: 'Warehouse'
       }
     }
   });
-
-  if (authError) throw authError;
 
   if (authError) throw authError;
 
@@ -121,14 +128,46 @@ export const createAccountByAdmin = async (employeeId: string, fullName: string,
       data: {
         employee_id: employeeId,
         full_name: fullName,
-        role: role,
         department: department
+        // `role` is deliberately NOT passed. The handle_new_user trigger no
+        // longer reads it from signup metadata -- that metadata is attacker
+        // controlled, so anyone with the anon key could have signed themselves
+        // up as an admin. Every new account is created as 'staff'.
       }
     }
   });
 
   if (error) throw error;
+
+  // Promotion is a separate, authorized step. admin_set_role() checks that the
+  // *caller* (the current admin's session, not the temp client) is an admin.
+  if (role === 'admin' && data.user) {
+    const { error: roleError } = await supabase.rpc('admin_set_role', {
+      target_user_id: data.user.id,
+      new_role: 'admin'
+    });
+
+    // The account exists at this point; only the promotion failed. Surface it
+    // rather than leaving the admin believing they created an administrator.
+    if (roleError) {
+      throw new Error(
+        `Account created as staff, but granting admin rights failed: ${roleError.message}`
+      );
+    }
+  }
+
   return data;
+};
+
+// Promote or demote an existing user. Admin-gated in the database.
+export const adminSetUserRole = async (targetUserId: string, newRole: 'staff' | 'admin') => {
+  const { error } = await supabase.rpc('admin_set_role', {
+    target_user_id: targetUserId,
+    new_role: newRole
+  });
+
+  if (error) throw error;
+  return true;
 };
 
 // Admin resets password for another user via RPC

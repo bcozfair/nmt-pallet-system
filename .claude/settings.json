@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs wc -l)",
+      "Bash(cd \"c:/Users/bcozf/Downloads/nmt-pallet-system\" && echo \"=== .gitignore ===\" && cat .gitignore && echo \"=== .gitattributes ===\" && cat .gitattributes && echo \"=== vite.config.ts ===\" && cat vite.config.ts && echo \"=== tsconfig ===\" && cat tsconfig.json && echo \"=== .vscode/settings ===\" && cat .vscode/settings.json && echo \"=== public/ ===\" && ls -la public/ && echo \"=== env keys \\(names only\\) ===\" && sed 's/=.*/=<redacted>/' .env.local)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(python -)",
+      "Bash(openssl rand *)",
+      "Bash(git diff *)",
+      "PowerShell(Write-Output \"--- ทดสอบ syntax ด้วย 4 bytes \\(ไม่ใช่ secret จริง\\) ---\"; $b = New-Object byte[] 4; [System.Security.Cryptography.RandomNumberGenerator]::Create\\(\\).GetBytes\\($b\\); \\($b | ForEach-Object { $_.ToString\\('x2'\\) }\\) -join '')",
+      "PowerShell(Write-Output \"=== โปรไฟล์เครือข่าย Wi-Fi \\(ต้องเป็น Private\\) ===\"; Get-NetConnectionProfile | Select-Object Name, InterfaceAlias, NetworkCategory | Format-Table -AutoSize; Write-Output \"=== firewall เปิดอยู่ไหม ===\"; Get-NetFirewallProfile | Select-Object Name, Enabled | Format-Table -AutoSize; Write-Output \"=== มี rule อนุญาต node.exe หรือ port 3000 ไหม ===\"; $r = Get-NetFirewallRule -Direction Inbound -Enabled True -Action Allow -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match 'node|vite|3000' }; if \\($r\\) { $r | Select-Object DisplayName, Profile | Format-Table -AutoSize } else { Write-Output \"ไม่พบ rule ที่ชื่อเกี่ยวกับ node/vite/3000\" })"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\bcozf\\Downloads\\nmt-pallet-system"
+    ]
+  }
+}

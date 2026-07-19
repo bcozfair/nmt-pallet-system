@@ -8,7 +8,11 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../constants';
 // so services should check for valid configuration or fallback to mock.
 export const supabase = createClient(SUPABASE_URL || 'https://placeholder.supabase.co', SUPABASE_ANON_KEY || 'placeholder', {
     auth: {
-        storage: sessionStorage, // Standard: Updates on refresh, clears on close
+        // localStorage, not sessionStorage. With sessionStorage the session died
+        // on every tab close, which is why LoginPage used to persist the user's
+        // raw password so it could silently re-authenticate. Keeping the session
+        // here is what makes "remember me" possible without storing a credential.
+        storage: localStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,

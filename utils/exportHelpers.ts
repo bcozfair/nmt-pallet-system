@@ -64,7 +64,7 @@ export const exportInventoryCSV = async () => {
             'Last Activity Date',
             'Days Overdue',       // New
             'Date Added',         // New
-            'Evidence URL'        // New
+            'Evidence File'       // storage object name; bucket is private
         ];
 
         const rows = pallets.map(p => {
@@ -132,7 +132,7 @@ export const exportHistoryCSV = async () => {
             'Action Type',
             'Performed By',
             'Location/Destination',
-            'Evidence URL'
+            'Evidence File'
         ];
 
         const rows = transactions.map(tx => {

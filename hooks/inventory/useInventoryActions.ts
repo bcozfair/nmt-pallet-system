@@ -178,7 +178,7 @@ export const useInventoryActions = (
 
             const headers = [
                 'Pallet ID', 'Status', 'Location', 'Date Added', 'Last Activity',
-                'Last Action Type', 'Action By', 'Last Checkout', 'Overdue Days', 'Evidence URL'
+                'Last Action Type', 'Action By', 'Last Checkout', 'Overdue Days', 'Evidence File'
             ];
 
             const rows = processedPallets.map(p => {
