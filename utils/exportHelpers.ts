@@ -2,7 +2,7 @@
 import { fetchPallets } from '../services/palletService';
 import { fetchUsers } from '../services/userService';
 import { fetchTransactions } from '../services/transactionService';
-import { formatDate, formatDateTime } from '../components/admin/common/AdminHelpers';
+import { formatDate, formatDateTime, palletStatusLabel } from '../components/admin/common/AdminHelpers';
 import { toast } from '../services/toast';
 
 
@@ -86,7 +86,7 @@ export const exportInventoryCSV = async () => {
 
             return [
                 p.pallet_id,
-                p.status,
+                palletStatusLabel(p.status),
                 p.current_location,
                 responsiblePerson,
                 tx ? tx.action_type : '-',
@@ -144,7 +144,8 @@ export const exportHistoryCSV = async () => {
             const action = tx.action_type === 'check_out' ? 'Check Out' :
                 tx.action_type === 'check_in' ? 'Check In' :
                     tx.action_type === 'report_damage' ? 'Damage Reported' :
-                        tx.action_type === 'repair' ? 'Repaired' : tx.action_type;
+                        tx.action_type === 'repair' ? 'Repaired' :
+                            tx.action_type === 'scrap' ? 'Scrapped' : tx.action_type;
 
             const evidence = tx.evidence_image_url && tx.evidence_image_url !== 'image_deleted' ? tx.evidence_image_url : '';
 

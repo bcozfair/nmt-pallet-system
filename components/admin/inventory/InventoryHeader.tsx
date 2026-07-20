@@ -1,11 +1,12 @@
 import React from 'react';
-import { CircleCheckBig, QrCode, Trash2, Download, Plus, Package, ArrowRightLeft } from 'lucide-react';
+import { CircleCheckBig, QrCode, Trash2, Download, Plus, Package, ArrowRightLeft, Ban } from 'lucide-react';
 
 interface InventoryHeaderProps {
     selectedCount: number;
     selectedIds?: string[];
     onClearSelection: () => void;
     onBulkRepair: () => void;
+    onBulkScrap: () => void;
     onBulkDelete: () => void;
     onPrintQrSelected: () => void;
     onPrintQrAll: () => void;
@@ -22,6 +23,7 @@ export const InventoryHeader: React.FC<InventoryHeaderProps> = ({
     selectedIds = [],
     onClearSelection,
     onBulkRepair,
+    onBulkScrap,
     onBulkDelete,
     onPrintQrSelected,
     onPrintQrAll,
@@ -51,10 +53,17 @@ export const InventoryHeader: React.FC<InventoryHeaderProps> = ({
                             </div>
                         </div>
                         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                            {/* Same condition gates both: the selection is all
+                                damaged pallets, so either resolution applies. */}
                             {showRepairButton && (
-                                <button onClick={onBulkRepair} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-bold shadow-sm transition whitespace-nowrap">
-                                    <CircleCheckBig size={18} /> Repaired
-                                </button>
+                                <>
+                                    <button onClick={onBulkRepair} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-bold shadow-sm transition whitespace-nowrap">
+                                        <CircleCheckBig size={18} /> Repaired
+                                    </button>
+                                    <button onClick={onBulkScrap} className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 font-bold shadow-sm transition whitespace-nowrap">
+                                        <Ban size={18} /> Scrap
+                                    </button>
+                                </>
                             )}
                             {showTransactionButton && (
                                 <button onClick={onBulkTransaction} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-bold shadow-sm transition whitespace-nowrap">

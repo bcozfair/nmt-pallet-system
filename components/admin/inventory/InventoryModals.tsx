@@ -110,7 +110,26 @@ interface ConfirmModalProps {
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({ action, onClose }) => {
+    const [isConfirming, setIsConfirming] = useState(false);
+
     if (!action) return null;
+
+    // onConfirm throws for real: scrapPallet() rejects a pallet that is not
+    // damaged, and any of these can fail on RLS or the network. Without the
+    // catch the rejection was unhandled and the modal simply sat there open
+    // with no message, looking like a dead button.
+    const handleConfirm = async () => {
+        setIsConfirming(true);
+        try {
+            await action.onConfirm();
+            onClose();
+        } catch (error: any) {
+            console.error("Confirm action failed", error);
+            toast.error(error?.message || "Action failed. Please try again.");
+        } finally {
+            setIsConfirming(false);
+        }
+    };
 
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -127,18 +146,17 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ action, onClose }) =
                 <div className="bg-gray-50 px-6 py-4 flex gap-3 justify-end border-t border-gray-100">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-white text-gray-700 font-bold rounded-lg hover:bg-gray-100 border border-gray-200 transition"
+                        disabled={isConfirming}
+                        className="px-4 py-2 bg-white text-gray-700 font-bold rounded-lg hover:bg-gray-100 border border-gray-200 transition disabled:opacity-50"
                     >
                         Cancel
                     </button>
                     <button
-                        onClick={async () => {
-                            await action.onConfirm();
-                            onClose();
-                        }}
-                        className={`px-4 py-2 text-white font-bold rounded-lg shadow-sm transition ${action.isDestructive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                        onClick={handleConfirm}
+                        disabled={isConfirming}
+                        className={`px-4 py-2 text-white font-bold rounded-lg shadow-sm transition disabled:opacity-70 disabled:cursor-not-allowed ${action.isDestructive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                     >
-                        {action.confirmLabel}
+                        {isConfirming ? 'Working...' : action.confirmLabel}
                     </button>
                 </div>
             </div>

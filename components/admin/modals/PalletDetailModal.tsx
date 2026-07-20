@@ -101,9 +101,16 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
                                 {history.map((tx, idx) => (
                                     <div key={tx.id} className="relative pl-6">
                                         {/* Dot */}
+                                        {/* 'scrap' needs its own arm in both of these.
+                                            The final `else` here means "damage report",
+                                            so without it a scrap row was labelled
+                                            "Reported Damaged" -- the timeline would
+                                            show two damage reports and no sign the
+                                            pallet had been written off at all. */}
                                         <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${tx.action_type === 'check_out' ? 'bg-blue-500' :
                                             tx.action_type === 'check_in' || tx.action_type === 'repair' ? 'bg-green-500' :
-                                                'bg-red-500'
+                                                tx.action_type === 'scrap' ? 'bg-gray-500' :
+                                                    'bg-red-500'
                                             }`}></div>
 
                                         <div className="flex justify-between items-start">
@@ -112,7 +119,8 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
                                                     {tx.action_type === 'check_out' ? 'Checked Out' :
                                                         tx.action_type === 'check_in' ? 'Returned' :
                                                             tx.action_type === 'repair' ? 'Repaired' :
-                                                                'Reported Damaged'}
+                                                                tx.action_type === 'scrap' ? 'Scrapped' :
+                                                                    'Reported Damaged'}
                                                 </p>
                                                 <p className="text-xs text-gray-500 mt-0.5">
                                                     by <span className="font-medium text-gray-700">{userMap[tx.user_id] || `User ${tx.user_id}`}</span>

@@ -1,7 +1,11 @@
 
 export type Role = 'staff' | 'admin';
 
-export type PalletStatus = 'available' | 'in_use' | 'damaged';
+// 'scrapped' is terminal. A pallet reaches it only from 'damaged', never leaves
+// it, and is excluded from every fleet total and from the utilisation divisor.
+// It exists so a pallet can be retired without deleting the row, which would
+// cascade its entire transaction history away.
+export type PalletStatus = 'available' | 'in_use' | 'damaged' | 'scrapped';
 
 export interface User {
   id: string;
@@ -29,7 +33,10 @@ export interface Pallet {
   pallet_remark?: string; // Remark specifically for the pallet entity
 }
 
-export type ActionType = 'check_out' | 'check_in' | 'report_damage' | 'repair';
+// 'scrap' is the audit record for retiring a pallet. Without it the write that
+// takes a pallet out of service would leave no trace in the history, which is
+// the whole reason 'scrapped' exists instead of a delete.
+export type ActionType = 'check_out' | 'check_in' | 'report_damage' | 'repair' | 'scrap';
 
 export interface Transaction {
   id: string;

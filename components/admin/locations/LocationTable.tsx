@@ -185,10 +185,14 @@ export const LocationTable: React.FC<LocationTableProps> = ({
                                         <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                                             {editingId === dept.id ? (
                                                 <>
+                                                    {/* Blank (or whitespace-only) names were
+                                                        saveable here, unlike in the add/edit
+                                                        modal which has always required one. */}
                                                     <button
                                                         onClick={() => onSave(dept.id)}
-                                                        className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-full transition"
-                                                        title="Save Changes"
+                                                        disabled={!editForm.name.trim()}
+                                                        className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-full transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-50"
+                                                        title={editForm.name.trim() ? "Save Changes" : "Enter a location name first"}
                                                     >
                                                         <Save size={18} />
                                                     </button>

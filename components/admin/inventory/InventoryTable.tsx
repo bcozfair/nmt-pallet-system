@@ -1,7 +1,7 @@
 import React from 'react';
 import {
     ArrowUpDown, ArrowUp, ArrowDown, CircleCheckBig, QrCode, Trash2,
-    MapPin, AlertCircle, Clock, Search, Edit2, FileText
+    MapPin, AlertCircle, Clock, Search, Edit2, FileText, Ban
 } from 'lucide-react';
 import { Pallet } from '../../../types';
 import { formatDateTime, StatusBadge } from '../common/AdminHelpers';
@@ -24,6 +24,7 @@ interface InventoryTableProps {
     // Actions
     onSelectPallet: (id: string) => void;
     onRepairRow: (id: string) => void;
+    onScrapRow: (id: string) => void;
     onPrintQr: (pallets: Pallet[]) => void; // Expects an array, even if size 1
     onDeleteClick: (id: string, e: React.MouseEvent) => void;
     onEditRow?: (pallet: Pallet) => void; // Optional for now to avoid breaking parent immediately, but will implement
@@ -51,6 +52,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
     onSort,
     onSelectPallet,
     onRepairRow,
+    onScrapRow,
     onPrintQr,
     onDeleteClick,
     overdueThreshold,
@@ -170,14 +172,27 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                     </td>
                                     <td className="p-3 text-right">
                                         <div className="flex justify-end gap-1">
+                                            {/* Both resolutions for a damaged pallet, side by side:
+                                                repair it, or write it off. Scrapping is reachable
+                                                only from 'damaged', so a written-off pallet always
+                                                has a damage report explaining why. */}
                                             {p.status === 'damaged' && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onRepairRow(p.pallet_id); }}
-                                                    className="p-2 text-green-600 hover:bg-green-100 rounded-full transition"
-                                                    title="Mark as Repaired"
-                                                >
-                                                    <CircleCheckBig size={16} />
-                                                </button>
+                                                <>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onRepairRow(p.pallet_id); }}
+                                                        className="p-2 text-green-600 hover:bg-green-100 rounded-full transition"
+                                                        title="Mark as Repaired"
+                                                    >
+                                                        <CircleCheckBig size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onScrapRow(p.pallet_id); }}
+                                                        className="p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-full transition"
+                                                        title="Mark as Scrapped (retires the pallet, keeps its history)"
+                                                    >
+                                                        <Ban size={16} />
+                                                    </button>
+                                                </>
                                             )}
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onPrintQr([p]); }}

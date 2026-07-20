@@ -1,7 +1,13 @@
 import React from 'react';
 import { ArrowRightCircle, Trash2, Save, MapPin } from 'lucide-react';
 import { StagedItem, MobileMode } from './MobileInterface';
-import { Department } from '../../types';
+import { Department, PalletStatus } from '../../types';
+import { PALLET_STATUS_META } from '../admin/common/AdminHelpers';
+
+// StagedItem.status widens to 'unknown', which has no entry in the table --
+// fall back to a neutral chip rather than crashing on the lookup.
+const chipClassFor = (status: PalletStatus | 'unknown') =>
+    PALLET_STATUS_META[status as PalletStatus]?.chip ?? 'bg-gray-200 text-gray-600';
 
 interface BatchScanListProps {
     mode: MobileMode;
@@ -47,10 +53,11 @@ export const BatchScanList = ({ mode, pendingScans, selectedDept, isSubmitting, 
                                 <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
                                     <span className="font-mono font-bold text-gray-800 text-sm whitespace-nowrap">{item.id}</span>
                                     <span className="text-gray-300">|</span>
-                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${item.status === 'available' ? 'bg-green-100 text-green-700' :
-                                        item.status === 'in_use' ? 'bg-orange-100 text-orange-700' :
-                                            'bg-gray-200 text-gray-600'
-                                        }`}>
+                                    {/* Was a ternary whose `else` covered damaged,
+                                        scrapped and unknown with one grey chip, so a
+                                        written-off pallet was indistinguishable from a
+                                        broken one. Each status now carries its own. */}
+                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${chipClassFor(item.status)}`}>
                                         {item.status.replace('_', ' ')}
                                     </span>
                                     <span className="text-gray-300">|</span>

@@ -135,10 +135,16 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
     isProcessingRef.current = true;
 
     try {
+      // Every one of the three modes has to reject 'scrapped' explicitly.
+      // Check-in is the dangerous one: it sets status back to 'available', so
+      // without this guard scanning a written-off pallet would silently return
+      // it to the fleet and undo the fact that scrapped is terminal.
       if (mode === 'checkout_scanning' && selectedDept) {
         const pallet = await getPalletById(decodedText);
         if (!pallet) {
           handleFeedback('error', 'Pallet Not Found');
+        } else if (pallet.status === 'scrapped') {
+          handleFeedback('error', 'Pallet Scrapped');
         } else if (pallet.status === 'damaged') {
           handleFeedback('error', 'Pallet Damaged');
         } else {
@@ -150,6 +156,8 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
         const pallet = await getPalletById(decodedText);
         if (!pallet) {
           handleFeedback('error', 'Pallet Not Found');
+        } else if (pallet.status === 'scrapped') {
+          handleFeedback('error', 'Error: Pallet Scrapped');
         } else if (pallet.status === 'damaged') {
           handleFeedback('error', 'Error: Pallet Damaged');
         } else {
@@ -162,6 +170,8 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
 
         if (!pallet) {
           handleFeedback('error', 'Pallet Not Found');
+        } else if (pallet.status === 'scrapped') {
+          handleFeedback('error', 'Already Scrapped');
         } else if (pallet.status === 'damaged') {
           handleFeedback('error', 'Already Damaged');
         } else {

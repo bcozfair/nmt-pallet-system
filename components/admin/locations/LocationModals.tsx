@@ -30,12 +30,20 @@ export const LocationModal: React.FC<LocationModalProps> = ({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name.trim()) return;
+        const trimmed = name.trim();
+        if (!trimmed) return;
 
         setIsSubmitting(true);
         try {
-            await onSave(name);
+            await onSave(trimmed);
             onClose();
+        } catch (error) {
+            // The parent has already shown the reason (duplicate name, RLS,
+            // network). Catching it here is what keeps the modal open with the
+            // typed name intact so it can be corrected -- and stops the
+            // rejection going unhandled, which previously left the dialog
+            // frozen with no message on screen at all.
+            console.error("Location save failed", error);
         } finally {
             setIsSubmitting(false);
         }

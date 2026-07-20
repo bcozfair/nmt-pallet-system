@@ -70,6 +70,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 return <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold border border-red-200">DAMAGE REPORT</span>;
             case 'repair':
                 return <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold border border-green-200">REPAIRED</span>;
+            case 'scrap':
+                return <span className="px-2 py-1 rounded-full bg-gray-200 text-gray-700 text-xs font-bold border border-gray-300">SCRAPPED</span>;
             default:
                 return <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-bold border border-gray-200">{action}</span>;
         }

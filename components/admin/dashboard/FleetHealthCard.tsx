@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart } from 'lucide-react';
+import { PieChart, Ban } from 'lucide-react';
 import { StatusDonutChart } from '../charts/StatusDonutChart';
 
 interface FleetHealthCardProps {
@@ -8,6 +8,7 @@ interface FleetHealthCardProps {
         available: number;
         in_use: number;
         damaged: number;
+        scrapped: number;
     };
 }
 
@@ -26,6 +27,15 @@ export const FleetHealthCard: React.FC<FleetHealthCardProps> = ({ stats }) => {
             <div className="flex-1 flex items-center justify-center overflow-hidden">
                 <StatusDonutChart stats={stats} />
             </div>
+            {/* Scrapped is deliberately not a fourth donut segment. It is not part
+                of the fleet, and adding it would stop the three real statuses from
+                summing to 100%. It is a footnote so the number is still visible. */}
+            {stats.scrapped > 0 && (
+                <div className="shrink-0 pt-3 mt-2 border-t border-gray-100 flex items-center justify-center gap-1.5 text-xs text-gray-400 font-medium">
+                    <Ban size={12} />
+                    <span>{stats.scrapped} scrapped — excluded from fleet totals</span>
+                </div>
+            )}
         </div>
     );
 };

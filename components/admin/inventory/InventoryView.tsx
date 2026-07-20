@@ -64,6 +64,8 @@ export const InventoryView = ({
         handleBulkRepair,
         handleBulkDelete,
         handleRepairRow,
+        handleScrapRow,
+        handleBulkScrap,
         handleConfirmBulkTransaction,
         handleSavePalletEdit,
         handleExportFiltered
@@ -73,7 +75,16 @@ export const InventoryView = ({
     const onPrintQrSelected = () => onPrintQr(processedPallets.filter(p => selectedIds.has(p.pallet_id)));
     const onPrintQrAll = () => onPrintQr(processedPallets);
 
-    const hasDamagedInSelection = Array.from(selectedIds).some(id => processedPallets.find(p => p.pallet_id === id)?.status === 'damaged');
+    // Gates the bulk check-out/check-in button. Scrapped counts as unusable
+    // alongside damaged: a written-off pallet must not be movable, and a
+    // check-in in particular would flip it back to 'available' and undo the
+    // fact that scrapped is terminal.
+    const selectedIdList = Array.from(selectedIds) as string[];
+    const statusOf = (id: string) => processedPallets.find(p => p.pallet_id === id)?.status;
+    const hasUnusableInSelection = selectedIdList.some(id => {
+        const status = statusOf(id);
+        return status === 'damaged' || status === 'scrapped';
+    });
 
     return (
         <div className="h-[calc(100vh-110px)] flex flex-col gap-6 overflow-hidden">
@@ -83,14 +94,15 @@ export const InventoryView = ({
                     selectedIds={Array.from(selectedIds)}
                     onClearSelection={() => setSelectedIds(new Set())}
                     onBulkRepair={() => handleBulkRepair(selectedIds)}
+                    onBulkScrap={() => handleBulkScrap(selectedIds)}
                     onBulkDelete={() => handleBulkDelete(selectedIds)}
                     onPrintQrSelected={onPrintQrSelected}
                     onPrintQrAll={onPrintQrAll}
                     onExport={() => handleExportFiltered(processedPallets)}
                     onAddPallet={() => setIsAddModalOpen(true)}
                     onBulkTransaction={() => setIsBulkTransModalOpen(true)}
-                    showRepairButton={selectedIds.size > 0 && Array.from(selectedIds).every(id => processedPallets.find(p => p.pallet_id === id)?.status === 'damaged')}
-                    showTransactionButton={!hasDamagedInSelection}
+                    showRepairButton={selectedIds.size > 0 && selectedIdList.every(id => statusOf(id) === 'damaged')}
+                    showTransactionButton={!hasUnusableInSelection}
                 />
             </div>
 
@@ -123,6 +135,7 @@ export const InventoryView = ({
                     onSort={handleSort}
                     onSelectPallet={onSelectPallet}
                     onRepairRow={handleRepairRow}
+                    onScrapRow={handleScrapRow}
                     onPrintQr={onPrintQr}
                     onDeleteClick={handleDeleteClick}
                     onEditRow={(p) => setEditPallet({ id: p.pallet_id, remark: p.pallet_remark || '' })}

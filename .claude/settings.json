@@ -16,7 +16,10 @@
       "Bash(PYTHONIOENCODING=utf-8 python \"C:/Users/bcozf/AppData/Local/Temp/claude/c--Users-bcozf-Downloads-nmt-pallet-system/dfd63fb3-e807-4db2-ac33-4420b92939fa/scratchpad/make_icons.py\")",
       "Bash(PYTHONIOENCODING=utf-8 python -)",
       "Bash(python -c \"import json;m=json.load\\(open\\('dist/manifest.json'\\)\\);print\\('valid JSON,',len\\(m['icons']\\),'icons,',len\\(m['shortcuts']\\),'shortcuts'\\)\")",
-      "Bash(openssl x509 *)"
+      "Bash(openssl x509 *)",
+      "Bash(timeout 180 ./node_modules/.bin/tsc --noEmit)",
+      "PowerShell($out = & \".\\\\node_modules\\\\.bin\\\\tsc.cmd\" --noEmit; $out | Select-Object -First 15; \"---TOTAL LINES: $\\($out.Count\\)\")",
+      "Read(//c/Users/bcozf/.claude/plans/**)"
     ],
     "additionalDirectories": [
       "c:\\Users\\bcozf\\Downloads\\nmt-pallet-system"

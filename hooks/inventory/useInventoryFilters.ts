@@ -54,7 +54,14 @@ export const useInventoryFilters = (
     const processedPallets = useMemo(() => {
         let data = pallets.filter(p => {
             const matchesSearch = p.pallet_id.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+            // 'all' means the working fleet, not literally everything. Scrapped
+            // pallets are excluded from every fleet total and from utilisation,
+            // so listing them by default would contradict the counts on screen
+            // and fill the list with assets nobody can act on. They are still
+            // reachable through the explicit Scrapped option.
+            const matchesStatus = statusFilter === 'all'
+                ? p.status !== 'scrapped'
+                : p.status === statusFilter;
             const matchesLocation = locationFilter === 'all' || p.current_location === locationFilter;
 
             let matchesDate = true;

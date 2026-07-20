@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { Pallet, Transaction } from '../types';
-import { fetchPallets, deletePallet } from './palletService';
+import { fetchPallets } from './palletService';
 import { DAMAGE_BUCKET, IMAGE_DELETED, extractObjectName } from './storageService';
 
 // --- TRANSACTIONS (Check In/Out/Damage) ---
@@ -114,13 +114,38 @@ export const fetchDamagedWithEvidence = async (): Promise<(Pallet & { evidence_u
     return enriched;
 };
 
-export const resolveDamage = async (palletId: string, action: 'repair' | 'discard', userId?: string): Promise<boolean> => {
-    if (action === 'discard') {
-        await deletePallet(palletId);
-        return true;
-    }
-    // If repair, set status to available
-    // 1. Find the latest damage report transaction to clean up image
+/**
+ * Returns a damaged pallet to stock.
+ *
+ * The old 'discard' branch is gone. It called deletePallet(), and
+ * transactions.pallet_id is ON DELETE CASCADE, so "discarding" a pallet erased
+ * every trace it had ever existed -- and it skipped the storage cleanup below,
+ * leaving the evidence image orphaned in the bucket forever. Retiring a pallet
+ * now goes through scrapPallet(), which keeps both. Nothing ever called the
+ * discard branch anyway; no screen was wired to it.
+ */
+export const resolveDamage = async (palletId: string, userId?: string): Promise<boolean> => {
+    const timestamp = new Date().toISOString();
+
+    // The pallet row is updated FIRST, before any destructive cleanup. The old
+    // order deleted the evidence image first, so a failure on this update left
+    // the photo permanently gone while the pallet was still 'damaged' -- an
+    // unrecoverable state, since the evidence for the next attempt no longer
+    // existed. current_location is reset alongside status because the repair
+    // transaction below is logged with department_dest 'Warehouse'; leaving the
+    // pallet at its old location made the row and its own log disagree.
+    const { error } = await supabase.from('pallets').update({
+        status: 'available',
+        current_location: 'Warehouse',
+        last_checkout_date: null,
+        last_transaction_date: timestamp
+    }).eq('pallet_id', palletId);
+    if (error) throw error;
+
+    // Now the cleanup. Find the latest damage report to remove its image: the
+    // pallet is repaired, so the photo has no further purpose and the bucket
+    // should not accumulate it. Everything here is best-effort -- the repair
+    // itself has already been committed above.
     const { data: transData } = await supabase.from('transactions')
         .select('id, evidence_image_url')
         .eq('pallet_id', palletId)
@@ -155,16 +180,9 @@ export const resolveDamage = async (palletId: string, action: 'repair' | 'discar
             }
         } catch (e) {
             console.error("Failed to cleanup image", e);
-            // Non-blocking, continue to resolve pallet
+            // Non-blocking, the pallet is already repaired.
         }
     }
-
-    const { error } = await supabase.from('pallets').update({
-        status: 'available',
-        last_checkout_date: null,
-        last_transaction_date: new Date().toISOString()
-    }).eq('pallet_id', palletId);
-    if (error) throw error;
 
     // Log "Repaired" Transaction
     if (userId) {
@@ -174,10 +192,80 @@ export const resolveDamage = async (palletId: string, action: 'repair' | 'discar
             action_type: 'repair',
             transaction_remark: 'Pallet repaired (returned to stock)',
             department_dest: 'Warehouse', // Usually returned to stock
-            timestamp: new Date().toISOString()
+            timestamp
         });
         if (transError) console.error("Failed to log repair transaction", transError);
     }
+
+    return true;
+};
+
+/**
+ * Retires a pallet permanently, keeping its history.
+ *
+ * This is the replacement for deleting a pallet that cannot be repaired.
+ * Deleting cascades the transaction rows away; this keeps every one of them and
+ * adds a 'scrap' row of its own, so the audit trail still shows the pallet
+ * existed, what happened to it, and who decided.
+ *
+ * Only reachable from 'damaged', so a scrapped pallet always has a damage
+ * report -- with a photo -- explaining why. That evidence is deliberately NOT
+ * cleaned up the way resolveDamage() cleans it up: for a repair the photo is
+ * spent, but for a scrap it is the justification for writing the asset off.
+ *
+ * 'scrapped' is terminal. Nothing sets a pallet back out of it; an accidental
+ * scrap is corrected by creating a new pallet.
+ */
+export const scrapPallet = async (palletId: string, userId?: string, reason?: string): Promise<boolean> => {
+    const timestamp = new Date().toISOString();
+
+    // Unlike the repair path, which logs best-effort, no caller may scrap
+    // anonymously. Skipping the insert when userId is missing would retire the
+    // pallet with nothing in the audit trail saying who did it or why -- which
+    // is the exact failure this whole status was introduced to prevent. Checked
+    // before the pallet row is touched so the refusal leaves no partial state.
+    if (!userId) {
+        throw new Error('Cannot scrap a pallet without a signed-in user to attribute it to.');
+    }
+
+    // Guard on the server's copy of the state, not on whatever the list in the
+    // browser last rendered. Reaching 'scrapped' from anywhere but 'damaged'
+    // would skip the damage report that is supposed to justify it.
+    const { data: pallet, error: readError } = await supabase
+        .from('pallets')
+        .select('status')
+        .eq('pallet_id', palletId)
+        .maybeSingle();
+
+    if (readError) throw readError;
+    if (!pallet) throw new Error(`Pallet ${palletId} not found.`);
+    if (pallet.status === 'scrapped') {
+        throw new Error(`Pallet ${palletId} is already scrapped.`);
+    }
+    if (pallet.status !== 'damaged') {
+        throw new Error(
+            `Pallet ${palletId} must be reported as damaged before it can be scrapped (it is currently ${pallet.status}).`
+        );
+    }
+
+    const { error: palletError } = await supabase.from('pallets').update({
+        status: 'scrapped',
+        last_checkout_date: null,
+        last_transaction_date: timestamp
+    }).eq('pallet_id', palletId);
+    if (palletError) throw palletError;
+
+    // This row is the audit record, so unlike the repair log above its failure
+    // is fatal rather than logged and swallowed.
+    const { error: transError } = await supabase.from('transactions').insert({
+        pallet_id: palletId,
+        user_id: userId,
+        action_type: 'scrap',
+        transaction_remark: reason?.trim() || 'Pallet scrapped (written off, beyond repair)',
+        department_dest: null,
+        timestamp
+    });
+    if (transError) throw transError;
 
     return true;
 };

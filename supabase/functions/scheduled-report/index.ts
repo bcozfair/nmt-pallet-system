@@ -332,7 +332,11 @@ async function sendEveningReport(supabase: any, settings: any) {
 
     // Logic: Summary
     const { data: pallets } = await supabase.from('pallets').select('status, current_location')
-    const total = pallets.length
+    // TOTAL PALLETS is the working fleet, so the three cells below still add up
+    // to it. Scrapped pallets have been written off and are excluded from every
+    // fleet total in the app; the report has to agree or the two disagree.
+    const scrapped = pallets.filter((p: any) => p.status === 'scrapped').length
+    const total = pallets.length - scrapped
     const available = pallets.filter((p: any) => p.status === 'available').length
     const damaged = pallets.filter((p: any) => p.status === 'damaged').length
     const inUseItems = pallets.filter((p: any) => p.status === 'in_use')
@@ -410,6 +414,17 @@ async function sendEveningReport(supabase: any, settings: any) {
                         }
                     ]
                 },
+                // One line rather than a fourth cell in the grid above: four
+                // columns crowd the Flex layout, and scrapped is not a peer of
+                // the other three -- it sits outside the total they sum to.
+                ...(scrapped > 0 ? [{
+                    type: "text",
+                    text: `Scrapped (excluded): ${scrapped}`,
+                    size: "xs",
+                    color: "#9CA3AF",
+                    align: "center",
+                    margin: "lg"
+                }] : []),
                 { type: "separator", margin: "xl" },
                 { type: "text", text: "Active Locations (In Use)", weight: "bold", size: "sm", margin: "lg", color: "#555555" },
                 // Location Breakdown

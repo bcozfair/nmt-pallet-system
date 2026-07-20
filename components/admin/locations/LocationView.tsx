@@ -83,6 +83,11 @@ export const LocationView: React.FC = () => {
 
         // 2. Tally Current Pallets
         pallets.forEach(p => {
+            // Scrapped pallets have left the fleet, so they do not count toward
+            // a location's holdings -- matching Total Fleet on the dashboard and
+            // the location charts.
+            if (p.status === 'scrapped') return;
+
             // If pallet is in a location that we know about
             if (stats[p.current_location] !== undefined) {
                 const locStats = stats[p.current_location];
@@ -188,28 +193,58 @@ export const LocationView: React.FC = () => {
         setEditForm({ name: '' });
     };
 
+    // departments_name_unique_ci indexes lower(trim(name)), so a collision comes
+    // back as 23505 and the message has to explain the matching rule -- to
+    // someone typing "line a" next to an existing "Line A", a bare "duplicate"
+    // looks like a bug. Same shape as the 23503 handling in handleDeleteClick.
+    const reportSaveError = (error: any, attemptedName: string) => {
+        console.error("Location save failed", error);
+        if (error?.code === '23505') {
+            toast.error(`A location named "${attemptedName}" already exists. Names are compared ignoring capitalisation and surrounding spaces, so "Line A" and "line a" are the same location.`);
+        } else {
+            toast.error(`Failed to save location: ${error?.message || 'Unknown error'}`);
+        }
+    };
+
     const handleSaveEdit = async (id: string) => {
+        // Trim before writing, not just before comparing. The unique index
+        // matches on trim(name), so an untrimmed write would be rejected as a
+        // duplicate of a name that looks different on screen.
+        const trimmed = editForm.name.trim();
+        if (!trimmed) {
+            toast.error("Location name cannot be empty.");
+            return;
+        }
+
         try {
-            await updateDepartment(id, { name: editForm.name });
+            await updateDepartment(id, { name: trimmed });
             toast.success("Location updated");
             setEditingId(null);
             setEditForm({ name: '' });
             loadData();
-        } catch (error) {
-            console.error("Update failed", error);
-            toast.error("Failed to update location");
+        } catch (error: any) {
+            reportSaveError(error, trimmed);
+            // Stay in edit mode so the name can be corrected in place.
         }
     };
 
     const handleSave = async (name: string) => {
-        if (modalState.mode === 'add') {
-            await createDepartment(name);
-            toast.success(`Location "${name}" added`);
-        } else if (modalState.mode === 'edit' && modalState.id) {
-            await updateDepartment(modalState.id, { name });
-            toast.success("Location updated");
+        const trimmed = name.trim();
+        try {
+            if (modalState.mode === 'add') {
+                await createDepartment(trimmed);
+                toast.success(`Location "${trimmed}" added`);
+            } else if (modalState.mode === 'edit' && modalState.id) {
+                await updateDepartment(modalState.id, { name: trimmed });
+                toast.success("Location updated");
+            }
+            loadData();
+        } catch (error: any) {
+            reportSaveError(error, trimmed);
+            // Rethrown so LocationModal knows to stay open with the typed name
+            // still in the field, rather than closing over a failed save.
+            throw error;
         }
-        loadData();
     };
 
     const handleToggleActive = async (dept: Department) => {

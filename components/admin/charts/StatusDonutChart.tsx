@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { PALLET_STATUS_META } from '../common/AdminHelpers';
 
 export const StatusDonutChart = ({ stats }: { stats: { available: number, in_use: number, damaged: number, total: number } }) => {
     const size = 200;
@@ -15,12 +16,15 @@ export const StatusDonutChart = ({ stats }: { stats: { available: number, in_use
         return () => clearTimeout(timer);
     }, []);
 
+    // Three segments only. `stats.total` excludes scrapped pallets, so these
+    // three sum to exactly 100% -- adding a scrapped segment would break that,
+    // which is why the dashboard shows that count as a footnote instead.
     const segments = useMemo(() => {
         const total = stats.total || 1;
         return [
-            { key: 'available', label: 'Available', value: stats.available, color: 'text-emerald-500', stroke: '#10B981', percent: (stats.available / total) * 100 },
-            { key: 'in_use', label: 'In Use', value: stats.in_use, color: 'text-blue-500', stroke: '#3B82F6', percent: (stats.in_use / total) * 100 },
-            { key: 'damaged', label: 'Damaged', value: stats.damaged, color: 'text-red-500', stroke: '#EF4444', percent: (stats.damaged / total) * 100 }
+            { key: 'available', label: PALLET_STATUS_META.available.label, value: stats.available, color: 'text-emerald-500', stroke: PALLET_STATUS_META.available.stroke, percent: (stats.available / total) * 100 },
+            { key: 'in_use', label: PALLET_STATUS_META.in_use.label, value: stats.in_use, color: 'text-blue-500', stroke: PALLET_STATUS_META.in_use.stroke, percent: (stats.in_use / total) * 100 },
+            { key: 'damaged', label: PALLET_STATUS_META.damaged.label, value: stats.damaged, color: 'text-red-500', stroke: PALLET_STATUS_META.damaged.stroke, percent: (stats.damaged / total) * 100 }
         ];
     }, [stats]);
 

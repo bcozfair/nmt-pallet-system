@@ -98,6 +98,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
                             <option value="check_in">Check In</option>
                             <option value="report_damage">Damage Report</option>
                             <option value="repair">Repair</option>
+                            <option value="scrap">Scrap</option>
                         </select>
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                             <ChevronRight size={14} className="rotate-90" />

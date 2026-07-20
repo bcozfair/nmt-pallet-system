@@ -3,11 +3,11 @@ import { useState } from 'react';
 import { Pallet, Transaction } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { deletePallet, updatePallet } from '../../services/palletService';
-import { resolveDamage, createBulkTransaction } from '../../services/transactionService';
+import { resolveDamage, scrapPallet, createBulkTransaction } from '../../services/transactionService';
 import { fetchUsers } from '../../services/userService';
 import { supabase } from '../../services/supabase';
 import { toast } from '../../services/toast';
-import { formatDate } from '../../components/admin/common/AdminHelpers';
+import { formatDate, palletStatusLabel } from '../../components/admin/common/AdminHelpers';
 import { ConfirmActionType } from '../../components/admin/inventory/InventoryModals';
 
 export const useInventoryActions = (
@@ -24,10 +24,14 @@ export const useInventoryActions = (
 
     // --- Action Handlers ---
 
+    // The warning has to name the history loss. transactions.pallet_id is
+    // ON DELETE CASCADE, so this does not just remove the pallet -- it removes
+    // every record of what the pallet ever did. Scrapping is the option that
+    // retires a pallet and keeps the trail.
     const handleDeleteClick = (id: string) => {
         setConfirmAction({
             title: "Delete Pallet?",
-            message: `Are you sure you want to delete ${id}? This action cannot be undone.`,
+            message: `Permanently delete ${id}? Its ENTIRE transaction history will be deleted with it and cannot be recovered. To retire a pallet while keeping its history, mark it Scrapped instead.`,
             confirmLabel: "Delete",
             isDestructive: true,
             onConfirm: async () => {
@@ -45,7 +49,7 @@ export const useInventoryActions = (
             confirmLabel: "Mark Repaired",
             isDestructive: false,
             onConfirm: async () => {
-                await Promise.all(Array.from(selectedIds).map((id: string) => resolveDamage(id, 'repair', user?.id)));
+                await Promise.all(Array.from(selectedIds).map((id: string) => resolveDamage(id, user?.id)));
                 toast.success(`${selectedIds.size} items marked as repaired.`);
                 setSelectedIds(new Set());
                 onRefresh();
@@ -56,7 +60,7 @@ export const useInventoryActions = (
     const handleBulkDelete = (selectedIds: Set<string>) => {
         setConfirmAction({
             title: "Delete Selected Items?",
-            message: `Are you sure you want to PERMANENTLY DELETE ${selectedIds.size} pallets? This cannot be undone.`,
+            message: `PERMANENTLY DELETE ${selectedIds.size} pallets? The ENTIRE transaction history of each one will be deleted with it and cannot be recovered. To retire pallets while keeping their history, mark them Scrapped instead.`,
             confirmLabel: "Delete All",
             isDestructive: true,
             onConfirm: async () => {
@@ -75,8 +79,40 @@ export const useInventoryActions = (
             confirmLabel: "Repair",
             isDestructive: false,
             onConfirm: async () => {
-                await resolveDamage(id, 'repair', user?.id);
+                await resolveDamage(id, user?.id);
                 toast.success(`Pallet ${id} repaired.`);
+                onRefresh();
+            }
+        });
+    };
+
+    // Scrapping is destructive in the sense that matters: it is terminal, and
+    // the only way back is to create a new pallet. The evidence photo and the
+    // whole history survive, which is the difference from Delete.
+    const handleScrapRow = (id: string) => {
+        setConfirmAction({
+            title: "Scrap Pallet?",
+            message: `Mark ${id} as Scrapped? It leaves the fleet permanently and cannot be returned to service — but its history and damage evidence are kept.`,
+            confirmLabel: "Scrap",
+            isDestructive: true,
+            onConfirm: async () => {
+                await scrapPallet(id, user?.id);
+                toast.success(`Pallet ${id} scrapped.`);
+                onRefresh();
+            }
+        });
+    };
+
+    const handleBulkScrap = (selectedIds: Set<string>) => {
+        setConfirmAction({
+            title: "Scrap Selected Items?",
+            message: `Mark ${selectedIds.size} items as Scrapped? They leave the fleet permanently and cannot be returned to service — but their history and damage evidence are kept.`,
+            confirmLabel: "Scrap All",
+            isDestructive: true,
+            onConfirm: async () => {
+                await Promise.all(Array.from(selectedIds).map((id: string) => scrapPallet(id, user?.id)));
+                toast.success(`${selectedIds.size} items scrapped.`);
+                setSelectedIds(new Set());
                 onRefresh();
             }
         });
@@ -192,7 +228,7 @@ export const useInventoryActions = (
 
                 return [
                     p.pallet_id,
-                    p.status,
+                    palletStatusLabel(p.status),
                     p.current_location,
                     formatDate(p.created_at) || '-',
                     tx ? formatDate(tx.timestamp) : '-',
@@ -237,6 +273,8 @@ export const useInventoryActions = (
         handleBulkRepair,
         handleBulkDelete,
         handleRepairRow,
+        handleScrapRow,
+        handleBulkScrap,
         handleConfirmBulkTransaction,
         handleSavePalletEdit,
         handleExportFiltered

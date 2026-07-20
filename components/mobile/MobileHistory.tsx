@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { ArrowLeft, Clock, ArrowRightCircle, ArrowLeftCircle, AlertTriangle, Wrench, Search, Calendar, Filter, X } from 'lucide-react';
+import { ArrowLeft, Clock, ArrowRightCircle, ArrowLeftCircle, AlertTriangle, Wrench, Search, Calendar, Filter, X, Ban } from 'lucide-react';
 import { Transaction } from '../../types';
 import { fetchUserTransactions, fetchUserTransactionDates } from '../../services/transactionService';
 import { formatDateTime } from '../admin/common/AdminHelpers';
@@ -88,6 +88,7 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
             case 'check_in': return <ArrowLeftCircle size={20} className="text-green-500" />;
             case 'report_damage': return <AlertTriangle size={20} className="text-red-500" />;
             case 'repair': return <Wrench size={20} className="text-orange-500" />;
+            case 'scrap': return <Ban size={20} className="text-gray-500" />;
             default: return <Clock size={20} className="text-gray-400" />;
         }
     };
@@ -98,6 +99,7 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
             case 'check_in': return 'Check In';
             case 'report_damage': return 'Report Damage';
             case 'repair': return 'Repaired';
+            case 'scrap': return 'Scrapped';
             default: return action.replace('_', ' ');
         }
     };

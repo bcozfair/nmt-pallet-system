@@ -14,6 +14,13 @@
 -- Apply order inside this file matters: extensions -> tables -> functions ->
 -- triggers -> policies. The policies call is_admin(), so the function has to
 -- exist first; the foreign keys require their target tables first.
+--
+-- The 20260720_* files beside it are the ALTER form of the same changes, for
+-- databases that already hold data and so cannot be recreated from this file.
+-- Their content is folded in here as well, which is why running this file and
+-- then those three in order is a no-op rather than an error -- all three are
+-- written to be re-runnable. Unlike the 16 files above they are kept, not
+-- deleted, because other environments still need them.
 -- =============================================================================
 
 
@@ -33,6 +40,14 @@ create extension if not exists pgcrypto;      -- crypt()/gen_salt(), used by adm
 -- id: users.department, pallets.current_location and transactions.
 -- department_dest all store the text name. Renaming a department therefore does
 -- not propagate. 'Warehouse' is a magic value meaning "not checked out".
+--
+-- Because the join key is the name, the name has to be unique or the joins are
+-- ambiguous -- LocationView keys its stats map by name, so two rows sharing one
+-- name make the second overwrite the first and both display the same
+-- over-counted figures. departments_name_unique_ci below enforces that,
+-- case- and whitespace-insensitively: 'Line A', 'line a' and '  Line A  ' are
+-- one department. The trigger further down keeps the stored value trimmed so
+-- the displayed name always matches what the index compared.
 create table if not exists public.departments (
     id          uuid primary key default uuid_generate_v4(),
     name        text not null,
@@ -40,13 +55,21 @@ create table if not exists public.departments (
     created_at  timestamptz not null default timezone('utc', now())
 );
 
+create unique index if not exists departments_name_unique_ci
+    on public.departments (lower(trim(name)));
+
 -- ---- pallets ---------------------------------------------------------------
 -- pallet_id is the text encoded in the physical QR label, and is the primary
 -- key -- there is no surrogate id.
+--
+-- 'scrapped' is terminal: a pallet reaches it only from 'damaged', never leaves
+-- it, and is excluded from every fleet total and from the utilisation divisor.
+-- It exists so a pallet can be retired without deleting the row -- see the
+-- warning on transactions below for why deleting one is destructive.
 create table if not exists public.pallets (
     pallet_id              text primary key,
     status                 text default 'available'
-                             check (status in ('available', 'in_use', 'damaged')),
+                             check (status in ('available', 'in_use', 'damaged', 'scrapped')),
     current_location       text,
     last_checkout_date     timestamptz,
     created_at             timestamptz not null default timezone('utc', now()),
@@ -72,20 +95,36 @@ create table if not exists public.users (
 --
 -- WARNING, and it is deliberate that this is spelled out: the pallet_id foreign
 -- key is ON DELETE CASCADE. Deleting a pallet silently deletes its entire
--- history. The "Discard" branch of the damage-resolution flow does exactly
--- that. The user_id key has no cascade, which is what makes
--- delete_user_complete() refuse to remove a user who has history.
+-- history. That is why retiring a pallet sets status = 'scrapped' and writes a
+-- 'scrap' transaction rather than deleting the row; permanent delete is still
+-- offered in the UI, but its warning now says the history goes with it. The
+-- user_id key has no cascade, which is what makes delete_user_complete()
+-- refuse to remove a user who has history.
 create table if not exists public.transactions (
     id                  uuid primary key default uuid_generate_v4(),
     pallet_id           text not null references public.pallets(pallet_id) on delete cascade,
     user_id             uuid not null references public.users(id),
     action_type         text not null
-                          check (action_type in ('check_out', 'check_in', 'report_damage', 'repair')),
+                          check (action_type in ('check_out', 'check_in', 'report_damage', 'repair', 'scrap')),
     department_dest     text,
     evidence_image_url  text,
     timestamp           timestamptz not null default timezone('utc', now()),
     transaction_remark  text
 );
+
+-- Every read of this table filters on user_id or pallet_id and orders by
+-- timestamp desc, and policy transactions_select_own_or_admin adds a user_id
+-- filter on top of that -- so without these three the table is scanned in full
+-- on every read. Leading column is the equality filter, trailing column the
+-- sort, which makes each query one range scan with no separate sort step.
+create index if not exists idx_transactions_pallet_ts
+    on public.transactions (pallet_id, timestamp desc);
+
+create index if not exists idx_transactions_user_ts
+    on public.transactions (user_id, timestamp desc);
+
+create index if not exists idx_transactions_ts
+    on public.transactions (timestamp desc);
 
 -- ---- system_settings -------------------------------------------------------
 -- Key/value configuration. is_secret drives the read policy: secret rows are
@@ -133,6 +172,19 @@ begin
                 using errcode = '42501';
         end if;
     end if;
+    return new;
+end;
+$$;
+
+-- Keeps departments.name trimmed on every write. departments_name_unique_ci
+-- compares trim(name), so without this a row could be stored with padding that
+-- the index ignored -- '  Line A  ' would be rejected as a duplicate while the
+-- existing row went on displaying its spaces. The Locations screen trims too;
+-- this covers every other writer (SQL editor, edge functions, future callers).
+create or replace function public.departments_normalise_name()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+    new.name := trim(new.name);
     return new;
 end;
 $$;
@@ -371,6 +423,11 @@ drop trigger if exists trg_prevent_role_escalation on public.users;
 create trigger trg_prevent_role_escalation
     before update on public.users
     for each row execute function public.prevent_role_escalation();
+
+drop trigger if exists trg_departments_normalise_name on public.departments;
+create trigger trg_departments_normalise_name
+    before insert or update on public.departments
+    for each row execute function public.departments_normalise_name();
 
 
 -- =============================================================================

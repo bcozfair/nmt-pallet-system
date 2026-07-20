@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, MapPin, ChevronRight, Calendar, ChevronDown, X, CheckCircle } from 'lucide-react';
 import { Department } from '../../../types';
+import { PALLET_STATUS_META, PALLET_STATUS_ORDER } from '../common/AdminHelpers';
 
 interface InventoryFiltersProps {
     searchTerm: string;
@@ -84,10 +85,14 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
                         >
-                            <option value="all">All Status</option>
-                            <option value="available">Available</option>
-                            <option value="in_use">In Use</option>
-                            <option value="damaged">Damaged</option>
+                            {/* "All" means the working fleet, so the list is not
+                                swamped by written-off pallets. Scrapped is its
+                                own option below, matching the way scrapped is
+                                excluded from every fleet total. */}
+                            <option value="all">All Active</option>
+                            {PALLET_STATUS_ORDER.map(status => (
+                                <option key={status} value={status}>{PALLET_STATUS_META[status].label}</option>
+                            ))}
                         </select>
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                             <ChevronRight size={14} className="rotate-90" />

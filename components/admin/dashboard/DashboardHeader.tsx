@@ -8,6 +8,7 @@ interface DashboardHeaderProps {
         available: number;
         in_use: number;
         damaged: number;
+        scrapped: number;
         overdueCount: number;
         utilizationRate: string;
         velocity7Days: number;
@@ -82,10 +83,14 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ stats }) => {
     const exportSummaryCSV = () => {
         const headers = ["Category", "Value"];
         const rows = [
-            ["Total Pallets", stats.total],
+            // "Total Pallets" is the working fleet, so the three status rows
+            // under it still add up to it. Scrapped is listed separately and
+            // labelled, rather than folded in where it would break that sum.
+            ["Total Pallets (Active)", stats.total],
             ["Available", stats.available],
             ["In Use", stats.in_use],
             ["Damaged", stats.damaged],
+            ["Scrapped (excluded from total)", stats.scrapped],
             ["Overdue Items", stats.overdueCount],
             ["Utilization Rate", stats.utilizationRate + "%"],
             ["7-Day Velocity", stats.velocity7Days]

@@ -22,11 +22,16 @@ export const DashboardHome = ({ pallets, onNavigateToInventory }: { pallets: Pal
         fetchPalletHistory('').then(t => setTransactions(t));
     }, []);
 
+    // `total` is the WORKING fleet: scrapped pallets have left it, so counting
+    // them would overstate the asset base and deflate utilisation (line below
+    // divides by this). Keeping scrapped out here is also what lets the donut
+    // chart's three segments add up to 100% again without touching it.
     const stats = {
-        total: pallets.length,
+        total: pallets.filter(p => p.status !== 'scrapped').length,
         available: pallets.filter(p => p.status === 'available').length,
         in_use: pallets.filter(p => p.status === 'in_use').length,
         damaged: pallets.filter(p => p.status === 'damaged').length,
+        scrapped: pallets.filter(p => p.status === 'scrapped').length,
     };
 
     const overdueCount = pallets.filter(p => {

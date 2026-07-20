@@ -8,6 +8,10 @@ export const LocationRiskMatrix = ({ pallets, threshold, onLocationSelect }: { p
 
         pallets.forEach(p => {
             if (p.current_location === 'Warehouse') return;
+            // Scrapped pallets are out of the fleet and are not "at" a location
+            // in any operational sense. Counting them would pad `total` and so
+            // quietly dilute every risk ratio computed from it below.
+            if (p.status === 'scrapped') return;
             if (!locs[p.current_location]) locs[p.current_location] = { total: 0, overdue: 0, damaged: 0 };
 
             locs[p.current_location].total++;

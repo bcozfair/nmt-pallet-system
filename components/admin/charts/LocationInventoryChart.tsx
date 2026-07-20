@@ -6,6 +6,9 @@ export const LocationInventoryChart = ({ pallets, onSelectLocation }: { pallets:
         const counts: Record<string, number> = {};
         pallets.forEach(p => {
             if (p.current_location === 'Warehouse') return;
+            // A written-off pallet is not stationed anywhere meaningful; its
+            // current_location is just wherever it happened to be when it broke.
+            if (p.status === 'scrapped') return;
             counts[p.current_location] = (counts[p.current_location] || 0) + 1;
         });
 
