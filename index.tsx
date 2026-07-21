@@ -2,6 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { syncDocumentLang } from './services/i18n';
+
+// index.html ships lang="en" as a static default; correct it to the stored
+// choice before the first paint. setLanguage() keeps it in step after that.
+syncDocumentLang();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

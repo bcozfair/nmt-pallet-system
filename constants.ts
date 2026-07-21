@@ -22,3 +22,8 @@ export const SESSION_IDLE_MS = 30 * 60 * 1000;         // signed out after this 
 export const AUTH_STORAGE_KEY = 'nmt_auth';                        // Supabase session
 export const PROFILE_CACHE_KEY = 'nmt_user_profile';               // cached role/profile
 export const PENDING_SCANS_KEY = 'nmt_mobile_pending_scans';       // unsubmitted scans
+
+// Deliberately NOT session-scoped: the language belongs to the device, not to
+// whoever is signed in. Adding it to SESSION_SCOPED_KEYS in sessionPolicy.ts
+// would reset the login screen to Thai every time someone signs out.
+export const LANG_STORAGE_KEY = 'nmt_lang';                        // 'th' | 'en'

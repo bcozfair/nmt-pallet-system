@@ -2,6 +2,7 @@ import React from 'react';
 import { LogOut, ArrowRightCircle, ArrowLeftCircle, AlertTriangle, User as UserIcon, History } from 'lucide-react';
 import { User } from '../../types';
 import { MobileMode } from './MobileInterface';
+import { useT } from '../../hooks/useT';
 
 interface MobileHomeProps {
     user: User;
@@ -10,6 +11,7 @@ interface MobileHomeProps {
 }
 
 export const MobileHome = ({ user, onLogout, onSetMode }: MobileHomeProps) => {
+    const t = useT();
     return (
         <div className="flex flex-col h-[calc(100vh-56px)] bg-gray-100">
             {/* Header */}
@@ -41,8 +43,8 @@ export const MobileHome = ({ user, onLogout, onSetMode }: MobileHomeProps) => {
                         <ArrowRightCircle size={40} />
                     </div>
                     <div className="text-center z-10">
-                        <h3 className="text-2xl font-bold text-gray-800 mb-1">Check Out</h3>
-                        <p className="text-sm text-gray-500 font-medium">To Department</p>
+                        <h3 className="text-2xl font-bold text-gray-800 mb-1">{t.mobileHome.checkOut}</h3>
+                        <p className="text-sm text-gray-500 font-medium">{t.mobileHome.checkOutSub}</p>
                     </div>
                 </button>
 
@@ -56,8 +58,8 @@ export const MobileHome = ({ user, onLogout, onSetMode }: MobileHomeProps) => {
                         <ArrowLeftCircle size={40} />
                     </div>
                     <div className="text-center z-10">
-                        <h3 className="text-2xl font-bold text-gray-800 mb-1">Check In</h3>
-                        <p className="text-sm text-gray-500 font-medium">Return to Warehouse</p>
+                        <h3 className="text-2xl font-bold text-gray-800 mb-1">{t.mobileHome.checkIn}</h3>
+                        <p className="text-sm text-gray-500 font-medium">{t.mobileHome.checkInSub}</p>
                     </div>
                 </button>
 
@@ -67,8 +69,8 @@ export const MobileHome = ({ user, onLogout, onSetMode }: MobileHomeProps) => {
                     className="h-24 bg-indigo-50 rounded-2xl border border-indigo-100 flex items-center justify-between px-8 hover:bg-indigo-100 hover:shadow-md active:scale-95 transition group shrink-0"
                 >
                     <div className="flex flex-col text-left">
-                        <span className="font-bold text-indigo-700 text-lg group-hover:text-indigo-800">My History</span>
-                        <span className="text-xs text-indigo-500 group-hover:text-indigo-600 font-medium">View Recent Activity</span>
+                        <span className="font-bold text-indigo-700 text-lg group-hover:text-indigo-800">{t.mobileHome.myHistory}</span>
+                        <span className="text-xs text-indigo-500 group-hover:text-indigo-600 font-medium">{t.mobileHome.myHistorySub}</span>
                     </div>
                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-indigo-500">
                         <History size={24} />
@@ -81,8 +83,8 @@ export const MobileHome = ({ user, onLogout, onSetMode }: MobileHomeProps) => {
                     className="h-24 bg-red-50 rounded-2xl border border-red-100 flex items-center justify-between px-8 hover:bg-red-100 hover:shadow-md active:scale-95 transition group shrink-0"
                 >
                     <div className="flex flex-col text-left">
-                        <span className="font-bold text-red-700 text-lg group-hover:text-red-800">Report Damage</span>
-                        <span className="text-xs text-red-500 group-hover:text-red-600 font-medium">Scan & Upload Evidence</span>
+                        <span className="font-bold text-red-700 text-lg group-hover:text-red-800">{t.mobileHome.reportDamage}</span>
+                        <span className="text-xs text-red-500 group-hover:text-red-600 font-medium">{t.mobileHome.reportDamageSub}</span>
                     </div>
                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
                         <AlertTriangle className="text-red-500" size={24} />

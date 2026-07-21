@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { X, Camera, Zap } from 'lucide-react';
+import { useT } from '../../hooks/useT';
+import { dict } from '../../services/i18n';
 
 interface QRScannerProps {
   onScanSuccess: (decodedText: string) => void;
@@ -15,6 +17,7 @@ const QRScanner: React.FC<QRScannerProps> = ({
   fps = 10,
   qrbox = 250
 }) => {
+  const t = useT();
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const onScanSuccessRef = useRef(onScanSuccess);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -58,7 +61,9 @@ const QRScanner: React.FC<QRScannerProps> = ({
       } catch (err) {
         console.error("Error starting scanner", err);
         if (isMounted) {
-          setScanError("Camera access denied or error starting scanner.");
+          // dict(), not the `t` above: this effect runs once with an empty
+          // dependency list, so a captured `t` would be a stale closure.
+          setScanError(dict().scanner.cameraError);
         }
       }
     };
@@ -84,7 +89,7 @@ const QRScanner: React.FC<QRScannerProps> = ({
           <div className="w-5 h-5 bg-black/50 rounded-full flex items-center justify-center border border-white/10 shadow-inner">
             <Camera className="w-5 h-5 text-green-400 animate-pulse" />
           </div>
-          <span className="text-white text-sm font-semibold tracking-wide">Scanning...</span>
+          <span className="text-white text-sm font-semibold tracking-wide">{t.scanner.scanning}</span>
         </div>
 
         {/* Close Button */}
@@ -114,7 +119,9 @@ const QRScanner: React.FC<QRScannerProps> = ({
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="bg-black/40 backdrop-blur-sm border border-white/10 px-5 py-2.5 rounded-full flex items-center gap-2.5 shadow-2xl">
               <Zap size={14} className="text-yellow-400 fill-yellow-400 animate-pulse" />
-              <span className="text-white font-bold text-xs tracking-[0.15em] uppercase">Align QR Code</span>
+              {/* No tracking/uppercase here any more: both are no-ops on Thai at
+                  best, and the wide letter-spacing detaches its tone marks. */}
+              <span className="text-white font-bold text-xs">{t.scanner.alignQr}</span>
             </div>
           </div>
         </div>

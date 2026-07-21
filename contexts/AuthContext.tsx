@@ -12,6 +12,7 @@ import {
 } from '../services/sessionPolicy';
 import { PROFILE_CACHE_KEY } from '../constants';
 import { toast } from '../services/toast';
+import { dict } from '../services/i18n';
 
 interface AuthContextType {
     user: AppUser | null;
@@ -88,10 +89,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const expireSession = useCallback(async (verdict: SessionVerdict) => {
         // Say why, or an unexplained bounce back to the login screen reads as a bug.
+        // dict() rather than a hook: this runs inside a useCallback that can fire
+        // from a timer or a visibilitychange listener, not during render.
         if (verdict === 'expired_max_age') {
-            toast.info("Your session has expired. Please sign in again.");
+            toast.info(dict().session.expired);
         } else {
-            toast.info("Signed out automatically due to inactivity.");
+            toast.info(dict().session.idle);
         }
         console.warn(`[Auth] Session expired (${verdict}).`);
         // quiet: login is already visible; do not flash "Loading System..." again.

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowRightCircle } from 'lucide-react';
 import { Department } from '../../types';
+import { useT } from '../../hooks/useT';
 
 interface LocationSelectorProps {
     departments: Department[];
@@ -9,14 +10,15 @@ interface LocationSelectorProps {
 }
 
 export const LocationSelector = ({ departments, onSelect, onCancel }: LocationSelectorProps) => {
+    const t = useT();
     return (
         <div className="flex flex-col h-screen bg-gray-50">
             <div className="bg-blue-600 text-white p-6 pb-12 rounded-b-[2.5rem] shadow-md relative overflow-hidden z-0 shrink-0">
                 <div className="absolute top-0 right-0 p-8 opacity-10">
                     <ArrowRightCircle size={100} />
                 </div>
-                <h1 className="text-2xl font-bold relative z-10">Select Destination</h1>
-                <p className="text-blue-100 relative z-10">Where are the pallets going?</p>
+                <h1 className="text-2xl font-bold relative z-10">{t.location.selectDestination}</h1>
+                <p className="text-blue-100 relative z-10">{t.location.whereGoing}</p>
             </div>
 
             <div className="flex-1 px-6 -mt-8 overflow-y-auto no-scrollbar pb-6 relative z-10">
@@ -40,7 +42,7 @@ export const LocationSelector = ({ departments, onSelect, onCancel }: LocationSe
                     onClick={onCancel}
                     className="w-full mt-6 py-4 bg-gray-200 rounded-xl text-gray-600 font-bold hover:bg-gray-300 transition"
                 >
-                    Cancel
+                    {t.common.cancel}
                 </button>
             </div>
         </div>

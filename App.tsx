@@ -5,14 +5,16 @@ import LoginPage from './components/LoginPage';
 import ResetPasswordPage from './components/ResetPasswordPage';
 import { ToastContainer } from './components/Toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { useT } from './hooks/useT';
 
 function AppContent() {
   const { user, loading, signOut, isPasswordRecovery } = useAuth();
+  const t = useT();
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 text-blue-600 font-medium">
-        Loading System...
+        {t.app.loadingSystem}
       </div>
     );
   }
@@ -40,7 +42,7 @@ function AppContent() {
         // Any other role means the profile is not resolved yet. Defaulting to the
         // staff interface here would show admins the wrong screen on every login.
         <div className="min-h-screen flex items-center justify-center bg-gray-50 text-blue-600 font-medium">
-          Loading Profile...
+          {t.app.loadingProfile}
         </div>
       )}
     </>

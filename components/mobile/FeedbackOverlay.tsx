@@ -1,13 +1,16 @@
 import React from 'react';
 import { CheckCircle, XCircle, ArrowRightCircle } from 'lucide-react';
+import { useT } from '../../hooks/useT';
 
 interface FeedbackOverlayProps {
     status: 'success' | 'error';
+    /** Already-translated: a pallet id on success, a t.scanError.* string otherwise. */
     text: string;
     onDismiss?: () => void;
 }
 
 export const FeedbackOverlay: React.FC<FeedbackOverlayProps> = ({ status, text, onDismiss }) => {
+    const t = useT();
     return (
         <div className={`fixed inset-0 z-[70] flex items-center justify-center ${status === 'error' ? 'pointer-events-auto bg-black/60 backdrop-blur-sm' : 'pointer-events-none'}`}>
             <div className={`
@@ -17,9 +20,15 @@ export const FeedbackOverlay: React.FC<FeedbackOverlayProps> = ({ status, text, 
         `}>
                 {status === 'success' ? <CheckCircle size={64} strokeWidth={3} /> : <XCircle size={64} strokeWidth={3} className="animate-bounce" />}
                 <div className="text-center">
-                    <span className="block text-4xl font-black tracking-widest">{text}</span>
-                    <span className="block text-sm uppercase font-bold mt-2 opacity-90 tracking-wide">
-                        {status === 'success' ? 'Added to List' : 'Action Failed'}
+                    {/* Success shows a pallet id -- monospace-ish, wide tracking reads
+                        well. Error shows a sentence, and in Thai wide tracking pushes
+                        the combining vowels and tone marks away from their base
+                        letters, so it gets normal spacing and a smaller size. */}
+                    <span className={`block font-black break-words ${status === 'success' ? 'text-4xl tracking-widest' : 'text-2xl'}`}>
+                        {text}
+                    </span>
+                    <span className="block text-sm font-bold mt-2 opacity-90">
+                        {status === 'success' ? t.scanner.addedToList : t.scanner.actionFailed}
                     </span>
                 </div>
 
@@ -29,7 +38,7 @@ export const FeedbackOverlay: React.FC<FeedbackOverlayProps> = ({ status, text, 
                         onClick={onDismiss}
                         className="mt-6 px-8 py-3 bg-white text-red-600 font-black text-lg rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center gap-2"
                     >
-                        <ArrowRightCircle size={24} /> CONTINUE SCANNING
+                        <ArrowRightCircle size={24} /> {t.scanner.continueScanning}
                     </button>
                 )}
             </div>

@@ -3,6 +3,8 @@ import { ArrowLeft, Clock, ArrowRightCircle, ArrowLeftCircle, AlertTriangle, Wre
 import { Transaction } from '../../types';
 import { fetchUserTransactions, fetchUserTransactionDates } from '../../services/transactionService';
 import { formatDateTime } from '../admin/common/AdminHelpers';
+import { useT } from '../../hooks/useT';
+import { ActionType } from '../../types';
 
 interface MobileHistoryProps {
     userId: string;
@@ -10,6 +12,7 @@ interface MobileHistoryProps {
 }
 
 export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) => {
+    const t = useT();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [availableDates, setAvailableDates] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
@@ -93,23 +96,21 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
         }
     };
 
-    const getActionLabel = (action: string) => {
-        switch (action) {
-            case 'check_out': return 'Check Out';
-            case 'check_in': return 'Check In';
-            case 'report_damage': return 'Report Damage';
-            case 'repair': return 'Repaired';
-            case 'scrap': return 'Scrapped';
-            default: return action.replace('_', ' ');
-        }
-    };
+    // The switch this replaces duplicated the same five labels that the admin
+    // side spells out separately; both now read the one table in the dictionary.
+    const getActionLabel = (action: string) =>
+        t.action[action as ActionType] ?? action.replace('_', ' ');
 
-    // Helper to format date for display in selector
+    // Helper to format date for display in selector.
+    //
+    // Pinned to en-GB. It used to pass `undefined`, meaning the *browser's*
+    // locale -- so a phone set to Thai already rendered these chips in a
+    // different format from every other date in the app. Dates are deliberately
+    // one fixed format everywhere; see the note in AdminHelpers.tsx.
     const formatDateChip = (dateStr: string) => {
-        if (!dateStr) return 'Recent';
+        if (!dateStr) return t.history.recent;
         const date = new Date(dateStr);
-        // "Today", "Yesterday" logic could go here
-        return date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+        return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
     };
 
     return (
@@ -127,7 +128,7 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                         <input
                             type="text"
-                            placeholder="Search ID, Location..."
+                            placeholder={t.history.searchPlaceholder}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full bg-gray-100 pl-9 pr-4 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition"
@@ -153,7 +154,7 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                                 }`}
                         >
                             <Calendar size={14} />
-                            {selectedDate ? formatDateChip(selectedDate) : 'Recent Only'}
+                            {selectedDate ? formatDateChip(selectedDate) : t.history.recentOnly}
                         </button>
 
                         {/* Date Dropdown */}
@@ -165,7 +166,7 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                                         onClick={() => { setSelectedDate(''); setShowDateSelect(false); }}
                                         className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${!selectedDate ? 'text-indigo-600 font-bold bg-indigo-50' : 'text-gray-600'}`}
                                     >
-                                        Recent (Last 50)
+                                        {t.history.recentLast50}
                                     </button>
                                     {availableDates.map(date => (
                                         <button
@@ -186,10 +187,10 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                     {/* Action Chips - Scrollable */}
                     <div className="flex-1 overflow-x-auto no-scrollbar flex items-center gap-2">
                         {[
-                            { id: 'all', label: 'All' },
-                            { id: 'check_out', label: 'Out' },
-                            { id: 'check_in', label: 'In' },
-                            { id: 'damage', label: 'Damage' }
+                            { id: 'all', label: t.history.filterAll },
+                            { id: 'check_out', label: t.history.filterOut },
+                            { id: 'check_in', label: t.history.filterIn },
+                            { id: 'damage', label: t.history.filterDamage }
                         ].map(action => (
                             <button
                                 key={action.id}
@@ -211,18 +212,18 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                 {loading ? (
                     <div className="flex flex-col items-center justify-center h-48 gap-3 text-gray-400">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-                        <span className="text-sm">Loading history...</span>
+                        <span className="text-sm">{t.history.loading}</span>
                     </div>
                 ) : filteredTransactions.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-64 text-gray-400 gap-2">
                         <Filter size={48} className="opacity-20" />
-                        <p>No transactions found</p>
+                        <p>{t.history.empty}</p>
                         {(searchQuery || filterAction !== 'all') && (
                             <button
                                 onClick={() => { setSearchQuery(''); setFilterAction('all'); }}
                                 className="text-xs text-indigo-500 font-bold mt-2"
                             >
-                                Clear filters
+                                {t.history.clearFilters}
                             </button>
                         )}
                     </div>
@@ -249,7 +250,7 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                                     <div className="ml-11 text-sm border-l-2 border-gray-100 pl-3 py-1">
                                         {tx.department_dest && (
                                             <div className="text-gray-600">
-                                                <span className="text-gray-400 text-xs uppercase mr-1">To:</span>
+                                                <span className="text-gray-400 text-xs mr-1">{t.history.to}</span>
                                                 {tx.department_dest}
                                             </div>
                                         )}
@@ -264,7 +265,7 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                         ))}
 
                         <div className="text-center py-4 text-xs text-gray-400">
-                            Showing {filteredTransactions.length} items
+                            {t.history.showing(filteredTransactions.length)}
                         </div>
                     </div>
                 )}

@@ -2,10 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { signIn, resetPassword } from '../services/authService';
 import { setRemembered } from '../services/sessionPolicy';
 import { Lock, ArrowRight, ShieldCheck, CheckSquare, KeyRound, ChevronLeft, Eye, EyeOff } from 'lucide-react';
+import { LanguageToggle } from './LanguageToggle';
+import { useT } from '../hooks/useT';
+import type { Dictionary } from '../locales';
 
 type AuthMode = 'login' | 'forgot_password';
 
+// Supabase reports auth failures in English. Echoing err.message straight to
+// the screen used to be fine when the UI was English-only; now it would print
+// "Invalid login credentials" under a Thai form. Matching on the message text is
+// admittedly brittle, but auth-js gives no stable error codes on this path, and
+// the fallback is a safe generic rather than a wrong one.
+const translateAuthError = (err: unknown, t: Dictionary): string => {
+  const raw = (err instanceof Error ? err.message : String(err ?? '')).toLowerCase();
+
+  if (raw.includes('invalid login credentials')) return t.login.invalidCredentials;
+  if (raw.includes('rate limit') || raw.includes('for security purposes')) return t.login.tooManyAttempts;
+
+  // Anything else: say something true and unspecific. The real message is
+  // already on the console for whoever is debugging.
+  return t.login.genericFailure;
+};
+
 const LoginPage: React.FC = () => {
+  const t = useT();
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [identifier, setIdentifier] = useState(''); // Email or Employee ID
   const [password, setPassword] = useState('');
@@ -52,9 +72,7 @@ const LoginPage: React.FC = () => {
         // reveals nothing an attacker could use to enumerate employee ids.
         // (The previous screen went further and listed every admin by name.)
         await resetPassword(identifier);
-        setSuccessMsg(
-          "If that ID belongs to an account, a reset link has been sent to the registered administrator mailbox. Contact your administrator if you do not receive it."
-        );
+        setSuccessMsg(t.login.resetSent);
       }
       else {
         // Must come before signIn: the storage adapter reads this to decide
@@ -79,11 +97,9 @@ const LoginPage: React.FC = () => {
       if (authMode === 'forgot_password') {
         // Do not leak *why* it failed -- "no such user" is exactly the signal
         // an enumeration attack is looking for.
-        setSuccessMsg(
-          "If that ID belongs to an account, a reset link has been sent to the registered administrator mailbox. Contact your administrator if you do not receive it."
-        );
+        setSuccessMsg(t.login.resetSent);
       } else {
-        setError(err.message || "Operation failed. Please check your credentials.");
+        setError(translateAuthError(err, t));
       }
     } finally {
       setLoading(false);
@@ -93,9 +109,9 @@ const LoginPage: React.FC = () => {
   const renderHeader = () => {
     switch (authMode) {
       case 'forgot_password':
-        return { title: "Password Recovery", subtitle: "Enter your Employee ID or email" };
+        return { title: t.login.recoveryTitle, subtitle: t.login.recoverySubtitle };
       default:
-        return { title: "NMT Pallet System", subtitle: "Secure Access Portal" };
+        return { title: t.login.title, subtitle: t.login.subtitle };
     }
   };
 
@@ -105,7 +121,12 @@ const LoginPage: React.FC = () => {
     <div className="min-h-[calc(100vh-56px)] bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-300">
         {/* Header */}
-        <div className={`p-8 text-center transition-colors duration-300 ${authMode === 'forgot_password' ? 'bg-indigo-600' : 'bg-blue-600'}`}>
+        <div className={`relative p-8 pt-14 text-center transition-colors duration-300 ${authMode === 'forgot_password' ? 'bg-indigo-600' : 'bg-blue-600'}`}>
+          {/* The language choice has to be reachable before anyone signs in --
+              this is the only screen an unauthenticated user ever sees. */}
+          <div className="absolute top-4 right-4">
+            <LanguageToggle />
+          </div>
           <h1 className="text-3xl font-bold text-white mb-2">{headerContent.title}</h1>
           <p className="text-blue-100">
             {headerContent.subtitle}
@@ -117,7 +138,7 @@ const LoginPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-center gap-2">
-                <span className="font-bold">Error:</span> {error}
+                <span className="font-bold">{t.common.error}</span> {error}
               </div>
             )}
             {successMsg && (
@@ -130,7 +151,7 @@ const LoginPage: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email or Employee ID
+                {t.login.identifierLabel}
               </label>
               <div className="relative">
                 <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -138,22 +159,21 @@ const LoginPage: React.FC = () => {
                   type="text"
                   required
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white text-gray-900"
-                  placeholder="admin@nmt.com or EMP001"
+                  placeholder={t.login.identifierPlaceholder}
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                 />
               </div>
               {authMode === 'forgot_password' && (
                 <p className="mt-2 text-xs text-gray-500">
-                  Reset links are delivered to the registered administrator mailbox.
-                  Staff should ask an administrator to reset their password.
+                  {t.login.resetHint}
                 </p>
               )}
             </div>
 
             {authMode !== 'forgot_password' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t.login.passwordLabel}</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input
@@ -188,19 +208,18 @@ const LoginPage: React.FC = () => {
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
                     />
-                    <span className="text-sm text-gray-600 font-medium group-hover:text-blue-600 transition">Remember me</span>
+                    <span className="text-sm text-gray-600 font-medium group-hover:text-blue-600 transition">{t.login.rememberMe}</span>
                   </label>
                   <button
                     type="button"
                     onClick={() => setAuthMode('forgot_password')}
                     className="text-sm text-blue-600 font-bold hover:underline"
                   >
-                    Forgot Password?
+                    {t.login.forgotPassword}
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">
-                  Stays signed in on this device for up to 12 hours. Leave it unchecked
-                  on a shared device: the session then ends as soon as you close the tab.
+                  {t.login.rememberHint}
                 </p>
               </div>
             )}
@@ -211,11 +230,11 @@ const LoginPage: React.FC = () => {
               className={`w-full py-4 text-white rounded-xl font-bold text-lg transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-70 ${authMode === 'forgot_password' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'}`}
             >
               {loading ? (
-                "Processing..."
+                t.login.processing
               ) : authMode === 'forgot_password' ? (
-                <>Reset Password <KeyRound size={20} /></>
+                <>{t.login.resetPassword} <KeyRound size={20} /></>
               ) : (
-                <>Sign In <ArrowRight size={20} /></>
+                <>{t.login.signIn} <ArrowRight size={20} /></>
               )}
             </button>
           </form>
@@ -223,14 +242,14 @@ const LoginPage: React.FC = () => {
           <div className="mt-8 text-center space-y-2">
             {authMode === 'login' ? (
               <p className="text-gray-600">
-                Authorized access only.
+                {t.login.authorizedOnly}
               </p>
             ) : (
               <button
                 onClick={() => setAuthMode('login')}
                 className="flex items-center justify-center gap-2 mx-auto text-gray-500 font-bold hover:text-gray-800 transition"
               >
-                <ChevronLeft size={18} /> Back to Sign In
+                <ChevronLeft size={18} /> {t.login.backToSignIn}
               </button>
             )}
           </div>

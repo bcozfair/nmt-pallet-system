@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { PALLET_STATUS_META } from '../common/AdminHelpers';
+import { useT } from '../../../hooks/useT';
 
 export const StatusDonutChart = ({ stats }: { stats: { available: number, in_use: number, damaged: number, total: number } }) => {
+    const t = useT();
     const size = 200;
     const strokeWidth = 20;
     const center = size / 2;
@@ -22,11 +24,11 @@ export const StatusDonutChart = ({ stats }: { stats: { available: number, in_use
     const segments = useMemo(() => {
         const total = stats.total || 1;
         return [
-            { key: 'available', label: PALLET_STATUS_META.available.label, value: stats.available, color: 'text-emerald-500', stroke: PALLET_STATUS_META.available.stroke, percent: (stats.available / total) * 100 },
-            { key: 'in_use', label: PALLET_STATUS_META.in_use.label, value: stats.in_use, color: 'text-blue-500', stroke: PALLET_STATUS_META.in_use.stroke, percent: (stats.in_use / total) * 100 },
-            { key: 'damaged', label: PALLET_STATUS_META.damaged.label, value: stats.damaged, color: 'text-red-500', stroke: PALLET_STATUS_META.damaged.stroke, percent: (stats.damaged / total) * 100 }
+            { key: 'available', label: t.status.available, value: stats.available, color: 'text-emerald-500', stroke: PALLET_STATUS_META.available.stroke, percent: (stats.available / total) * 100 },
+            { key: 'in_use', label: t.status.in_use, value: stats.in_use, color: 'text-blue-500', stroke: PALLET_STATUS_META.in_use.stroke, percent: (stats.in_use / total) * 100 },
+            { key: 'damaged', label: t.status.damaged, value: stats.damaged, color: 'text-red-500', stroke: PALLET_STATUS_META.damaged.stroke, percent: (stats.damaged / total) * 100 }
         ];
-    }, [stats]);
+    }, [stats, t]);
 
     const activeSegment = hoveredKey ? segments.find(s => s.key === hoveredKey) : null;
     const centerLabel = activeSegment ? activeSegment.label : 'Total Fleet';

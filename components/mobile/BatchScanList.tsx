@@ -3,6 +3,7 @@ import { ArrowRightCircle, Trash2, Save, MapPin } from 'lucide-react';
 import { StagedItem, MobileMode } from './MobileInterface';
 import { Department, PalletStatus } from '../../types';
 import { PALLET_STATUS_META } from '../admin/common/AdminHelpers';
+import { useT } from '../../hooks/useT';
 
 // StagedItem.status widens to 'unknown', which has no entry in the table --
 // fall back to a neutral chip rather than crashing on the lookup.
@@ -19,16 +20,19 @@ interface BatchScanListProps {
 }
 
 export const BatchScanList = ({ mode, pendingScans, selectedDept, isSubmitting, onRemoveItem, onConfirm }: BatchScanListProps) => {
+    const t = useT();
     return (
         <div className="fixed bottom-0 w-full bg-white rounded-t-3xl z-[60] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.3)] flex flex-col max-h-[40vh]">
             {/* Header */}
             <div className="pt-3 pb-2 px-5 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-3xl shrink-0">
                 <div>
                     <h3 className="font-bold text-gray-800 text-lg">
-                        {mode === 'checkout_scanning' ? 'Check Out List' : 'Check In List'}
+                        {mode === 'checkout_scanning' ? t.batch.checkOutList : t.batch.checkInList}
                     </h3>
                     <p className="text-xs text-gray-400 font-medium">
-                        {mode === 'checkout_scanning' ? `To: ${selectedDept?.name}` : 'Returning to Warehouse'}
+                        {mode === 'checkout_scanning'
+                            ? t.batch.toDept(selectedDept?.name ?? '-')
+                            : t.batch.returningToWarehouse}
                     </p>
                 </div>
                 <span className="px-3 py-1 bg-blue-100 text-blue-700 font-bold rounded-full text-sm">
@@ -41,7 +45,7 @@ export const BatchScanList = ({ mode, pendingScans, selectedDept, isSubmitting, 
                 {pendingScans.length === 0 ? (
                     <div className="text-center text-gray-400 py-8 flex flex-col items-center gap-2">
                         <div className="animate-pulse"><ArrowRightCircle size={32} /></div>
-                        <span className="font-medium">Scan QR Codes to add items...</span>
+                        <span className="font-medium">{t.batch.empty}</span>
                     </div>
                 ) : (
                     pendingScans.map((item, i) => (
@@ -57,8 +61,12 @@ export const BatchScanList = ({ mode, pendingScans, selectedDept, isSubmitting, 
                                         scrapped and unknown with one grey chip, so a
                                         written-off pallet was indistinguishable from a
                                         broken one. Each status now carries its own. */}
-                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${chipClassFor(item.status)}`}>
-                                        {item.status.replace('_', ' ')}
+                                    {/* Was item.status.replace('_',' '), which printed the
+                                        raw enum ("in use", "unknown") at the user. The
+                                        dictionary carries an entry for every status plus
+                                        'unknown', so there is a real label for each. */}
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${chipClassFor(item.status)}`}>
+                                        {t.status[item.status]}
                                     </span>
                                     <span className="text-gray-300">|</span>
                                     <div className="flex items-center gap-1 text-xs text-gray-500 truncate min-w-0">
@@ -82,8 +90,8 @@ export const BatchScanList = ({ mode, pendingScans, selectedDept, isSubmitting, 
                     disabled={pendingScans.length === 0 || isSubmitting}
                     className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2 text-lg"
                 >
-                    {isSubmitting ? 'Saving...' : (
-                        <>Confirm & Save <Save size={20} /></>
+                    {isSubmitting ? t.batch.saving : (
+                        <>{t.batch.confirm} <Save size={20} /></>
                     )}
                 </button>
             </div>

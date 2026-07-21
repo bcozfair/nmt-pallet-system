@@ -9,6 +9,7 @@ import { supabase } from '../../services/supabase';
 import { toast } from '../../services/toast';
 import QRScanner from './QRScanner';
 import { useScannerFeedback } from '../../hooks/useScannerFeedback';
+import { useT } from '../../hooks/useT';
 
 import { MobileHistory } from './MobileHistory';
 import { MobileHome } from './MobileHome';
@@ -33,6 +34,8 @@ interface MobileInterfaceProps {
 }
 
 const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => {
+  const t = useT();
+
   // 1. Initialize from URL
   const queryParams = new URLSearchParams(window.location.search);
   const initialMode = (queryParams.get('mode') as MobileMode) || 'idle';
@@ -137,7 +140,7 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
     if (['checkout_scanning', 'checkin_scanning'].includes(mode)) {
       if (pendingScans.some(item => item.id === decodedText)) {
         isProcessingRef.current = true;
-        handleFeedback('error', 'Already in List');
+        handleFeedback('error', t.scanError.alreadyInList);
         return;
       }
     }
@@ -152,11 +155,11 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
       if (mode === 'checkout_scanning' && selectedDept) {
         const pallet = await getPalletById(decodedText);
         if (!pallet) {
-          handleFeedback('error', 'Pallet Not Found');
+          handleFeedback('error', t.scanError.notFound);
         } else if (pallet.status === 'scrapped') {
-          handleFeedback('error', 'Pallet Scrapped');
+          handleFeedback('error', t.scanError.scrapped);
         } else if (pallet.status === 'damaged') {
-          handleFeedback('error', 'Pallet Damaged');
+          handleFeedback('error', t.scanError.damaged);
         } else {
           setPendingScans(prev => [{ id: decodedText, status: pallet.status, location: pallet.current_location }, ...prev]);
           handleFeedback('success', decodedText);
@@ -165,11 +168,11 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
       } else if (mode === 'checkin_scanning') {
         const pallet = await getPalletById(decodedText);
         if (!pallet) {
-          handleFeedback('error', 'Pallet Not Found');
+          handleFeedback('error', t.scanError.notFound);
         } else if (pallet.status === 'scrapped') {
-          handleFeedback('error', 'Error: Pallet Scrapped');
+          handleFeedback('error', t.scanError.scrapped);
         } else if (pallet.status === 'damaged') {
-          handleFeedback('error', 'Error: Pallet Damaged');
+          handleFeedback('error', t.scanError.damaged);
         } else {
           setPendingScans(prev => [{ id: decodedText, status: pallet.status, location: pallet.current_location }, ...prev]);
           handleFeedback('success', decodedText);
@@ -179,11 +182,11 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
         const pallet = await getPalletById(decodedText);
 
         if (!pallet) {
-          handleFeedback('error', 'Pallet Not Found');
+          handleFeedback('error', t.scanError.notFound);
         } else if (pallet.status === 'scrapped') {
-          handleFeedback('error', 'Already Scrapped');
+          handleFeedback('error', t.scanError.alreadyScrapped);
         } else if (pallet.status === 'damaged') {
-          handleFeedback('error', 'Already Damaged');
+          handleFeedback('error', t.scanError.alreadyDamaged);
         } else {
           setLastScannedForDamage(decodedText);
           handleFeedback('success', decodedText);
@@ -197,7 +200,7 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
       }
     } catch (error) {
       console.error(error);
-      handleFeedback('error', 'Scan Error');
+      handleFeedback('error', t.scanError.generic);
     }
 
     setTimeout(() => {
@@ -214,12 +217,12 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
         await Promise.all(pendingScans.map(item =>
           checkOutPallet(item.id, selectedDept.id, selectedDept.name, user.id)
         ));
-        toast.success(`Successfully Checked Out ${pendingScans.length} pallets.`);
+        toast.success(t.batch.checkedOut(pendingScans.length));
       } else if (mode === 'checkin_scanning') {
         await Promise.all(pendingScans.map(item =>
           checkInPallet(item.id, user.id)
         ));
-        toast.success(`Successfully Returned ${pendingScans.length} pallets.`);
+        toast.success(t.batch.returned(pendingScans.length));
       }
       // Reset
       setModeState('idle');
@@ -227,7 +230,7 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
       setPendingScans([]);
       setSelectedDept(null);
     } catch (e) {
-      toast.error("Error processing batch. Please try again.");
+      toast.error(t.batch.failed);
       console.error(e);
     } finally {
       setIsSubmitting(false);

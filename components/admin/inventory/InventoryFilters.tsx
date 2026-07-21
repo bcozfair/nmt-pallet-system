@@ -1,7 +1,8 @@
 import React from 'react';
 import { Search, MapPin, ChevronRight, Calendar, ChevronDown, X, CheckCircle } from 'lucide-react';
 import { Department } from '../../../types';
-import { PALLET_STATUS_META, PALLET_STATUS_ORDER } from '../common/AdminHelpers';
+import { PALLET_STATUS_ORDER } from '../common/AdminHelpers';
+import { useT } from '../../../hooks/useT';
 
 interface InventoryFiltersProps {
     searchTerm: string;
@@ -32,6 +33,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
     setShowOverdueOnly,
     departments
 }) => {
+    const t = useT();
     return (
         <div className="bg-white p-2.5 rounded-xl shadow-sm border border-gray-100">
             <div className="flex flex-col xl:flex-row gap-3 items-center">
@@ -91,7 +93,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                                 excluded from every fleet total. */}
                             <option value="all">All Active</option>
                             {PALLET_STATUS_ORDER.map(status => (
-                                <option key={status} value={status}>{PALLET_STATUS_META[status].label}</option>
+                                <option key={status} value={status}>{t.status[status]}</option>
                             ))}
                         </select>
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
