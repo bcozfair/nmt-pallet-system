@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { signIn, resetPassword } from '../services/authService';
+import { setRemembered } from '../services/sessionPolicy';
 import { Lock, ArrowRight, ShieldCheck, CheckSquare, KeyRound, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 
 type AuthMode = 'login' | 'forgot_password';
@@ -56,6 +57,11 @@ const LoginPage: React.FC = () => {
         );
       }
       else {
+        // Must come before signIn: the storage adapter reads this to decide
+        // whether the session Supabase is about to write goes to localStorage
+        // (survives a tab close) or sessionStorage (does not).
+        setRemembered(rememberMe);
+
         // Login
         await signIn(identifier, password);
 
@@ -170,26 +176,32 @@ const LoginPage: React.FC = () => {
             )}
 
             {authMode === 'login' && (
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer group select-none">
-                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition ${rememberMe ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 bg-white'}`}>
-                    {rememberMe && <CheckSquare size={14} />}
-                  </div>
-                  <input
-                    type="checkbox"
-                    className="hidden"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                  />
-                  <span className="text-sm text-gray-600 font-medium group-hover:text-blue-600 transition">Remember me</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setAuthMode('forgot_password')}
-                  className="text-sm text-blue-600 font-bold hover:underline"
-                >
-                  Forgot Password?
-                </button>
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer group select-none">
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition ${rememberMe ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 bg-white'}`}>
+                      {rememberMe && <CheckSquare size={14} />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                    />
+                    <span className="text-sm text-gray-600 font-medium group-hover:text-blue-600 transition">Remember me</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode('forgot_password')}
+                    className="text-sm text-blue-600 font-bold hover:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  Stays signed in on this device for up to 12 hours. Leave it unchecked
+                  on a shared device: the session then ends as soon as you close the tab.
+                </p>
               </div>
             )}
 

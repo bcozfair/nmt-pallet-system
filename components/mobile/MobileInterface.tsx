@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Department, PalletStatus } from '../../types';
+import { PENDING_SCANS_KEY } from '../../constants';
 import { fetchDepartments, subscribeToDepartments } from '../../services/departmentService';
 import { checkOutPallet, checkInPallet } from '../../services/transactionService';
 import { getPalletById } from '../../services/palletService';
@@ -44,7 +45,7 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
   // Batch Scanning State
   const [pendingScans, setPendingScans] = useState<StagedItem[]>(() => {
     try {
-      const saved = localStorage.getItem('nmt_mobile_pending_scans');
+      const saved = localStorage.getItem(PENDING_SCANS_KEY);
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       console.warn("Failed to load pending scans", e);
@@ -54,7 +55,7 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
 
   // Persist pending scans
   useEffect(() => {
-    localStorage.setItem('nmt_mobile_pending_scans', JSON.stringify(pendingScans));
+    localStorage.setItem(PENDING_SCANS_KEY, JSON.stringify(pendingScans));
   }, [pendingScans]);
 
   // Logic Refs
