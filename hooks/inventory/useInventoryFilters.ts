@@ -101,9 +101,15 @@ export const useInventoryFilters = (
                     return sortConfig.direction === 'asc' ? daysA - daysB : daysB - daysA;
                 }
 
-                const valA = a[sortConfig.key as keyof Pallet];
-                const valB = b[sortConfig.key as keyof Pallet];
+                // `?? null` folds undefined in with null. Optional columns such as
+                // pallet_remark are undefined when unset, and `undefined < x` is
+                // false in both directions -- those rows used to compare as equal
+                // to everything and scatter through the list instead of sorting
+                // to the end.
+                const valA = a[sortConfig.key as keyof Pallet] ?? null;
+                const valB = b[sortConfig.key as keyof Pallet] ?? null;
 
+                if (valA === null && valB === null) return 0;
                 if (valA === null) return 1;
                 if (valB === null) return -1;
 

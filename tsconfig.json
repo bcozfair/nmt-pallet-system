@@ -10,6 +10,10 @@
       "DOM.Iterable"
     ],
     "skipLibCheck": true,
+    // Keeps `npm run typecheck` as strict as the editor. Without this the CLI
+    // stayed quiet about implicit anys and null safety while the IDE flagged
+    // them on the same file, which made a green typecheck mean very little.
+    "strict": true,
     "types": [
       "node"
     ],

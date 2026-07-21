@@ -27,7 +27,7 @@ interface InventoryTableProps {
     onScrapRow: (id: string) => void;
     onPrintQr: (pallets: Pallet[]) => void; // Expects an array, even if size 1
     onDeleteClick: (id: string, e: React.MouseEvent) => void;
-    onEditRow?: (pallet: Pallet) => void; // Optional for now to avoid breaking parent immediately, but will implement
+    onEditRow: (pallet: Pallet) => void;
 
     // Config
     overdueThreshold: number;
