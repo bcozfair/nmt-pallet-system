@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Department, PalletStatus } from '../../types';
 import { PENDING_SCANS_KEY } from '../../constants';
+import { activeStore } from '../../services/sessionPolicy';
 import { fetchDepartments, subscribeToDepartments } from '../../services/departmentService';
 import { checkOutPallet, checkInPallet } from '../../services/transactionService';
 import { getPalletById } from '../../services/palletService';
@@ -45,7 +46,7 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
   // Batch Scanning State
   const [pendingScans, setPendingScans] = useState<StagedItem[]>(() => {
     try {
-      const saved = localStorage.getItem(PENDING_SCANS_KEY);
+      const saved = activeStore().getItem(PENDING_SCANS_KEY);
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       console.warn("Failed to load pending scans", e);
@@ -53,9 +54,17 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
     }
   });
 
-  // Persist pending scans
+  // Persist pending scans. Must go through activeStore(): staged scans are
+  // session-scoped (see SESSION_SCOPED_KEYS in services/sessionPolicy.ts), so in
+  // per-tab mode they belong in sessionStorage. Hardcoding localStorage here both
+  // left one employee's scans readable by the next one on a shared device, and
+  // let a second tab's session cleanup wipe a batch still being built in the first.
   useEffect(() => {
-    localStorage.setItem(PENDING_SCANS_KEY, JSON.stringify(pendingScans));
+    try {
+      activeStore().setItem(PENDING_SCANS_KEY, JSON.stringify(pendingScans));
+    } catch (e) {
+      console.warn("Failed to persist pending scans", e);
+    }
   }, [pendingScans]);
 
   // Logic Refs

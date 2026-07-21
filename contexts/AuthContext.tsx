@@ -70,8 +70,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [loading, setLoading] = useState(true);
     const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
-    const signOut = useCallback(async () => {
-        setLoading(true);
+    const signOut = useCallback(async (options?: { quiet?: boolean }) => {
+        if (!options?.quiet) setLoading(true);
         try {
             await serviceSignOut();
         } catch (error) {
@@ -94,7 +94,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             toast.info("Signed out automatically due to inactivity.");
         }
         console.warn(`[Auth] Session expired (${verdict}).`);
-        await signOut();
+        // quiet: login is already visible; do not flash "Loading System..." again.
+        await signOut({ quiet: true });
     }, [signOut]);
 
     // 0. Cache Hydration (Run once on mount)
@@ -112,6 +113,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const verdict = checkSessionPolicy();
         if (verdict === 'expired_max_age' || verdict === 'expired_idle') {
             console.warn(`[Auth] Cached session is past its ${verdict === 'expired_idle' ? 'idle' : 'max age'} limit.`);
+            // Unlock now so login shows while the listener revokes the session.
+            setLoading(false);
             return;
         }
 
@@ -176,6 +179,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     //    callback can deadlock on the client's auth lock.
                     const verdict = checkSessionPolicy();
                     if (verdict === 'expired_max_age' || verdict === 'expired_idle') {
+                        setLoading(false);
                         clearTimeout(safetyTimer);
                         setTimeout(() => { if (mounted) expireSession(verdict); }, 0);
                         return;
