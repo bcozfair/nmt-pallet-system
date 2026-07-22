@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, MapPinPlus } from 'lucide-react';
+import { useT } from '../../../hooks/useT';
 
 interface ModalProps {
     isOpen: boolean;
@@ -19,6 +20,9 @@ export const LocationModal: React.FC<LocationModalProps> = ({
     onSave,
     mode
 }) => {
+    // Above the `if (!isOpen)` bail-out below: useT subscribes through
+    // useSyncExternalStore, so it has to run on every render like the rest.
+    const t = useT();
     const [name, setName] = useState(initialValue);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -55,7 +59,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({
                 <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                     <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
                         <MapPinPlus className="text-blue-600" size={20} />
-                        {mode === 'add' ? 'Add Location' : 'Edit Location'}
+                        {mode === 'add' ? t.locations.addLocation : t.locations.editLocation}
                     </h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
                         <X size={20} />
@@ -64,19 +68,19 @@ export const LocationModal: React.FC<LocationModalProps> = ({
 
                 <form onSubmit={handleSubmit} className="p-5 space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">
-                            Location Name <span className="text-red-500">*</span>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">
+                            {t.locations.locationName} <span className="text-red-500">*</span>
                         </label>
                         <input
                             autoFocus
                             type="text"
-                            placeholder="e.g., Warehouse A"
+                            placeholder={t.locations.namePlaceholder}
                             className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                             value={name}
                             onChange={e => setName(e.target.value)}
                         />
                         <p className="text-xs text-gray-500 mt-2">
-                            Names must be unique and descriptive.
+                            {t.locations.nameHint}
                         </p>
                     </div>
 
@@ -87,7 +91,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({
                             className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 text-sm"
                         >
                             <Save size={18} />
-                            {isSubmitting ? 'Saving...' : 'Save Location'}
+                            {isSubmitting ? t.common.saving : t.locations.saveLocation}
                         </button>
                     </div>
                 </form>

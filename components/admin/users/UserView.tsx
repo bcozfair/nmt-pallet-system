@@ -5,6 +5,8 @@ import { fetchDepartments } from '../../../services/departmentService';
 import { fetchUsers } from '../../../services/userService';
 import { adminDeleteUser } from '../../../services/authService';
 import { toast } from '../../../services/toast';
+import { useT } from '../../../hooks/useT';
+import { dict } from '../../../services/i18n';
 
 // Sub-components
 import { UserTable, UserSortConfig } from './UserTable';
@@ -14,8 +16,11 @@ import { UserFilters } from './UserFilters';
 import { CreateUserModal, ResetPasswordModal, ConfirmModal, ConfirmActionType, ResetPasswordState } from './UserModals';
 import { Pagination } from '../common/Pagination';
 import { Search } from 'lucide-react';
+import { describeAppError } from '../../../services/appError';
 
 export const UserView: React.FC = () => {
+    const t = useT();
+
     // Data State
     const [users, setUsers] = useState<User[]>([]);
     const [departments, setDepartments] = useState<string[]>([]);
@@ -48,7 +53,10 @@ export const UserView: React.FC = () => {
             setDepartments(deptsData.map(d => d.name));
         } catch (error) {
             console.error(error);
-            toast.error("Failed to load users");
+            // dict() rather than the `t` above: loadData is also called from the
+            // realtime subscription set up in a [] effect, so it outlives this
+            // render and a captured `t` would go stale after a language switch.
+            toast.error(dict().users.loadFailed);
         }
     };
 
@@ -134,29 +142,29 @@ export const UserView: React.FC = () => {
                 .eq('id', id);
 
             if (error) throw error;
-            toast.success("User updated successfully");
+            toast.success(dict().users.updateSuccess);
             setEditingId(null);
             loadData();
         } catch (error: any) {
             console.error(error);
-            toast.error("Failed to update user");
+            toast.error(dict().users.updateFailed);
         }
     };
 
     const handleDeleteClick = (user: User) => {
         setConfirmAction({
-            title: "Delete User",
-            message: `Are you sure you want to delete ${user.full_name} (${user.employee_id})? This action cannot be undone.`,
-            confirmLabel: "Delete User",
+            title: t.users.deleteUser,
+            message: t.users.deleteMessage(user.full_name, user.employee_id),
+            confirmLabel: t.users.deleteUser,
             isDestructive: true,
             onConfirm: async () => {
                 try {
                     await adminDeleteUser(user.id);
-                    toast.success("User deleted successfully");
+                    toast.success(dict().users.deleteSuccess);
                     loadData();
                 } catch (error: any) {
                     console.error("Delete failed", error);
-                    toast.error("Failed to delete user: " + (error.message || "Unknown error"));
+                    toast.error(dict().users.deleteFailed(describeAppError(error)));
                 }
             }
         });
@@ -248,8 +256,8 @@ export const UserView: React.FC = () => {
                 ) : (
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center flex flex-col items-center text-gray-400 gap-2">
                         <Search size={48} className="opacity-20" />
-                        <p>No users found matching your filters.</p>
-                        <button onClick={handleClearFilters} className="text-blue-600 font-bold hover:underline">Clear Filters</button>
+                        <p>{t.users.noneFound}</p>
+                        <button onClick={handleClearFilters} className="text-blue-600 font-bold hover:underline">{t.common.clearFilters}</button>
                     </div>
                 )}
             </div>

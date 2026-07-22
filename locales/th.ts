@@ -1,4 +1,13 @@
 import type { Dictionary } from './en';
+import {
+    dashboardTh,
+    inventoryTh,
+    transactionsTh,
+    usersTh,
+    locationsTh,
+    settingsTh,
+    modalsTh,
+} from './admin';
 
 // Typed as Dictionary, so this file cannot compile while a key is missing or a
 // function's parameters drift from the English original. That is the whole
@@ -18,8 +27,125 @@ export const th: Dictionary = {
     },
 
     common: {
+        save: 'บันทึก',
+        saving: 'กำลังบันทึก...',
         cancel: 'ยกเลิก',
+        delete: 'ลบ',
+        edit: 'แก้ไข',
+        close: 'ปิด',
+        confirm: 'ยืนยัน',
+        add: 'เพิ่ม',
+        search: 'ค้นหา',
+        export: 'ส่งออก',
+        print: 'พิมพ์',
+        download: 'ดาวน์โหลด',
+        refresh: 'รีเฟรช',
+        retry: 'ลองใหม่',
+        back: 'ย้อนกลับ',
+        view: 'ดู',
+        apply: 'ใช้งาน',
+        clearFilters: 'ล้างตัวกรอง',
+
+        loading: 'กำลังโหลด...',
+        noData: 'ไม่พบข้อมูล',
         error: 'ข้อผิดพลาด:',
+        required: 'จำเป็นต้องกรอก',
+        popupBlocked: 'เบราว์เซอร์บล็อกป๊อปอัป กรุณาอนุญาตป๊อปอัปสำหรับเว็บไซต์นี้เพื่อสั่งพิมพ์',
+
+        actions: 'จัดการ',
+        all: 'ทั้งหมด',
+        status: 'สถานะ',
+        location: 'สถานที่',
+        department: 'แผนก',
+        date: 'วันที่',
+        time: 'เวลา',
+        user: 'ผู้ใช้งาน',
+        remark: 'หมายเหตุ',
+        palletId: 'รหัสพาเลท',
+        total: 'รวม',
+        active: 'เปิดใช้งาน',
+        inactive: 'ปิดใช้งาน',
+    },
+
+    csv: {
+        preparingInventory: 'กำลังเตรียมรายงานคลังพาเลท...',
+        inventoryDone: (count: number) => `ส่งออกข้อมูลพาเลท ${count} รายการแล้ว`,
+        preparingHistory: 'กำลังเตรียมรายงานประวัติทั้งหมด...',
+        historyDone: (count: number) => `ส่งออกประวัติ ${count} รายการแล้ว`,
+        exportFailed: (reason: string) => `ส่งออกไม่สำเร็จ: ${reason}`,
+        warehouse: 'คลังสินค้า',
+        header: {
+            palletId: 'รหัสพาเลท',
+            status: 'สถานะ',
+            currentLocation: 'สถานที่ปัจจุบัน',
+            responsiblePerson: 'ผู้รับผิดชอบ',
+            lastAction: 'รายการล่าสุด',
+            lastActivityDate: 'วันที่ทำรายการล่าสุด',
+            daysOverdue: 'จำนวนวันที่เกินกำหนด',
+            dateAdded: 'วันที่เพิ่มเข้าระบบ',
+            evidenceFile: 'ไฟล์หลักฐาน',
+            date: 'วันที่',
+            time: 'เวลา',
+            actionType: 'ประเภทรายการ',
+            performedBy: 'ผู้ทำรายการ',
+            locationDest: 'สถานที่/ปลายทาง',
+        },
+    },
+
+    errors: {
+        unknown: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง',
+        palletNotFound: (palletId: string) => `ไม่พบพาเลท ${palletId}`,
+        palletExists: (palletId: string) => `รหัสพาเลท ${palletId} มีอยู่ในระบบแล้ว`,
+        palletAlreadyScrapped: (palletId: string) => `พาเลท ${palletId} ถูกตัดออกจากระบบไปแล้ว`,
+        palletNotDamaged: (palletId: string, status: string) =>
+            `ต้องแจ้งชำรุดพาเลท ${palletId} ก่อนจึงจะตัดออกจากระบบได้ (สถานะปัจจุบันคือ ${status})`,
+        palletMissingForCheckout: (palletId: string) =>
+            `ไม่พบพาเลท ${palletId} กรุณาเพิ่มในคลังพาเลทก่อนเบิกออก`,
+        scrapRequiresUser: 'ต้องเข้าสู่ระบบก่อนจึงจะตัดพาเลทออกจากระบบได้ เพื่อบันทึกว่าใครเป็นผู้ทำรายการ',
+        destinationRequired: 'ต้องเลือกแผนกปลายทางก่อนเบิกพาเลทออก',
+        imageUploadFailed: (reason: string) => `อัปโหลดรูปไม่สำเร็จ: ${reason}`,
+        deleteDenied: 'ลบไม่สำเร็จ: ไม่พบรายการนี้แล้ว หรือคุณไม่มีสิทธิ์ลบ',
+        updateDenied: 'บันทึกไม่สำเร็จ: ไม่พบผู้ใช้งานนี้แล้ว หรือคุณไม่มีสิทธิ์แก้ไข',
+        // ต้องบอกให้ชัดว่าบัญชีถูกสร้างแล้ว ถ้าผู้ดูแลเข้าใจว่าล้มเหลวทั้งหมด
+        // แล้วกดสร้างซ้ำ จะไปเจอข้อความว่ารหัสพนักงานนี้ถูกใช้แล้ว
+        adminPromotionFailed: (reason: string) =>
+            `สร้างบัญชีสำเร็จแล้ว แต่ยังเป็นสิทธิ์พนักงานอยู่ เพราะให้สิทธิ์ผู้ดูแลระบบไม่สำเร็จ (${reason}) กรุณาเปลี่ยนสิทธิ์จากหน้ารายชื่อผู้ใช้งาน`,
+    },
+
+    report: {
+        notConfigured: 'ยังไม่ได้ตั้งค่า Supabase URL',
+        notSignedIn: 'ยังไม่ได้เข้าสู่ระบบ',
+        sendFailed: (reason: string) => `ส่งรายงานไม่สำเร็จ: ${reason}`,
+        sentOverdue: 'ส่งรายงานพาเลทเกินกำหนดแล้ว',
+        sentSummary: 'ส่งรายงานสรุปแล้ว',
+    },
+
+    nav: {
+        menu: 'เมนู',
+        system: 'ระบบ',
+        dashboard: 'ภาพรวม',
+        inventory: 'คลังพาเลท',
+        transactions: 'ประวัติรายการ',
+        users: 'ผู้ใช้งาน',
+        locations: 'สถานที่',
+        settings: 'ตั้งค่า',
+        signOut: 'ออกจากระบบ',
+    },
+
+    role: {
+        admin: 'ผู้ดูแลระบบ',
+        staff: 'พนักงาน',
+    },
+
+    pagination: {
+        firstPage: 'หน้าแรก',
+        prevPage: 'หน้าก่อนหน้า',
+        nextPage: 'หน้าถัดไป',
+        lastPage: 'หน้าสุดท้าย',
+        page: 'หน้า',
+        ofTotal: (total: number) => `จาก ${total}`,
+        showing: (from: number, to: number, total: number) =>
+            `แสดง ${from}-${to} จากทั้งหมด ${total} รายการ`,
     },
 
     status: {
@@ -166,4 +292,12 @@ export const th: Dictionary = {
         to: 'ไปยัง:',
         showing: (count: number) => `แสดง ${count} รายการ`,
     },
+
+    dashboard: dashboardTh,
+    inventory: inventoryTh,
+    transactions: transactionsTh,
+    users: usersTh,
+    locations: locationsTh,
+    settings: settingsTh,
+    modals: modalsTh,
 };

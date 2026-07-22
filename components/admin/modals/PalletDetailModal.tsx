@@ -7,8 +7,10 @@ import { formatDate, formatDateTime, StatusBadge } from '../common/AdminHelpers'
 import { X, MapPin, Clock, History } from 'lucide-react';
 import { ImageViewerModal } from '../common/ImageViewerModal';
 import { getEvidenceSignedUrlMap, IMAGE_DELETED } from '../../../services/storageService';
+import { useT } from '../../../hooks/useT';
 
 export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose: () => void }) => {
+    const t = useT();
     const [history, setHistory] = useState<Transaction[]>([]);
     const [userMap, setUserMap] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
                             <StatusBadge status={pallet.status} />
                         </div>
                         <p className="text-sm text-gray-500 flex items-center gap-1">
-                            Added on {formatDate(pallet.created_at)}
+                            {t.modals.addedOn(formatDate(pallet.created_at))}
                         </p>
                     </div>
                     <button onClick={onClose} className="p-2 bg-white hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-full border border-gray-200 transition">
@@ -71,17 +73,17 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
                     {/* Key Stats Grid */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
-                            <p className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-1">Current Location</p>
+                            <p className="text-xs font-bold text-blue-400 mb-1">{t.modals.currentLocation}</p>
                             <div className="flex items-center gap-2 text-blue-900 font-bold text-lg">
                                 <MapPin size={20} className="text-blue-500" />
                                 {pallet.current_location}
                             </div>
                         </div>
                         <div className="p-4 bg-purple-50/50 rounded-xl border border-purple-100">
-                            <p className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-1">Last Interaction</p>
+                            <p className="text-xs font-bold text-purple-400 mb-1">{t.modals.lastInteraction}</p>
                             <div className="flex items-center gap-2 text-purple-900 font-bold text-lg">
                                 <Clock size={20} className="text-purple-500" />
-                                {pallet.last_checkout_date ? formatDate(pallet.last_checkout_date) : 'Never'}
+                                {pallet.last_checkout_date ? formatDate(pallet.last_checkout_date) : t.modals.never}
                             </div>
                         </div>
                     </div>
@@ -89,24 +91,28 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
                     {/* Timeline */}
                     <div>
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <History size={18} /> Activity History
+                            <History size={18} /> {t.modals.activityHistory}
                         </h3>
 
                         {loading ? (
-                            <div className="text-center py-8 text-gray-400">Loading history...</div>
+                            <div className="text-center py-8 text-gray-400">{t.modals.loadingHistory}</div>
                         ) : history.length === 0 ? (
-                            <div className="text-center py-8 text-gray-400 italic bg-gray-50 rounded-xl">No history found.</div>
+                            <div className="text-center py-8 text-gray-400 italic bg-gray-50 rounded-xl">{t.modals.noHistory}</div>
                         ) : (
                             <div className="relative border-l-2 border-gray-100 ml-3 space-y-6 pb-2">
                                 {history.map((tx, idx) => (
                                     <div key={tx.id} className="relative pl-6">
                                         {/* Dot */}
-                                        {/* 'scrap' needs its own arm in both of these.
-                                            The final `else` here means "damage report",
-                                            so without it a scrap row was labelled
-                                            "Reported Damaged" -- the timeline would
-                                            show two damage reports and no sign the
-                                            pallet had been written off at all. */}
+                                        {/* 'scrap' needs its own arm here. The final
+                                            `else` means "damage report", so without it
+                                            a scrap row took the damage colour -- the
+                                            timeline would show two damage reports and
+                                            no sign the pallet had been written off at
+                                            all. The label below used to repeat this
+                                            same chain and carried the same bug; it now
+                                            reads `action` from the dictionary, which is
+                                            `satisfies Record<ActionType, string>` and
+                                            so cannot miss a case by construction. */}
                                         <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${tx.action_type === 'check_out' ? 'bg-blue-500' :
                                             tx.action_type === 'check_in' || tx.action_type === 'repair' ? 'bg-green-500' :
                                                 tx.action_type === 'scrap' ? 'bg-gray-500' :
@@ -116,15 +122,11 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
                                         <div className="flex justify-between items-start">
                                             <div>
                                                 <p className="font-bold text-gray-800 text-sm">
-                                                    {tx.action_type === 'check_out' ? 'Checked Out' :
-                                                        tx.action_type === 'check_in' ? 'Returned' :
-                                                            tx.action_type === 'repair' ? 'Repaired' :
-                                                                tx.action_type === 'scrap' ? 'Scrapped' :
-                                                                    'Reported Damaged'}
+                                                    {t.action[tx.action_type]}
                                                 </p>
                                                 <p className="text-xs text-gray-500 mt-0.5">
-                                                    by <span className="font-medium text-gray-700">{userMap[tx.user_id] || `User ${tx.user_id}`}</span>
-                                                    {tx.department_dest && <span> • To <span className="font-medium text-gray-700">{tx.department_dest}</span></span>}
+                                                    {t.modals.by} <span className="font-medium text-gray-700">{userMap[tx.user_id] || t.modals.unknownUser(tx.user_id)}</span>
+                                                    {tx.department_dest && <span> • {t.modals.toDest} <span className="font-medium text-gray-700">{tx.department_dest}</span></span>}
                                                 </p>
                                                 {tx.transaction_remark && (
                                                     <div className="mt-1.5 p-2 bg-gray-50 rounded-lg text-xs text-gray-600 border border-gray-100 italic">
@@ -137,7 +139,7 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
                                                     <div className="mt-2">
                                                         <img
                                                             src={evidenceUrls[tx.evidence_image_url]}
-                                                            alt="Evidence"
+                                                            alt={t.modals.evidenceAlt}
                                                             className="h-20 w-auto rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:scale-105 transition"
                                                             onClick={() => setPreviewImage(evidenceUrls[tx.evidence_image_url!])}
                                                         />
@@ -145,7 +147,7 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
                                                 )}
                                                 {tx.evidence_image_url === IMAGE_DELETED && (
                                                     <div className="mt-2 text-xs text-gray-400 italic flex items-center gap-1">
-                                                        Original evidence image was deleted upon repair.
+                                                        {t.modals.evidenceDeleted}
                                                     </div>
                                                 )}
                                             </div>
@@ -163,7 +165,7 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
                 {/* Footer Actions */}
                 <div className="p-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl flex justify-end">
                     <button onClick={onClose} className="px-6 py-2 bg-white border border-gray-300 shadow-sm text-gray-700 font-bold rounded-lg hover:bg-gray-100 transition">
-                        Close
+                        {t.common.close}
                     </button>
                 </div>
             </div>

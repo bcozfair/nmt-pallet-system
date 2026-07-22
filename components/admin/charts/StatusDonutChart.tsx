@@ -31,9 +31,9 @@ export const StatusDonutChart = ({ stats }: { stats: { available: number, in_use
     }, [stats, t]);
 
     const activeSegment = hoveredKey ? segments.find(s => s.key === hoveredKey) : null;
-    const centerLabel = activeSegment ? activeSegment.label : 'Total Fleet';
+    const centerLabel = activeSegment ? activeSegment.label : t.dashboard.totalFleet;
     const centerValue = activeSegment ? `${activeSegment.percent.toFixed(1)}%` : stats.total;
-    const centerSub = activeSegment ? `${activeSegment.value} Units` : 'Assets';
+    const centerSub = activeSegment ? t.dashboard.unitsCount(activeSegment.value) : t.dashboard.assets;
     const centerColorClass = activeSegment ? activeSegment.color : 'text-gray-800';
 
     let accumulatedPercent = 0;
@@ -77,7 +77,7 @@ export const StatusDonutChart = ({ stats }: { stats: { available: number, in_use
                     })}
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                    <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-gray-400 mb-0.5">{centerLabel}</span>
+                    <span className="text-[10px] md:text-xs font-bold text-gray-400 mb-0.5">{centerLabel}</span>
                     <span className={`text-xl sm:text-2xl md:text-3xl font-black ${centerColorClass} transition-colors duration-300`}>{centerValue}</span>
                     <span className="text-[10px] md:text-xs font-medium text-gray-400 mt-1">{centerSub}</span>
                 </div>

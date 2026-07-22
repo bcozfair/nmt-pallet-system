@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ZoomIn, ZoomOut, RotateCcw, Download } from 'lucide-react';
+import { useT } from '../../../hooks/useT';
 
 interface ImageViewerModalProps {
     src: string | null;
@@ -8,6 +9,10 @@ interface ImageViewerModalProps {
 }
 
 export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ src, onClose }) => {
+    // Above the `if (!src) return null` below, like the state hooks: this
+    // component renders nothing most of the time, and a hook that only runs
+    // when it does would break the order between renders.
+    const t = useT();
     const [scale, setScale] = useState(1);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
@@ -115,7 +120,7 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ src, onClose
                         onClick={handleZoomOut}
                         className="p-2 text-white hover:bg-white/20 rounded-md transition disabled:opacity-50"
                         disabled={scale <= 0.5}
-                        title="Zoom Out"
+                        title={t.modals.zoomOut}
                     >
                         <ZoomOut size={20} />
                     </button>
@@ -126,7 +131,7 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ src, onClose
                         onClick={handleZoomIn}
                         className="p-2 text-white hover:bg-white/20 rounded-md transition disabled:opacity-50"
                         disabled={scale >= 3}
-                        title="Zoom In"
+                        title={t.modals.zoomIn}
                     >
                         <ZoomIn size={20} />
                     </button>
@@ -134,7 +139,7 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ src, onClose
                     <button
                         onClick={handleReset}
                         className="p-2 text-white hover:bg-white/20 rounded-md transition"
-                        title="Reset Zoom"
+                        title={t.modals.resetZoom}
                     >
                         <RotateCcw size={20} />
                     </button>
@@ -146,7 +151,7 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ src, onClose
                 <button
                     onClick={handleDownload}
                     className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-lg border border-white/20 transition backdrop-blur-md"
-                    title="Download Image"
+                    title={t.modals.downloadImage}
                 >
                     <Download size={24} />
                 </button>
@@ -174,7 +179,7 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ src, onClose
                 >
                     <img
                         src={src}
-                        alt="Preview"
+                        alt={t.modals.previewAlt}
                         className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl pointer-events-none select-none"
                         draggable={false}
                     />

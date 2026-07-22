@@ -5,6 +5,7 @@ import {
 import { Transaction } from '../../../types';
 import { formatDateTime } from '../common/AdminHelpers';
 import { Pagination } from '../common/Pagination';
+import { useT } from '../../../hooks/useT';
 
 export type TxSortConfig = { key: keyof Transaction, direction: 'asc' | 'desc' } | null;
 
@@ -40,6 +41,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
     onEdit,
     onDelete
 }) => {
+    const t = useT();
 
     const SortIcon = ({ column }: { column: string }) => {
         if (sortConfig?.key !== column) return <ArrowUpDown size={14} className="text-gray-300" />;
@@ -60,18 +62,20 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
         </th>
     );
 
+    // Colours stay here, wording comes from the shared action table -- the same
+    // one the filter dropdown, the CSV export and the mobile history read.
     const getActionBadge = (action: string) => {
         switch (action) {
             case 'check_out':
-                return <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-bold border border-yellow-200">CHECK OUT</span>;
+                return <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-bold border border-yellow-200">{t.action.check_out}</span>;
             case 'check_in':
-                return <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200">CHECK IN</span>;
+                return <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200">{t.action.check_in}</span>;
             case 'report_damage':
-                return <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold border border-red-200">DAMAGE REPORT</span>;
+                return <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold border border-red-200">{t.action.report_damage}</span>;
             case 'repair':
-                return <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold border border-green-200">REPAIRED</span>;
+                return <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold border border-green-200">{t.action.repair}</span>;
             case 'scrap':
-                return <span className="px-2 py-1 rounded-full bg-gray-200 text-gray-700 text-xs font-bold border border-gray-300">SCRAPPED</span>;
+                return <span className="px-2 py-1 rounded-full bg-gray-200 text-gray-700 text-xs font-bold border border-gray-300">{t.action.scrap}</span>;
             default:
                 return <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-bold border border-gray-200">{action}</span>;
         }
@@ -81,16 +85,19 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[600px] lg:h-[calc(100vh-240px)] overflow-hidden">
             <div className="flex-1 overflow-auto relative styled-scrollbar">
                 <table className="w-full text-left border-collapse min-w-[1000px]">
-                    <thead className="bg-gray-50 text-gray-500 text-sm font-semibold tracking-wide uppercase sticky top-0 z-10 shadow-sm">
+                    {/* `uppercase tracking-wide` dropped with the translation: uppercase
+                        does nothing to Thai, and the extra letter-spacing pushes vowels
+                        and tone marks away from the consonant they belong to. */}
+                    <thead className="bg-gray-50 text-gray-500 text-sm font-semibold sticky top-0 z-10 shadow-sm">
                         <tr>
-                            <Th label="Date & Time" sortKey="timestamp" />
-                            <Th label="Pallet ID" sortKey="pallet_id" />
-                            <Th label="Action" sortKey="action_type" />
-                            <Th label="Performed By" sortKey="user_id" />
-                            <Th label="Location" sortKey="department_dest" />
-                            <th className="p-3 border-b w-48">Remark</th>
-                            <th className="p-3 border-b w-24 text-center">Evidence</th>
-                            <th className="p-3 border-b text-right">Actions</th>
+                            <Th label={t.transactions.colDateTime} sortKey="timestamp" />
+                            <Th label={t.common.palletId} sortKey="pallet_id" />
+                            <Th label={t.transactions.colAction} sortKey="action_type" />
+                            <Th label={t.transactions.colPerformedBy} sortKey="user_id" />
+                            <Th label={t.common.location} sortKey="department_dest" />
+                            <th className="p-3 border-b w-48">{t.common.remark}</th>
+                            <th className="p-3 border-b w-24 text-center">{t.transactions.colEvidence}</th>
+                            <th className="p-3 border-b text-right">{t.common.actions}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -136,7 +143,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                                         <button
                                             onClick={() => onViewImage(tx.evidence_image_url!)}
                                             className="inline-flex items-center justify-center p-2 bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-600 rounded-lg transition"
-                                            title="View Evidence Image"
+                                            title={t.transactions.viewEvidence}
                                         >
                                             <ImageIcon size={16} />
                                         </button>
@@ -149,14 +156,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                                         <button
                                             onClick={() => onEdit(tx)}
                                             className="p-2 text-blue-400 hover:bg-blue-100 hover:text-blue-600 rounded-full transition"
-                                            title="Edit Transaction"
+                                            title={t.transactions.editTitle}
                                         >
                                             <Edit2 size={16} />
                                         </button>
                                         <button
                                             onClick={() => onDelete(tx.id)}
                                             className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-full transition"
-                                            title="Delete Record"
+                                            title={t.transactions.deleteRecord}
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -181,8 +188,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
             {totalProcessedCount === 0 && (
                 <div className="p-12 text-center flex flex-col items-center text-gray-400 gap-2 flex-1 justify-center">
                     <Search size={48} className="opacity-20" />
-                    <p>No transactions found matching your filters.</p>
-                    <button onClick={onClearFilters} className="text-blue-600 font-bold hover:underline">Clear Filters</button>
+                    <p>{t.transactions.emptyFiltered}</p>
+                    <button onClick={onClearFilters} className="text-blue-600 font-bold hover:underline">{t.common.clearFilters}</button>
                 </div>
             )}
         </div>

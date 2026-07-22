@@ -89,7 +89,7 @@ const QRScanner: React.FC<QRScannerProps> = ({
           <div className="w-5 h-5 bg-black/50 rounded-full flex items-center justify-center border border-white/10 shadow-inner">
             <Camera className="w-5 h-5 text-green-400 animate-pulse" />
           </div>
-          <span className="text-white text-sm font-semibold tracking-wide">{t.scanner.scanning}</span>
+          <span className="text-white text-sm font-semibold">{t.scanner.scanning}</span>
         </div>
 
         {/* Close Button */}

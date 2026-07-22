@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { useT } from '../../../hooks/useT';
 
 interface PaginationProps {
     currentPage: number;
@@ -16,15 +17,23 @@ export const Pagination: React.FC<PaginationProps> = ({
     totalItems,
     itemsPerPage
 }) => {
-
+    const t = useT();
 
     if (totalPages <= 0) return null;
 
     return (
         <div className="p-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between bg-gray-50 shrink-0 gap-4">
             {totalItems !== undefined && itemsPerPage !== undefined && (
+                // One sentence from the dictionary instead of English fragments
+                // stitched around bold <span>s. Thai puts those numbers in a
+                // different order, which that markup could not express; the
+                // emphasis is the price, and it was only decoration.
                 <p className="text-sm text-gray-500 order-2 sm:order-1">
-                    Showing <span className="font-bold">{((currentPage - 1) * itemsPerPage) + 1}</span> to <span className="font-bold">{Math.min(currentPage * itemsPerPage, totalItems)}</span> of <span className="font-bold">{totalItems}</span> items
+                    {t.pagination.showing(
+                        ((currentPage - 1) * itemsPerPage) + 1,
+                        Math.min(currentPage * itemsPerPage, totalItems),
+                        totalItems
+                    )}
                 </p>
             )}
 
@@ -34,7 +43,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                     onClick={() => onPageChange(1)}
                     disabled={currentPage === 1}
                     className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition text-gray-600"
-                    title="First Page"
+                    title={t.pagination.firstPage}
                 >
                     <ChevronsLeft size={18} />
                 </button>
@@ -44,14 +53,14 @@ export const Pagination: React.FC<PaginationProps> = ({
                     onClick={() => onPageChange(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
                     className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition text-gray-600"
-                    title="Previous Page"
+                    title={t.pagination.prevPage}
                 >
                     <ChevronLeft size={18} />
                 </button>
 
                 {/* Page Dropdown */}
                 <div className="flex items-center gap-2 px-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 h-[38px]">
-                    <span className="text-gray-500 font-medium">Page</span>
+                    <span className="text-gray-500 font-medium">{t.pagination.page}</span>
                     <select
                         value={currentPage}
                         onChange={(e) => onPageChange(Number(e.target.value))}
@@ -63,7 +72,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                             </option>
                         ))}
                     </select>
-                    <span className="text-gray-500 font-medium">of {totalPages}</span>
+                    <span className="text-gray-500 font-medium">{t.pagination.ofTotal(totalPages)}</span>
                 </div>
 
                 {/* Next Page */}
@@ -71,7 +80,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                     onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
                     className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition text-gray-600"
-                    title="Next Page"
+                    title={t.pagination.nextPage}
                 >
                     <ChevronRight size={18} />
                 </button>
@@ -81,7 +90,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                     onClick={() => onPageChange(totalPages)}
                     disabled={currentPage === totalPages}
                     className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition text-gray-600"
-                    title="Last Page"
+                    title={t.pagination.lastPage}
                 >
                     <ChevronsRight size={18} />
                 </button>

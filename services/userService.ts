@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { User } from '../types';
+import { AppError } from './appError';
 
 // --- USER MANAGEMENT ---
 
@@ -21,7 +22,7 @@ export const updateUser = async (id: string, updates: Partial<User>): Promise<bo
 
     if (error) throw error;
     if (!data || data.length === 0) {
-        throw new Error("Update failed: User not found or permission denied (RLS)");
+        throw new AppError('update_denied');
     }
     return true;
 };

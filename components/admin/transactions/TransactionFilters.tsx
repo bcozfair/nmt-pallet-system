@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, MapPin, Filter, Calendar, ChevronRight, ChevronDown, X, User } from 'lucide-react';
 import { Department } from '../../../types';
+import { useT } from '../../../hooks/useT';
 
 interface TransactionFiltersProps {
     searchTerm: string;
@@ -31,6 +32,8 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
     setUserFilter,
     users
 }) => {
+    const t = useT();
+
     return (
         <div className="bg-white p-2.5 rounded-xl shadow-sm border border-gray-100">
             <div className="flex flex-col xl:flex-row gap-3 items-center">
@@ -40,7 +43,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <input
                         type="text"
-                        placeholder="Search by Pallet ID, Notes..."
+                        placeholder={t.transactions.searchPlaceholder}
                         className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 text-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -56,7 +59,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
                             value={userFilter}
                             onChange={(e) => setUserFilter(e.target.value)}
                         >
-                            <option value="all">All Users</option>
+                            <option value="all">{t.transactions.allUsers}</option>
                             {Object.entries(users).sort((a, b) => (a[1] as string).localeCompare(b[1] as string)).map(([id, name]) => (
                                 <option key={id} value={id}>{name}</option>
                             ))}
@@ -74,7 +77,11 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
                             value={locationFilter}
                             onChange={(e) => setLocationFilter(e.target.value)}
                         >
-                            <option value="all">All Locations</option>
+                            <option value="all">{t.transactions.allLocations}</option>
+                            {/* Department names are data, not UI text: they are typed
+                                into the locations screen and stored on every
+                                transaction, so they stay exactly as recorded --
+                                including "Warehouse", which the table shows verbatim. */}
                             <option value="Warehouse">Warehouse</option>
                             {departments.filter(d => d.name !== 'Warehouse').map(d => (
                                 <option key={d.id} value={d.name}>{d.name}</option>
@@ -93,12 +100,14 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
                             value={actionFilter}
                             onChange={(e) => setActionFilter(e.target.value)}
                         >
-                            <option value="all">All Actions</option>
-                            <option value="check_out">Check Out</option>
-                            <option value="check_in">Check In</option>
-                            <option value="report_damage">Damage Report</option>
-                            <option value="repair">Repair</option>
-                            <option value="scrap">Scrap</option>
+                            <option value="all">{t.transactions.allActions}</option>
+                            {/* The five labels come from the shared action table, so this
+                                dropdown can never disagree with the badges in the table. */}
+                            <option value="check_out">{t.action.check_out}</option>
+                            <option value="check_in">{t.action.check_in}</option>
+                            <option value="report_damage">{t.action.report_damage}</option>
+                            <option value="repair">{t.action.repair}</option>
+                            <option value="scrap">{t.action.scrap}</option>
                         </select>
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                             <ChevronRight size={14} className="rotate-90" />
@@ -115,7 +124,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
                             <input
                                 type="text"
                                 readOnly
-                                placeholder="Start Date"
+                                placeholder={t.transactions.startDate}
                                 className="w-full bg-transparent text-sm text-gray-700 outline-none text-left cursor-pointer placeholder:text-gray-400 pr-4"
                                 value={dateRange.start ? dateRange.start.split('-').reverse().join('/') : ''}
                             />
@@ -132,7 +141,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
                             <input
                                 type="text"
                                 readOnly
-                                placeholder="End Date"
+                                placeholder={t.transactions.endDate}
                                 className="w-full bg-transparent text-sm text-gray-700 outline-none text-left cursor-pointer placeholder:text-gray-400 pr-4"
                                 value={dateRange.end ? dateRange.end.split('-').reverse().join('/') : ''}
                             />

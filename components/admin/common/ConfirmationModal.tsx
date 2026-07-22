@@ -1,9 +1,11 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { useT } from '../../../hooks/useT';
 
 interface ConfirmationModalProps {
     isOpen: boolean;
+    /** Already translated by the caller -- these are specific to each action. */
     title: string;
     message: string;
     confirmLabel: string;
@@ -21,6 +23,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     onConfirm,
     onCancel
 }) => {
+    const t = useT();
     if (!isOpen) return null;
 
     return createPortal(
@@ -40,7 +43,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                         onClick={onCancel}
                         className="px-4 py-2 bg-white text-gray-700 font-bold rounded-lg hover:bg-gray-100 border border-gray-200 transition"
                     >
-                        Cancel
+                        {t.common.cancel}
                     </button>
                     <button
                         onClick={async () => {

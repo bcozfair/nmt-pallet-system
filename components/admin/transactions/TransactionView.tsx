@@ -14,9 +14,20 @@ import { TransactionHeader } from './TransactionHeader';
 import { ConfirmationModal } from '../common/ConfirmationModal';
 import { generateCSV } from '../../../utils/exportHelpers';
 import { getEvidenceSignedUrl } from '../../../services/storageService';
+import { useT } from '../../../hooks/useT';
+import { dict } from '../../../services/i18n';
+import { describeAppError } from '../../../services/appError';
+
+// The handlers below read dict() rather than the hook's `t`. They are async, and
+// two of them (loadData, and the onConfirm stored in confirmAction) outlive the
+// render that created them -- dict() is read at the moment the message is shown,
+// so a language switch mid-request cannot leave a toast in the old language.
+// JSX still uses the hook, which is what re-renders this screen on a switch.
 
 
 export const TransactionView = () => {
+    const t = useT();
+
     // Data State
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [users, setUsers] = useState<Record<string, string>>({});
@@ -55,7 +66,7 @@ export const TransactionView = () => {
         if (signed) {
             setPreviewImage(signed);
         } else {
-            toast.error("Could not load the evidence image.");
+            toast.error(dict().transactions.evidenceLoadFailed);
         }
     };
 
@@ -110,7 +121,7 @@ export const TransactionView = () => {
 
         } catch (error) {
             console.error("Failed to load transactions", error);
-            toast.error("Failed to load transaction history.");
+            toast.error(dict().transactions.loadFailed);
         } finally {
             setLoading(false);
         }
@@ -193,11 +204,25 @@ export const TransactionView = () => {
     const handleExport = () => {
         // ... (Export logic, add Notes column)
         try {
-            const headers = ['Timestamp', 'Pallet ID', 'Action', 'User', 'Destination', 'Remark', 'Evidence File'];
+            const strings = dict();
+            // Column names come from the shared csv.header block, so this export and
+            // the full-history one in utils/exportHelpers.ts head their columns alike.
+            const h = strings.csv.header;
+            const headers = [
+                strings.transactions.colDateTime,
+                h.palletId,
+                h.actionType,
+                strings.common.user,
+                h.locationDest,
+                strings.common.remark,
+                h.evidenceFile
+            ];
             const rows = processedTransactions.map(tx => [
                 formatDateTime(tx.timestamp),
                 tx.pallet_id,
-                tx.action_type,
+                // Was the raw enum ("report_damage") under a heading that reads
+                // "Action". Same table every badge and dropdown on this screen uses.
+                strings.action[tx.action_type] ?? tx.action_type,
                 users[tx.user_id] || tx.user_id,
                 tx.department_dest || '',
                 tx.transaction_remark || '',
@@ -210,13 +235,13 @@ export const TransactionView = () => {
             const success = generateCSV(headers, rows, filename);
 
             if (success) {
-                toast.success(`Exported ${processedTransactions.length} records.`);
+                toast.success(strings.transactions.exportDone(processedTransactions.length));
             } else {
-                toast.error("Export failed.");
+                toast.error(strings.transactions.exportFailed);
             }
         } catch (e) {
             console.error(e);
-            toast.error("Export failed.");
+            toast.error(dict().transactions.exportFailed);
         }
     };
 
@@ -237,7 +262,9 @@ export const TransactionView = () => {
                 const d = new Date();
                 const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
                 const timeStr = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-                finalRemark = `${finalRemark.trim()} (Updated: ${dateStr}, ${timeStr} by ${currentUser.name})`;
+                // 'en-GB' stays: the stamp has to read the same as every other date
+                // on screen and in the CSV. Only the wording around it is translated.
+                finalRemark = `${finalRemark.trim()} ${dict().transactions.remarkStamp(dateStr, timeStr, currentUser.name)}`;
             }
 
             await updateTransaction(id, editModal.transaction.pallet_id, {
@@ -245,27 +272,30 @@ export const TransactionView = () => {
                 transaction_remark: finalRemark
             });
 
-            toast.success("Transaction updated successfully");
+            toast.success(dict().transactions.updated);
             loadData(); // Reload to see changes
         } catch (error) {
             console.error(error);
-            toast.error("Failed to update transaction");
+            toast.error(dict().transactions.updateFailed);
         }
     };
 
     const handleDelete = (id: string) => {
+        // ConfirmationModal renders whatever it is handed, so the wording is
+        // translated here, at the call site that knows what is being confirmed.
+        const c = dict();
         setConfirmAction({
-            title: "Delete Transaction?",
-            message: "Are you sure you want to delete this record? This action cannot be undone.",
-            confirmLabel: "Delete",
+            title: c.transactions.deleteTitle,
+            message: c.transactions.deleteMessage,
+            confirmLabel: c.common.delete,
             isDestructive: true,
             onConfirm: async () => {
                 try {
                     await deleteTransaction(id);
-                    toast.success("Transaction deleted");
+                    toast.success(dict().transactions.deleted);
                     loadData();
                 } catch (error) {
-                    toast.error("Failed to delete transaction");
+                    toast.error(dict().transactions.deleteFailed);
                 }
             }
         });
@@ -273,18 +303,19 @@ export const TransactionView = () => {
 
     const handleCleanup = async () => {
         // ... (Cleanup logic)
+        const c = dict();
         setConfirmAction({
-            title: "Clean Old Data?",
-            message: "This will permanently delete transactions older than 2 years from the database. This action cannot be undone.",
-            confirmLabel: "Clean Data",
+            title: c.transactions.cleanupTitle,
+            message: c.transactions.cleanupMessage,
+            confirmLabel: c.transactions.cleanupConfirm,
             isDestructive: true,
             onConfirm: async () => {
                 try {
                     const count = await cleanupOldData(2);
-                    toast.success(`Cleanup complete. Deleted ${count} old records.`);
+                    toast.success(dict().transactions.cleanupDone(count));
                     loadData();
                 } catch (e: any) {
-                    toast.error(`Cleanup failed: ${e.message}`);
+                    toast.error(dict().transactions.cleanupFailed(describeAppError(e)));
                 }
             }
         });
@@ -299,7 +330,7 @@ export const TransactionView = () => {
 
 
     if (loading) {
-        return <div className="p-12 text-center text-gray-500">Loading transactions...</div>;
+        return <div className="p-12 text-center text-gray-500">{t.transactions.loading}</div>;
     }
 
     return (

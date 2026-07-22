@@ -1,6 +1,7 @@
 import React from 'react';
 import { Edit2, Trash2, Save, X, KeyRound, MapPin, Hash } from 'lucide-react';
 import { User } from '../../../types';
+import { useT } from '../../../hooks/useT';
 
 interface UserCardListProps {
     users: User[];
@@ -27,6 +28,8 @@ export const UserCardList: React.FC<UserCardListProps> = ({
     onDelete,
     onResetPassword
 }) => {
+    const t = useT();
+
     return (
         <div className="md:hidden space-y-4">
             {users.map(user => (
@@ -34,7 +37,7 @@ export const UserCardList: React.FC<UserCardListProps> = ({
                     {editingId === user.id ? (
                         <div className="space-y-4">
                             <div className="flex justify-between items-start">
-                                <h3 className="font-bold text-gray-500 text-sm uppercase tracking-wide">Editing User</h3>
+                                <h3 className="font-bold text-gray-500 text-sm">{t.users.editingUser}</h3>
                                 <div className="flex gap-2">
                                     <button onClick={() => onSave(user.id)} className="p-2 bg-green-100 text-green-700 rounded-full"><Save size={16} /></button>
                                     <button onClick={onCancelEdit} className="p-2 bg-gray-100 text-gray-500 rounded-full"><X size={16} /></button>
@@ -42,7 +45,7 @@ export const UserCardList: React.FC<UserCardListProps> = ({
                             </div>
 
                             <div>
-                                <label className="text-xs text-gray-400 block mb-1">Full Name</label>
+                                <label className="text-xs text-gray-400 block mb-1">{t.users.fullName}</label>
                                 <input
                                     className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
                                     value={editForm.full_name || ''}
@@ -51,7 +54,7 @@ export const UserCardList: React.FC<UserCardListProps> = ({
                             </div>
 
                             <div>
-                                <label className="text-xs text-gray-400 block mb-1">Location</label>
+                                <label className="text-xs text-gray-400 block mb-1">{t.common.location}</label>
                                 <select
                                     className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
                                     value={editForm.department || ''}
@@ -64,14 +67,14 @@ export const UserCardList: React.FC<UserCardListProps> = ({
                             </div>
 
                             <div>
-                                <label className="text-xs text-gray-400 block mb-1">Role</label>
+                                <label className="text-xs text-gray-400 block mb-1">{t.users.roleLabel}</label>
                                 <select
                                     className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
                                     value={editForm.role || 'staff'}
                                     onChange={(e) => setEditForm({ ...editForm, role: e.target.value as any })}
                                 >
-                                    <option value="staff">Staff</option>
-                                    <option value="admin">Admin</option>
+                                    <option value="staff">{t.role.staff}</option>
+                                    <option value="admin">{t.role.admin}</option>
                                 </select>
                             </div>
                         </div>
@@ -84,8 +87,8 @@ export const UserCardList: React.FC<UserCardListProps> = ({
                                         <Hash size={12} /> {user.employee_id}
                                     </p>
                                 </div>
-                                <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                                    {user.role}
+                                <span className={`px-2 py-1 rounded text-xs font-bold ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                    {t.role[user.role]}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-50">

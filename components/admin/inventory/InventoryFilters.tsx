@@ -43,9 +43,9 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                     <input
                         id="search-pallet-id"
                         name="search"
-                        aria-label="Search Pallet ID"
+                        aria-label={t.inventory.searchPallet}
                         type="text"
-                        placeholder="Search Pallet ID..."
+                        placeholder={t.inventory.searchPlaceholder}
                         className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 text-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -58,7 +58,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                         <select
                             id="filter-location"
                             name="location"
-                            aria-label="Filter by Location"
+                            aria-label={t.inventory.filterByLocation}
                             className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none text-sm"
                             value={locationFilter}
                             onChange={(e) => {
@@ -67,7 +67,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                                 if (onLocationChange) onLocationChange(loc);
                             }}
                         >
-                            <option value="all">All Locations</option>
+                            <option value="all">{t.inventory.allLocations}</option>
                             <option value="Warehouse">Warehouse</option>
                             {departments.filter(d => d.name !== 'Warehouse').map(d => (
                                 <option key={d.id} value={d.name}>{d.name}</option>
@@ -82,7 +82,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                         <select
                             id="filter-status"
                             name="status"
-                            aria-label="Filter by Status"
+                            aria-label={t.inventory.filterByStatus}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none text-sm"
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
@@ -91,7 +91,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                                 swamped by written-off pallets. Scrapped is its
                                 own option below, matching the way scrapped is
                                 excluded from every fleet total. */}
-                            <option value="all">All Active</option>
+                            <option value="all">{t.inventory.allActive}</option>
                             {PALLET_STATUS_ORDER.map(status => (
                                 <option key={status} value={status}>{t.status[status]}</option>
                             ))}
@@ -110,7 +110,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                             <input
                                 type="text"
                                 readOnly
-                                placeholder="Start Date"
+                                placeholder={t.inventory.startDate}
                                 className="w-full bg-transparent text-sm text-gray-700 outline-none text-left cursor-pointer placeholder:text-gray-400 pr-4"
                                 value={dateRange.start ? dateRange.start.split('-').reverse().join('/') : ''}
                             />
@@ -118,7 +118,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                             <input
                                 id="filter-start-date"
                                 name="startDate"
-                                aria-label="Start Date"
+                                aria-label={t.inventory.startDate}
                                 type="date"
                                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                                 value={dateRange.start}
@@ -130,7 +130,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                             <input
                                 type="text"
                                 readOnly
-                                placeholder="End Date"
+                                placeholder={t.inventory.endDate}
                                 className="w-full bg-transparent text-sm text-gray-700 outline-none text-left cursor-pointer placeholder:text-gray-400 pr-4"
                                 value={dateRange.end ? dateRange.end.split('-').reverse().join('/') : ''}
                             />
@@ -138,7 +138,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                             <input
                                 id="filter-end-date"
                                 name="endDate"
-                                aria-label="End Date"
+                                aria-label={t.inventory.endDate}
                                 type="date"
                                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                                 value={dateRange.end}
@@ -162,7 +162,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                         }`}
                 >
                     {showOverdueOnly ? <CheckCircle size={16} /> : <div className="w-4 h-4 rounded-full border-2 border-gray-300" />}
-                    Overdue Only
+                    {t.inventory.overdueOnly}
                 </button>
             </div>
         </div>

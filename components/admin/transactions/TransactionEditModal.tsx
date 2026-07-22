@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, MapPin, FileText, Calendar } from 'lucide-react';
 import { Transaction, Department } from '../../../types';
 import { formatDateTime } from '../common/AdminHelpers';
+import { useT } from '../../../hooks/useT';
 
 interface TransactionEditModalProps {
     isOpen: boolean;
@@ -18,6 +19,8 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
     transaction,
     departments
 }) => {
+    // Above the `isOpen` early return: hooks have to run on every render.
+    const t = useT();
     const [location, setLocation] = useState('');
     const [remark, setRemark] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,7 +54,7 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                    <h3 className="font-bold text-gray-800 text-lg">Edit Transaction</h3>
+                    <h3 className="font-bold text-gray-800 text-lg">{t.transactions.editTitle}</h3>
                     <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition text-gray-500 hover:text-gray-700">
                         <X size={20} />
                     </button>
@@ -61,11 +64,13 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
                     {/* Read-Only Info */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="text-xs text-gray-400 font-bold uppercase block mb-1">Pallet ID</span>
+                            {/* `uppercase` dropped: it is a no-op on Thai. The value below
+                                keeps its font-mono, it is still an ASCII ID. */}
+                            <span className="text-xs text-gray-400 font-bold block mb-1">{t.common.palletId}</span>
                             <span className="font-mono font-bold text-gray-700">{transaction.pallet_id}</span>
                         </div>
                         <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="text-xs text-gray-400 font-bold uppercase block mb-1">Date (Read Only)</span>
+                            <span className="text-xs text-gray-400 font-bold block mb-1">{t.transactions.dateReadOnly}</span>
                             <div className="flex items-center gap-1 text-sm font-medium text-gray-600">
                                 <Calendar size={14} />
                                 {formatDateTime(transaction.timestamp)}
@@ -76,32 +81,32 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
                     {/* Location Edit */}
                     <div className="space-y-1.5">
                         <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <MapPin size={16} className="text-blue-500" /> Location / Destination
+                            <MapPin size={16} className="text-blue-500" /> {t.transactions.locationLabel}
                         </label>
                         <select
                             value={location}
                             onChange={(e) => setLocation(e.target.value)}
                             className="w-full p-2.5 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition bg-white"
                         >
-                            <option value="">(No Location)</option>
+                            <option value="">{t.transactions.noLocation}</option>
                             {departments.map(d => (
                                 <option key={d.id} value={d.name}>{d.name}</option>
                             ))}
                         </select>
                         <p className="text-xs text-blue-500/80 mt-1 pl-1">
-                            * Note: Updating the latest transaction will verify & sync the Pallet's location.
+                            {t.transactions.locationSyncNote}
                         </p>
                     </div>
 
                     {/* Remarks Edit */}
                     <div className="space-y-1.5">
                         <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <FileText size={16} className="text-orange-500" /> Remarks / Notes
+                            <FileText size={16} className="text-orange-500" /> {t.transactions.remarkLabel}
                         </label>
                         <textarea
                             value={remark}
                             onChange={(e) => setRemark(e.target.value)}
-                            placeholder="Add reason for edit or extra details..."
+                            placeholder={t.transactions.remarkPlaceholder}
                             className="w-full p-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-100 focus:border-orange-400 outline-none transition min-h-[100px] text-sm"
                         />
                     </div>
@@ -112,7 +117,7 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
                             onClick={onClose}
                             className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-lg transition"
                         >
-                            Cancel
+                            {t.common.cancel}
                         </button>
                         <button
                             type="submit"
@@ -120,7 +125,7 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
                             className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             <Save size={18} />
-                            {isSubmitting ? 'Saving...' : 'Save Changes'}
+                            {isSubmitting ? t.common.saving : t.transactions.saveChanges}
                         </button>
                     </div>
                 </form>

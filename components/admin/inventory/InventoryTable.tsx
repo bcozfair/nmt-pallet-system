@@ -6,6 +6,7 @@ import {
 import { Pallet } from '../../../types';
 import { formatDateTime, StatusBadge } from '../common/AdminHelpers';
 import { Pagination } from '../common/Pagination';
+import { useT } from '../../../hooks/useT';
 
 export type SortConfig = { key: keyof Pallet | 'days_overdue', direction: 'asc' | 'desc' } | null;
 
@@ -63,6 +64,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
     onClearFilters,
     onEditRow
 }) => {
+    const t = useT();
 
     const SortIcon = ({ column }: { column: string }) => {
         if (sortConfig?.key !== column) return <ArrowUpDown size={14} className="text-gray-300" />;
@@ -87,26 +89,31 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[600px] lg:h-[calc(100vh-240px)] overflow-hidden">
             <div className="flex-1 overflow-auto relative styled-scrollbar">
                 <table className="w-full text-left border-collapse min-w-[800px]">
-                    <thead className="bg-gray-50 text-gray-500 text-sm font-semibold tracking-wide uppercase sticky top-0 z-10 shadow-sm">
+                    {/* No `uppercase tracking-wide` here any more: uppercase does
+                        nothing to Thai, and the extra letter-spacing pushes tone
+                        marks and vowels away from the consonant they belong to. */}
+                    <thead className="bg-gray-50 text-gray-500 text-sm font-semibold sticky top-0 z-10 shadow-sm">
                         <tr>
                             <th className="p-2 border-b w-5 text-center bg-gray-100/50">
                                 <input
                                     id="select-all-pallets"
-                                    aria-label="Select all pallets"
+                                    aria-label={t.inventory.selectAllPallets}
                                     type="checkbox"
                                     onChange={onSelectAll}
                                     checked={selectedIds.size === totalProcessedCount && totalProcessedCount > 0}
                                     className="appearance-none w-4 h-4 rounded-full border-2 border-gray-300 bg-white checked:bg-blue-600 checked:border-blue-600 cursor-pointer transition-all relative checked:after:content-[''] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:w-3 checked:after:h-3 checked:after:bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjIwIDYgOSAxNyA0IDEyIiAvPjwvc3ZnPg==')] checked:after:bg-center checked:after:bg-no-repeat checked:after:bg-contain"
                                 />
                             </th>
+                            {/* "ID" stays as it is -- staff say it in English and
+                                it reads the same in both languages. */}
                             <Th label="ID" sortKey="pallet_id" />
-                            <Th label="Status" sortKey="status" />
-                            <Th label="Last Updated" sortKey="last_transaction_date" />
-                            <Th label="Location" sortKey="current_location" />
-                            <Th label="Last Checkout" sortKey="last_checkout_date" />
-                            <Th label="Overdue" sortKey="days_overdue" />
-                            <Th label="Remark" sortKey="pallet_remark" />
-                            <Th label="Actions" align="right" />
+                            <Th label={t.common.status} sortKey="status" />
+                            <Th label={t.inventory.lastUpdated} sortKey="last_transaction_date" />
+                            <Th label={t.common.location} sortKey="current_location" />
+                            <Th label={t.inventory.lastCheckout} sortKey="last_checkout_date" />
+                            <Th label={t.inventory.overdue} sortKey="days_overdue" />
+                            <Th label={t.common.remark} sortKey="pallet_remark" />
+                            <Th label={t.common.actions} align="right" />
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -153,7 +160,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                         {p.status === 'in_use' && p.last_checkout_date ? (
                                             <div className={`flex items-center gap-1 font-bold ${isOverdue ? 'text-red-600' : 'text-gray-500'}`}>
                                                 <Clock size={14} />
-                                                {days} Days
+                                                {t.inventory.daysCount(days)}
                                                 {isOverdue && <AlertCircle size={14} className="ml-1 fill-red-600 text-white" />}
                                             </div>
                                         ) : (
@@ -181,14 +188,14 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); onRepairRow(p.pallet_id); }}
                                                         className="p-2 text-green-600 hover:bg-green-100 rounded-full transition"
-                                                        title="Mark as Repaired"
+                                                        title={t.inventory.markRepairedTitle}
                                                     >
                                                         <CircleCheckBig size={16} />
                                                     </button>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); onScrapRow(p.pallet_id); }}
                                                         className="p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-full transition"
-                                                        title="Mark as Scrapped (retires the pallet, keeps its history)"
+                                                        title={t.inventory.markScrappedTitle}
                                                     >
                                                         <Ban size={16} />
                                                     </button>
@@ -197,21 +204,24 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onPrintQr([p]); }}
                                                 className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-full transition"
-                                                title="Print QR Code"
+                                                title={t.inventory.printQrTitle}
                                             >
                                                 <QrCode size={16} />
                                             </button>
+                                            {/* Tooltip used to read "Edit Transaction"; the
+                                                button opens the pallet editor, not a
+                                                transaction, so the label now says so. */}
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onEditRow(p); }}
                                                 className="p-2 text-blue-400 hover:bg-blue-100 hover:text-blue-600 rounded-full transition"
-                                                title="Edit Transaction"
+                                                title={t.inventory.editPalletTitle}
                                             >
                                                 <Edit2 size={16} />
                                             </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onDeleteClick(p.pallet_id, e); }}
                                                 className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-full transition"
-                                                title="Delete Pallet"
+                                                title={t.inventory.deletePalletTitle}
                                             >
                                                 <Trash2 size={16} />
                                             </button>
@@ -242,8 +252,8 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                 totalProcessedCount === 0 && (
                     <div className="p-12 text-center flex flex-col items-center text-gray-400 gap-2 flex-1 justify-center">
                         <Search size={48} className="opacity-20" />
-                        <p>No pallets found matching your filters.</p>
-                        <button onClick={onClearFilters} className="text-blue-600 font-bold hover:underline">Clear Filters</button>
+                        <p>{t.inventory.noResults}</p>
+                        <button onClick={onClearFilters} className="text-blue-600 font-bold hover:underline">{t.common.clearFilters}</button>
                     </div>
                 )
             }

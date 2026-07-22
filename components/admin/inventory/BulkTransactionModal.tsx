@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, CheckCircle, ArrowRightLeft } from 'lucide-react';
 import { Department } from '../../../types';
+import { useT } from '../../../hooks/useT';
 
 interface BulkTransactionModalProps {
     isOpen: boolean;
@@ -24,6 +25,7 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
     selectedIds,
     departments
 }) => {
+    const t = useT();
     const [action, setAction] = useState<'check_out' | 'check_in'>('check_out');
     const [destination, setDestination] = useState('');
     const [remark, setRemark] = useState('');
@@ -74,17 +76,21 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
                     <div>
                         <h3 className="text-xl font-black text-gray-800 flex items-center gap-2">
                             <ArrowRightLeft className="text-blue-600" size={24} />
-                            Create Transaction
+                            {t.inventory.bulkTitle}
                         </h3>
+                        {/* Two keys rather than one sentence: the count keeps its own
+                            bold span, so the wording has to arrive in two pieces. */}
                         <p className="text-sm text-gray-500 mt-1">
-                            Processing <span className="font-bold text-blue-600">{selectedCount}</span> selected pallets.
+                            {t.inventory.processingPrefix}
+                            <span className="font-bold text-blue-600">{selectedCount}</span>
+                            {t.inventory.processingSuffix}
                         </p>
                         <button
                             type="button"
                             onClick={() => setShowIds(!showIds)}
                             className="text-xs text-blue-600 hover:text-blue-800 font-semibold mt-1 hover:underline focus:outline-none"
                         >
-                            {showIds ? 'Hide IDs' : 'Show IDs'}
+                            {showIds ? t.inventory.hideIds : t.inventory.showIds}
                         </button>
                     </div>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition p-2 hover:bg-gray-100 rounded-full">
@@ -108,35 +114,35 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
                     {/* Action & Destination Grid */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Action</label>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">{t.inventory.actionLabel}</label>
                             <div className="flex bg-gray-100 p-0.5 rounded-lg">
                                 <button
                                     type="button"
                                     onClick={() => setAction('check_out')}
                                     className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${action === 'check_out' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                                 >
-                                    Check Out
+                                    {t.action.check_out}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setAction('check_in')}
                                     className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${action === 'check_in' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                                 >
-                                    Check In
+                                    {t.action.check_in}
                                 </button>
                             </div>
                         </div>
 
                         {/* Destination (Only for Check Out, otherwise placeholder or empty) */}
                         <div className={action === 'check_out' ? 'animate-in fade-in zoom-in-95 duration-200' : 'invisible'}>
-                            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Destination <span className="text-red-500">*</span></label>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">{t.inventory.destination} <span className="text-red-500">*</span></label>
                             <select
                                 value={destination}
                                 onChange={(e) => setDestination(e.target.value)}
                                 required={action === 'check_out'}
                                 className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition font-medium text-sm"
                             >
-                                <option value="">Select Location</option>
+                                <option value="">{t.inventory.selectLocation}</option>
                                 {departments.filter(d => d.is_active).map(d => (
                                     <option key={d.id} value={d.name}>{d.name}</option>
                                 ))}
@@ -147,7 +153,7 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
                     {/* Transaction Date & Time */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Date</label>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">{t.common.date}</label>
                             <div className="relative group/date">
                                 <input
                                     type="text"
@@ -165,7 +171,7 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Time</label>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">{t.common.time}</label>
                             <input
                                 type="time"
                                 required
@@ -178,11 +184,11 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
 
                     {/* Remark */}
                     <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Remark</label>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">{t.common.remark}</label>
                         <textarea
                             value={remark}
                             onChange={(e) => setRemark(e.target.value)}
-                            placeholder="Optional note..."
+                            placeholder={t.inventory.noteOptional}
                             rows={2}
                             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition font-medium resize-none text-sm"
                         />
@@ -194,7 +200,7 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
                             onClick={onClose}
                             className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-lg transition text-sm"
                         >
-                            Cancel
+                            {t.common.cancel}
                         </button>
                         <button
                             type="submit"
@@ -202,11 +208,11 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
                             className={`flex items-center gap-2 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-sm transition text-sm ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
                             {loading ? (
-                                <span className="animate-pulse">Processing...</span>
+                                <span className="animate-pulse">{t.inventory.processing}</span>
                             ) : (
                                 <>
                                     <CheckCircle size={16} />
-                                    Confirm
+                                    {t.common.confirm}
                                 </>
                             )}
                         </button>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useT } from '../../../hooks/useT';
 
 interface TrendChartTooltipProps {
     data: {
@@ -15,6 +16,7 @@ interface TrendChartTooltipProps {
 }
 
 export const TrendChartTooltip = ({ data, x, y, activeSeries, isRightAligned = false }: TrendChartTooltipProps) => {
+    const t = useT();
     // Offset calculation based on alignment
     const tooltipX = isRightAligned ? x - 120 : x + 15;
     const tooltipY = 20;
@@ -44,7 +46,7 @@ export const TrendChartTooltip = ({ data, x, y, activeSeries, isRightAligned = f
                 <>
                     <circle cx={tooltipX + 15} cy={tooltipY + 40} r="3" fill="#3b82f6" />
                     <text x={tooltipX + 25} y={tooltipY + 43} className="text-[10px] fill-gray-600 font-medium">
-                        Check Out: <tspan fontWeight="bold" fill="#1e293b">{data.checkOut}</tspan>
+                        {t.action.check_out}: <tspan fontWeight="bold" fill="#1e293b">{data.checkOut}</tspan>
                     </text>
                 </>
             )}
@@ -53,7 +55,7 @@ export const TrendChartTooltip = ({ data, x, y, activeSeries, isRightAligned = f
                 <>
                     <circle cx={tooltipX + 15} cy={tooltipY + 60} r="3" fill="#22c55e" />
                     <text x={tooltipX + 25} y={tooltipY + 63} className="text-[10px] fill-gray-600 font-medium">
-                        Return: <tspan fontWeight="bold" fill="#1e293b">{data.checkIn}</tspan>
+                        {t.action.check_in}: <tspan fontWeight="bold" fill="#1e293b">{data.checkIn}</tspan>
                     </text>
                 </>
             )}
@@ -62,7 +64,7 @@ export const TrendChartTooltip = ({ data, x, y, activeSeries, isRightAligned = f
                 <>
                     <circle cx={tooltipX + 15} cy={tooltipY + 80} r="3" fill="#ef4444" />
                     <text x={tooltipX + 25} y={tooltipY + 83} className="text-[10px] fill-gray-600 font-medium">
-                        Damage: <tspan fontWeight="bold" fill="#1e293b">{data.damage}</tspan>
+                        {t.dashboard.tooltipDamage}: <tspan fontWeight="bold" fill="#1e293b">{data.damage}</tspan>
                     </text>
                 </>
             )}
@@ -71,7 +73,7 @@ export const TrendChartTooltip = ({ data, x, y, activeSeries, isRightAligned = f
                 <>
                     <circle cx={tooltipX + 15} cy={tooltipY + 100} r="3" fill="#a855f7" />
                     <text x={tooltipX + 25} y={tooltipY + 103} className="text-[10px] fill-gray-600 font-medium">
-                        New: <tspan fontWeight="bold" fill="#1e293b">{data.acquisition}</tspan>
+                        {t.dashboard.tooltipAcquisition}: <tspan fontWeight="bold" fill="#1e293b">{data.acquisition}</tspan>
                     </text>
                 </>
             )}

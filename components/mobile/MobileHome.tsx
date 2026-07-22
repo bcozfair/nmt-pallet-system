@@ -22,7 +22,10 @@ export const MobileHome = ({ user, onLogout, onSetMode }: MobileHomeProps) => {
                     </div>
                     <div>
                         <h2 className="font-bold text-gray-800 leading-tight">{user.full_name}</h2>
-                        <span className="text-xs text-gray-500 uppercase tracking-wider">{user.department}</span>
+                        {/* Department names are typed in by an admin and may well be
+                            Thai, so this cannot keep wide tracking even though it is
+                            DB data rather than a translated string. */}
+                        <span className="text-xs text-gray-500">{user.department}</span>
                     </div>
                 </div>
                 <button onClick={onLogout} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition">

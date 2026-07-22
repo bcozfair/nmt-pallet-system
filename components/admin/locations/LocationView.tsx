@@ -4,6 +4,7 @@ import { fetchDepartments, createDepartment, updateDepartment, deleteDepartment 
 import { fetchPallets } from '../../../services/palletService';
 import { fetchTransactions } from '../../../services/transactionService';
 import { toast } from '../../../services/toast';
+import { dict } from '../../../services/i18n';
 
 // Components
 import { LocationHeader } from './LocationHeader';
@@ -11,6 +12,7 @@ import { LocationFilters } from './LocationFilters';
 import { LocationTable, LocationStats, LocationSortConfig, LocationSortKey } from './LocationTable';
 import { LocationModal } from './LocationModals';
 import { ConfirmModal, ConfirmActionType } from '../inventory/InventoryModals';
+import { describeAppError } from '../../../services/appError';
 
 export const LocationView: React.FC = () => {
     const [departments, setDepartments] = useState<Department[]>([]);
@@ -40,6 +42,12 @@ export const LocationView: React.FC = () => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState<{ name: string }>({ name: '' });
 
+    // This view renders no text of its own -- every string below is a toast or a
+    // confirm-dialog label produced inside a callback, so they read the language
+    // through dict() rather than useT(). That also keeps loadData correct: it is
+    // captured by the mount-only effect below, where a `t` from useT would stay
+    // frozen at whatever language was active on the first render.
+
     // Load Data
     const loadData = async () => {
         try {
@@ -53,7 +61,7 @@ export const LocationView: React.FC = () => {
             setTransactions(allTransactions);
         } catch (error) {
             console.error("Failed to load data", error);
-            toast.error("Failed to refresh data");
+            toast.error(dict().locations.refreshFailed);
         }
     };
 
@@ -198,11 +206,12 @@ export const LocationView: React.FC = () => {
     // someone typing "line a" next to an existing "Line A", a bare "duplicate"
     // looks like a bug. Same shape as the 23503 handling in handleDeleteClick.
     const reportSaveError = (error: any, attemptedName: string) => {
+        const d = dict().locations;
         console.error("Location save failed", error);
         if (error?.code === '23505') {
-            toast.error(`A location named "${attemptedName}" already exists. Names are compared ignoring capitalisation and surrounding spaces, so "Line A" and "line a" are the same location.`);
+            toast.error(d.duplicateName(attemptedName));
         } else {
-            toast.error(`Failed to save location: ${error?.message || 'Unknown error'}`);
+            toast.error(d.saveFailed(describeAppError(error)));
         }
     };
 
@@ -212,13 +221,13 @@ export const LocationView: React.FC = () => {
         // duplicate of a name that looks different on screen.
         const trimmed = editForm.name.trim();
         if (!trimmed) {
-            toast.error("Location name cannot be empty.");
+            toast.error(dict().locations.nameRequired);
             return;
         }
 
         try {
             await updateDepartment(id, { name: trimmed });
-            toast.success("Location updated");
+            toast.success(dict().locations.updated);
             setEditingId(null);
             setEditForm({ name: '' });
             loadData();
@@ -233,10 +242,10 @@ export const LocationView: React.FC = () => {
         try {
             if (modalState.mode === 'add') {
                 await createDepartment(trimmed);
-                toast.success(`Location "${trimmed}" added`);
+                toast.success(dict().locations.added(trimmed));
             } else if (modalState.mode === 'edit' && modalState.id) {
                 await updateDepartment(modalState.id, { name: trimmed });
-                toast.success("Location updated");
+                toast.success(dict().locations.updated);
             }
             loadData();
         } catch (error: any) {
@@ -256,31 +265,34 @@ export const LocationView: React.FC = () => {
 
         try {
             await updateDepartment(dept.id, { is_active: !dept.is_active });
-            toast.success(`Location ${!dept.is_active ? 'Activated' : 'Deactivated'}`);
+            const d = dict().locations;
+            toast.success(!dept.is_active ? d.activated : d.deactivated);
         } catch (error) {
             console.error("Toggle failed", error);
             setDepartments(originalDepartments);
-            toast.error("Failed to update status");
+            toast.error(dict().locations.statusUpdateFailed);
         }
     };
 
     const handleDeleteClick = (id: string) => {
+        const d = dict().locations;
         setConfirmAction({
-            title: "Delete Location?",
-            message: "Are you sure you want to delete this location? This action cannot be undone.",
-            confirmLabel: "Delete",
+            title: d.confirmDeleteTitle,
+            message: d.confirmDeleteMessage,
+            confirmLabel: dict().common.delete,
             isDestructive: true,
             onConfirm: async () => {
                 try {
                     await deleteDepartment(id);
-                    toast.success("Location deleted");
+                    toast.success(dict().locations.deleted);
                     loadData();
                 } catch (error: any) {
+                    const messages = dict().locations;
                     console.error("Delete failed", error);
                     if (error?.code === '23503') {
-                        toast.error("Cannot delete: Location is in use. Deactivate it instead.");
+                        toast.error(messages.deleteInUse);
                     } else {
-                        toast.error(`Failed to delete: ${error.message || 'Unknown error'}`);
+                        toast.error(messages.deleteFailed(describeAppError(error)));
                     }
                 }
             }

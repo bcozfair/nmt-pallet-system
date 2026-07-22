@@ -100,7 +100,10 @@ export const StatCard = ({ title, value, icon, color, trend, subtitle }: { title
                 <div className={`p-2 rounded-lg text-white shadow-md ${color}`}>
                     {React.cloneElement(icon as React.ReactElement<any>, { size: 18 })}
                 </div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{title}</p>
+                {/* No `uppercase tracking-wider` here: the title is now translated,
+                    and in Thai uppercase does nothing while wide letter-spacing
+                    pushes the tone marks and vowels off their base characters. */}
+                <p className="text-xs font-bold text-gray-400">{title}</p>
             </div>
 
             <h3 className="text-3xl font-black text-gray-800 tracking-tight">{value}</h3>
@@ -126,8 +129,11 @@ export const StatusBadge = ({ status }: { status: PalletStatus }) => {
     const t = useT();
     const { badge, Icon } = PALLET_STATUS_META[status];
     const label = t.status[status];
+    // `uppercase` dropped: the label is translated now, and it is a no-op on
+    // Thai -- so in Thai this badge would quietly lose the emphasis it has in
+    // English while every other badge in the row kept it.
     return (
-        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase flex items-center gap-1 w-fit ${badge}`}>
+        <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit ${badge}`}>
             <Icon size={12} /> {label}
         </span>
     );

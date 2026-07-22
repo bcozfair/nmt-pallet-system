@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { User } from '../types';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../constants';
 import { fetchSystemSetting } from './settingsService';
+import { AppError } from './appError';
 
 // Helper to generate Alias Email
 
@@ -150,9 +151,7 @@ export const createAccountByAdmin = async (employeeId: string, fullName: string,
     // The account exists at this point; only the promotion failed. Surface it
     // rather than leaving the admin believing they created an administrator.
     if (roleError) {
-      throw new Error(
-        `Account created as staff, but granting admin rights failed: ${roleError.message}`
-      );
+      throw new AppError('admin_promotion_failed', { reason: roleError.message });
     }
   }
 

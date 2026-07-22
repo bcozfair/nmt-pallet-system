@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom';
 import { AlertTriangle, CheckCircle, X, Save, FileText, PackagePlus } from 'lucide-react';
 import { createPallet } from '../../../services/palletService';
 import { toast } from '../../../services/toast';
+import { useT } from '../../../hooks/useT';
 
 import { Department } from '../../../types';
+import { describeAppError } from '../../../services/appError';
 
 interface AddPalletModalProps {
     isOpen: boolean;
@@ -14,6 +16,7 @@ interface AddPalletModalProps {
 }
 
 export const AddPalletModal: React.FC<AddPalletModalProps> = ({ isOpen, onClose, onSuccess, departments }) => {
+    const t = useT();
     const [newId, setNewId] = useState('');
     const [newLocation, setNewLocation] = useState('Warehouse');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,15 +26,14 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({ isOpen, onClose,
         setIsSubmitting(true);
         try {
             await createPallet(newId, newLocation);
-            toast.success(`Pallet ${newId} created successfully.`);
+            toast.success(t.inventory.palletCreated(newId));
             setNewId('');
             // Reset to default
             setNewLocation('Warehouse');
             onSuccess();
             onClose();
         } catch (error: any) {
-            const msg = error instanceof Error ? error.message : "Error creating pallet. ID might already exist.";
-            toast.error(msg);
+            toast.error(describeAppError(error));
         } finally {
             setIsSubmitting(false);
         }
@@ -44,7 +46,7 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({ isOpen, onClose,
             <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 overflow-hidden">
                 <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                     <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-                        <PackagePlus className="text-blue-600" size={20} />Add New Pallet
+                        <PackagePlus className="text-blue-600" size={20} />{t.inventory.addPalletTitle}
                     </h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
                         <X size={20} />
@@ -53,7 +55,7 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({ isOpen, onClose,
 
                 <form onSubmit={handleAddPallet} className="p-5 space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Pallet ID (e.g., P105)</label>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">{t.inventory.palletIdHint}</label>
                         <input
                             required
                             autoFocus
@@ -63,7 +65,7 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({ isOpen, onClose,
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Initial Location</label>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">{t.inventory.initialLocation}</label>
                         <div className="relative">
                             <select
                                 className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white text-sm"
@@ -86,7 +88,7 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({ isOpen, onClose,
                             disabled={isSubmitting}
                             className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 text-sm"
                         >
-                            {isSubmitting ? 'Creating...' : 'Create Pallet'}
+                            {isSubmitting ? t.inventory.creating : t.inventory.createPallet}
                         </button>
                     </div>
                 </form>
@@ -110,6 +112,7 @@ interface ConfirmModalProps {
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({ action, onClose }) => {
+    const t = useT();
     const [isConfirming, setIsConfirming] = useState(false);
 
     if (!action) return null;
@@ -125,7 +128,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ action, onClose }) =
             onClose();
         } catch (error: any) {
             console.error("Confirm action failed", error);
-            toast.error(error?.message || "Action failed. Please try again.");
+            toast.error(describeAppError(error));
         } finally {
             setIsConfirming(false);
         }
@@ -149,14 +152,14 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ action, onClose }) =
                         disabled={isConfirming}
                         className="px-4 py-2 bg-white text-gray-700 font-bold rounded-lg hover:bg-gray-100 border border-gray-200 transition disabled:opacity-50"
                     >
-                        Cancel
+                        {t.common.cancel}
                     </button>
                     <button
                         onClick={handleConfirm}
                         disabled={isConfirming}
                         className={`px-4 py-2 text-white font-bold rounded-lg shadow-sm transition disabled:opacity-70 disabled:cursor-not-allowed ${action.isDestructive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                     >
-                        {isConfirming ? 'Working...' : action.confirmLabel}
+                        {isConfirming ? t.inventory.working : action.confirmLabel}
                     </button>
                 </div>
             </div>
@@ -173,6 +176,7 @@ interface EditPalletModalProps {
 }
 
 export const EditPalletModal: React.FC<EditPalletModalProps> = ({ isOpen, pallet, onClose, onSave }) => {
+    const t = useT();
     const [id, setId] = useState(pallet.id);
     const [remark, setRemark] = useState(pallet.remark);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -205,7 +209,7 @@ export const EditPalletModal: React.FC<EditPalletModalProps> = ({ isOpen, pallet
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                    <h3 className="font-bold text-gray-800 text-lg">Edit Pallet Details</h3>
+                    <h3 className="font-bold text-gray-800 text-lg">{t.inventory.editTitle}</h3>
                     <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition text-gray-500 hover:text-gray-700">
                         <X size={20} />
                     </button>
@@ -214,7 +218,7 @@ export const EditPalletModal: React.FC<EditPalletModalProps> = ({ isOpen, pallet
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div className="space-y-1.5">
                         <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            Pallet ID
+                            {t.common.palletId}
                         </label>
                         <input
                             required
@@ -224,18 +228,18 @@ export const EditPalletModal: React.FC<EditPalletModalProps> = ({ isOpen, pallet
                         />
                         <p className="text-xs text-yellow-600 mt-1 flex items-center gap-1">
                             <AlertTriangle size={12} />
-                            Warning: Changing ID will update history references.
+                            {t.inventory.idChangeWarning}
                         </p>
                     </div>
 
                     <div className="space-y-1.5">
                         <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <FileText size={16} className="text-orange-500" /> Remark
+                            <FileText size={16} className="text-orange-500" /> {t.common.remark}
                         </label>
                         <textarea
                             rows={3}
                             className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none bg-white text-gray-900 resize-none transition"
-                            placeholder="Add notes about this pallet..."
+                            placeholder={t.inventory.remarkPlaceholder}
                             value={remark}
                             onChange={(e) => setRemark(e.target.value)}
                         />
@@ -247,7 +251,7 @@ export const EditPalletModal: React.FC<EditPalletModalProps> = ({ isOpen, pallet
                             onClick={onClose}
                             className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-lg transition"
                         >
-                            Cancel
+                            {t.common.cancel}
                         </button>
                         <button
                             type="submit"
@@ -255,7 +259,7 @@ export const EditPalletModal: React.FC<EditPalletModalProps> = ({ isOpen, pallet
                             className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             <Save size={18} />
-                            {isSubmitting ? 'Saving...' : 'Save Changes'}
+                            {isSubmitting ? t.common.saving : t.inventory.saveChanges}
                         </button>
                     </div>
                 </form>

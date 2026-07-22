@@ -3,7 +3,11 @@ import { Clock, Send } from 'lucide-react';
 import { SettingsCard } from './SettingsCard';
 import { SystemSettings } from '../../../services/settingsService';
 import { sendMorningReport, sendEveningReport } from '../../../services/reportService';
+import { useT } from '../../../hooks/useT';
 
+// These are the values stored in system_settings.report_scheduled_days and the
+// ones the scheduled-report edge function compares against, so they stay in
+// English. Only the label on the button is translated (t.settings.weekday).
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 interface ReportSchedulingProps {
@@ -12,6 +16,7 @@ interface ReportSchedulingProps {
 }
 
 export const ReportScheduling: React.FC<ReportSchedulingProps> = ({ settings, onChange }) => {
+    const t = useT();
     const [reportStatus, setReportStatus] = useState<string | null>(null);
 
     const toggleDay = (day: string) => {
@@ -23,14 +28,14 @@ export const ReportScheduling: React.FC<ReportSchedulingProps> = ({ settings, on
     };
 
     const handleTestMorning = async () => {
-        setReportStatus("Sending Morning Report...");
+        setReportStatus(t.settings.sendingOverdueReport);
         const result = await sendMorningReport();
         setReportStatus(result);
         setTimeout(() => setReportStatus(null), 3000);
     };
 
     const handleTestEvening = async () => {
-        setReportStatus("Sending Evening Report...");
+        setReportStatus(t.settings.sendingSummaryReport);
         const result = await sendEveningReport();
         setReportStatus(result);
         setTimeout(() => setReportStatus(null), 3000);
@@ -38,14 +43,14 @@ export const ReportScheduling: React.FC<ReportSchedulingProps> = ({ settings, on
 
     return (
         <SettingsCard
-            title="Scheduling"
-            subtitle="Automated report delivery times"
+            title={t.settings.scheduleTitle}
+            subtitle={t.settings.scheduleSubtitle}
             icon={Clock}
             variant="purple"
         >
             <div className="flex flex-col gap-3">
 
-                <label className="block text-xs font-bold text-gray-700 mb-1">Send Reports On:</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">{t.settings.sendReportsOn}</label>
                 <div className="flex flex-wrap gap-2">
                     {WEEKDAYS.map(day => (
                         <button
@@ -56,14 +61,14 @@ export const ReportScheduling: React.FC<ReportSchedulingProps> = ({ settings, on
                                 : 'bg-white text-gray-500 border-gray-300 hover:border-purple-300'
                                 }`}
                         >
-                            {day}
+                            {t.settings.weekday(day)}
                         </button>
                     ))}
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pt-2">
                     <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Overdue Report Time:</label>
+                        <label className="text-xs font-bold text-gray-500">{t.settings.overdueReportTime}</label>
                         <div className="flex gap-2">
                             <select
                                 className="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500 min-w-0"
@@ -79,13 +84,13 @@ export const ReportScheduling: React.FC<ReportSchedulingProps> = ({ settings, on
                                 onClick={handleTestMorning}
                                 className="px-3 py-2 bg-red-50 text-red-700 text-xs font-bold rounded-lg hover:bg-red-100 border border-red-200 transition whitespace-nowrap flex items-center gap-2"
                             >
-                                <Send size={14} /> ALERT
+                                <Send size={14} /> {t.settings.sendAlertNow}
                             </button>
                         </div>
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Summary Report Time:</label>
+                        <label className="text-xs font-bold text-gray-500">{t.settings.summaryReportTime}</label>
                         <div className="flex gap-2">
                             <select
                                 className="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500 min-w-0"
@@ -101,7 +106,7 @@ export const ReportScheduling: React.FC<ReportSchedulingProps> = ({ settings, on
                                 onClick={handleTestEvening}
                                 className="px-3 py-2 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg hover:bg-blue-100 border border-blue-200 transition whitespace-nowrap flex items-center gap-2"
                             >
-                                <Send size={14} /> SEND
+                                <Send size={14} /> {t.settings.sendSummaryNow}
                             </button>
                         </div>
                     </div>

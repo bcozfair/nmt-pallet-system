@@ -1,6 +1,7 @@
 import React from 'react';
 import { Package, Activity, Zap, Clock } from 'lucide-react';
 import { StatCard } from '../common/AdminHelpers';
+import { useT } from '../../../hooks/useT';
 
 interface DashboardStatsGridProps {
     stats: {
@@ -9,41 +10,47 @@ interface DashboardStatsGridProps {
         velocity7Days: number;
         overdueCount: number;
     };
+    /** The same threshold overdueCount was computed against. Passed in rather
+     *  than assumed: the caption used to hard-code "> 7 Days" while the number
+     *  above it followed the configured value, so setting 14 made the card lie. */
+    overdueThreshold: number;
 }
 
-export const DashboardStatsGrid: React.FC<DashboardStatsGridProps> = ({ stats }) => {
+export const DashboardStatsGrid: React.FC<DashboardStatsGridProps> = ({ stats, overdueThreshold }) => {
+    const t = useT();
+
     return (
         <div className="grid grid-cols-2 gap-4 h-[320px]">
             <StatCard
-                title="Total Fleet Size"
+                title={t.dashboard.totalFleetSize}
                 value={stats.total}
                 icon={<Package />}
                 color="bg-purple-500"
-                subtitle="Total Asset Units"
+                subtitle={t.dashboard.totalAssetUnits}
             />
             <StatCard
-                title="Utilization Rate"
+                title={t.dashboard.utilizationRate}
                 value={`${stats.utilizationRate}%`}
                 icon={<Activity />}
                 color="bg-blue-500"
-                trend="Efficiency"
-                subtitle="Active / Total"
+                trend={t.dashboard.utilizationTrend}
+                subtitle={t.dashboard.utilizationSub}
             />
             <StatCard
-                title="7-Day Velocity"
+                title={t.dashboard.velocity}
                 value={stats.velocity7Days}
                 icon={<Zap />}
                 color="bg-amber-500"
-                subtitle="Checkouts / Week"
-                trend="Throughput"
+                subtitle={t.dashboard.velocitySub}
+                trend={t.dashboard.velocityTrend}
             />
             <StatCard
-                title="Critical Overdue"
+                title={t.dashboard.criticalOverdue}
                 value={stats.overdueCount}
                 icon={<Clock />}
                 color="bg-red-500"
-                subtitle="> 7 Days Inactive"
-                trend="Action Needed"
+                subtitle={t.dashboard.criticalOverdueSub(overdueThreshold)}
+                trend={t.dashboard.criticalOverdueTrend}
             />
         </div>
     );

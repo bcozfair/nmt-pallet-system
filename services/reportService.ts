@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { SUPABASE_URL } from '../constants';
+import { dict } from './i18n';
 
 // --- LINE REPORT TRIGGERS ---
 //
@@ -17,9 +18,14 @@ import { SUPABASE_URL } from '../constants';
 
 const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/scheduled-report`;
 
+// Returns a message meant to be displayed as-is, so it has to come out already
+// translated. dict() rather than a hook: this is a service, called from a click
+// handler in the settings screen.
 const triggerReport = async (type: 'morning' | 'evening'): Promise<string> => {
+    const t = dict();
+
     if (!SUPABASE_URL) {
-        return 'Supabase URL is not configured.';
+        return t.report.notConfigured;
     }
 
     try {
@@ -29,7 +35,7 @@ const triggerReport = async (type: 'morning' | 'evening'): Promise<string> => {
         const { data: { session } } = await supabase.auth.getSession();
 
         if (!session?.access_token) {
-            return 'Not signed in.';
+            return t.report.notSignedIn;
         }
 
         const response = await fetch(FUNCTION_URL, {
@@ -44,15 +50,15 @@ const triggerReport = async (type: 'morning' | 'evening'): Promise<string> => {
         const result = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-            return `Failed to send report: ${result?.error || response.statusText}`;
+            return t.report.sendFailed(result?.error || response.statusText);
         }
 
         return type === 'morning'
-            ? 'Sent Overdue Report'
-            : 'Sent Summary Report';
+            ? t.report.sentOverdue
+            : t.report.sentSummary;
     } catch (e: any) {
         console.error('[reportService] Trigger failed', e);
-        return `Failed to send report: ${e.message || e}`;
+        return t.report.sendFailed(e.message || e);
     }
 };
 

@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Pallet, Transaction } from '../../../types';
 import { useTrendChartData } from '../../../hooks/charts/useTrendChartData';
 import { TrendChartTooltip } from './TrendChartTooltip';
+import { useT } from '../../../hooks/useT';
 
 export const ActivityTrendChart = ({ transactions, pallets, period, activeSeries }: { transactions: Transaction[], pallets: Pallet[], period: 'day' | 'week' | 'month', activeSeries: ('checkOut' | 'checkIn' | 'damage' | 'acquisition')[] }) => {
+    const t = useT();
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
     const chartData = useTrendChartData(transactions, pallets, period);
@@ -167,7 +169,7 @@ export const ActivityTrendChart = ({ transactions, pallets, period, activeSeries
                     </svg>
                 </div>
             ) : (
-                <div className="h-64 flex items-center justify-center text-gray-400">No data available</div>
+                <div className="h-64 flex items-center justify-center text-gray-400">{t.common.noData}</div>
             )}
         </div>
     );

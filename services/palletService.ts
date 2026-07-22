@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Pallet } from '../types';
+import { AppError } from './appError';
 
 // --- PALLET OPERATIONS ---
 
@@ -77,7 +78,7 @@ export const updatePallet = async (currentId: string, updates: { pallet_id?: str
 
     if (checkError) throw checkError;
     if (count && count > 0) {
-        throw new Error(`Pallet ID ${newId} already exists`);
+        throw new AppError('pallet_exists', { palletId: newId });
     }
 
     // 2b. Fetch the existing pallet data
@@ -87,7 +88,7 @@ export const updatePallet = async (currentId: string, updates: { pallet_id?: str
         .eq('pallet_id', currentId)
         .single();
 
-    if (fetchError || !existingPallet) throw fetchError || new Error("Pallet not found");
+    if (fetchError || !existingPallet) throw fetchError || new AppError('pallet_not_found', { palletId: currentId });
 
     // 2c. Create New Pallet (Clone)
     const newPallet = {

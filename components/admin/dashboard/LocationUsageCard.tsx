@@ -2,6 +2,7 @@ import React from 'react';
 import { ChartColumnStacked } from 'lucide-react';
 import { LocationInventoryChart } from '../charts/LocationInventoryChart';
 import { Pallet } from '../../../types';
+import { useT } from '../../../hooks/useT';
 
 interface LocationUsageCardProps {
     pallets: Pallet[];
@@ -9,6 +10,8 @@ interface LocationUsageCardProps {
 }
 
 export const LocationUsageCard: React.FC<LocationUsageCardProps> = ({ pallets, onNavigateToInventory }) => {
+    const t = useT();
+
     return (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[420px] transition-all duration-300 hover:shadow-xl hover:border-indigo-100 group relative overflow-hidden">
             <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-5 transition-opacity duration-500 pointer-events-none transform group-hover:scale-110">
@@ -19,8 +22,8 @@ export const LocationUsageCard: React.FC<LocationUsageCardProps> = ({ pallets, o
                 <div className="flex items-center gap-2">
                     <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300"><ChartColumnStacked size={20} /></div>
                     <div>
-                        <h3 className="font-bold text-gray-800 text-lg group-hover:text-indigo-700 transition-colors">Location Usage</h3>
-                        <p className="text-xs text-gray-400">Current Stock per Location</p>
+                        <h3 className="font-bold text-gray-800 text-lg group-hover:text-indigo-700 transition-colors">{t.dashboard.locationUsage}</h3>
+                        <p className="text-xs text-gray-400">{t.dashboard.locationUsageSub}</p>
                     </div>
                 </div>
             </div>

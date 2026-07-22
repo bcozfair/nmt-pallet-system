@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { Pallet, Transaction } from '../types';
 import { fetchPallets } from './palletService';
 import { DAMAGE_BUCKET, IMAGE_DELETED, extractObjectName } from './storageService';
+import { AppError } from './appError';
 
 // --- TRANSACTIONS (Check In/Out/Damage) ---
 
@@ -225,7 +226,7 @@ export const scrapPallet = async (palletId: string, userId?: string, reason?: st
     // is the exact failure this whole status was introduced to prevent. Checked
     // before the pallet row is touched so the refusal leaves no partial state.
     if (!userId) {
-        throw new Error('Cannot scrap a pallet without a signed-in user to attribute it to.');
+        throw new AppError('scrap_requires_user');
     }
 
     // Guard on the server's copy of the state, not on whatever the list in the
@@ -238,14 +239,15 @@ export const scrapPallet = async (palletId: string, userId?: string, reason?: st
         .maybeSingle();
 
     if (readError) throw readError;
-    if (!pallet) throw new Error(`Pallet ${palletId} not found.`);
+    if (!pallet) throw new AppError('pallet_not_found', { palletId });
     if (pallet.status === 'scrapped') {
-        throw new Error(`Pallet ${palletId} is already scrapped.`);
+        throw new AppError('pallet_already_scrapped', { palletId });
     }
     if (pallet.status !== 'damaged') {
-        throw new Error(
-            `Pallet ${palletId} must be reported as damaged before it can be scrapped (it is currently ${pallet.status}).`
-        );
+        // The status is passed through so the message can name it. It is a raw
+        // enum here; describeAppError() is where it would be humanised if the
+        // wording ever needs it.
+        throw new AppError('pallet_not_damaged', { palletId, status: pallet.status });
     }
 
     const { error: palletError } = await supabase.from('pallets').update({
@@ -295,7 +297,7 @@ export const checkOutPallet = async (palletId: string, destinationId: string, de
 
     if (palletError) throw palletError;
     if (!updated || updated.length === 0) {
-        throw new Error(`Pallet ${palletId} not found. Add it in Inventory before checking it out.`);
+        throw new AppError('pallet_missing_for_checkout', { palletId });
     }
 
     const { error: transError } = await supabase.from('transactions').insert({
@@ -346,7 +348,7 @@ export const reportDamage = async (palletId: string, userId: string, imageFile: 
             const { data, error } = await supabase.storage.from(DAMAGE_BUCKET).upload(fileName, imageFile);
             if (error) {
                 console.error("Upload error details:", error);
-                throw new Error(`Image Upload Failed: ${error.message}`);
+                throw new AppError('image_upload_failed', { reason: error.message });
             } else if (data) {
                 // Store the object NAME, not a public URL. The bucket is private
                 // now, so a public URL would not resolve; readers mint a
@@ -355,7 +357,7 @@ export const reportDamage = async (palletId: string, userId: string, imageFile: 
             }
         } catch (e: any) {
             console.error("Storage upload exception", e);
-            throw new Error(`Upload logic failed: ${e.message || e}`);
+            throw new AppError('image_upload_failed', { reason: e?.message || String(e) });
         }
     }
 
@@ -396,7 +398,7 @@ export const createBulkTransaction = async (
     for (const id of palletIds) {
         try {
             if (actionType === 'check_out') {
-                if (!departmentDest) throw new Error("Destination required for check_out");
+                if (!departmentDest) throw new AppError('destination_required');
 
                 // Update Pallet
                 const { error: palletError } = await supabase.from('pallets').update({

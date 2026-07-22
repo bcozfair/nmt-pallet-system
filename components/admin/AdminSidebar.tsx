@@ -1,6 +1,7 @@
 import React from 'react';
 import { LayoutDashboard, Package, Users, Settings, LogOut, X, History, MapPinned } from 'lucide-react';
 import { User } from '../../types';
+import { useT } from '../../hooks/useT';
 
 interface AdminSidebarProps {
     activeTab: string;
@@ -19,6 +20,7 @@ export const AdminSidebar = ({
     currentUser,
     onLogout
 }: AdminSidebarProps) => {
+    const t = useT();
 
     const NavItem = ({ id, label, icon }: { id: string, label: string, icon: any }) => (
         <button
@@ -64,16 +66,19 @@ export const AdminSidebar = ({
                 </div>
 
                 <div className="flex-1 p-4 space-y-1 overflow-y-auto styled-scrollbar">
-                    <p className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 mt-2">Menu</p>
-                    <NavItem id="dashboard" label="Dashboard" icon={<LayoutDashboard size={20} />} />
-                    <NavItem id="inventory" label="Inventory" icon={<Package size={20} />} />
-                    <NavItem id="transactions" label="Transactions" icon={<History size={20} />} />
-                    <NavItem id="users" label="Users" icon={<Users size={20} />} />
-                    <NavItem id="locations" label="Locations" icon={<MapPinned size={20} />} />
+                    {/* `uppercase tracking-wider` dropped from these two headings:
+                        uppercase does nothing to Thai, and the wide letter-spacing
+                        pushes Thai vowels and tone marks off their base characters. */}
+                    <p className="px-4 text-xs font-bold text-gray-400 mb-2 mt-2">{t.nav.menu}</p>
+                    <NavItem id="dashboard" label={t.nav.dashboard} icon={<LayoutDashboard size={20} />} />
+                    <NavItem id="inventory" label={t.nav.inventory} icon={<Package size={20} />} />
+                    <NavItem id="transactions" label={t.nav.transactions} icon={<History size={20} />} />
+                    <NavItem id="users" label={t.nav.users} icon={<Users size={20} />} />
+                    <NavItem id="locations" label={t.nav.locations} icon={<MapPinned size={20} />} />
 
                     <div className="my-4 border-t border-gray-100"></div>
-                    <p className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">System</p>
-                    <NavItem id="settings" label="Settings" icon={<Settings size={20} />} />
+                    <p className="px-4 text-xs font-bold text-gray-400 mb-2">{t.nav.system}</p>
+                    <NavItem id="settings" label={t.nav.settings} icon={<Settings size={20} />} />
                 </div>
 
                 <div className="p-4 border-t border-gray-100 bg-gray-50/50">
@@ -82,15 +87,17 @@ export const AdminSidebar = ({
                             {currentUser?.full_name?.charAt(0) || 'U'}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-gray-900 truncate">{currentUser?.full_name || 'User'}</p>
-                            <p className="text-xs text-gray-500 truncate">{currentUser?.role || 'Role'}</p>
+                            <p className="text-sm font-bold text-gray-900 truncate">{currentUser?.full_name || t.common.user}</p>
+                            {/* Was currentUser.role raw, i.e. the literal "admin"/"staff"
+                                enum value. It now goes through the role table. */}
+                            <p className="text-xs text-gray-500 truncate">{currentUser ? t.role[currentUser.role] : '-'}</p>
                         </div>
                     </div>
                     <button
                         onClick={onLogout}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-200 bg-white text-gray-700 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition text-sm font-bold"
                     >
-                        <LogOut size={16} /> Sign Out
+                        <LogOut size={16} /> {t.nav.signOut}
                     </button>
                 </div>
             </div>

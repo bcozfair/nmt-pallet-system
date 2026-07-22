@@ -2,6 +2,7 @@ import React from 'react';
 import { Bell } from 'lucide-react';
 import { SettingsCard } from './SettingsCard';
 import { SystemSettings } from '../../../services/settingsService';
+import { useT } from '../../../hooks/useT';
 
 interface GeneralSettingsProps {
     settings: SystemSettings;
@@ -9,16 +10,18 @@ interface GeneralSettingsProps {
 }
 
 export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ settings, onChange }) => {
+    const t = useT();
+
     return (
         <SettingsCard
-            title="Rules & Alerts"
-            subtitle="Notification and alert rules"
+            title={t.settings.rulesTitle}
+            subtitle={t.settings.rulesSubtitle}
             icon={Bell}
             variant="yellow"
         >
             <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">
-                    Overdue Threshold (Days)
+                    {t.settings.overdueThreshold}
                 </label>
                 <div className="flex items-center gap-2">
                     <input
@@ -29,9 +32,9 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ settings, onCh
                         value={settings.overdue_days}
                         onChange={(e) => onChange('overdue_days', parseInt(e.target.value) || 7)}
                     />
-                    <span className="text-gray-500 text-sm">Days</span>
+                    <span className="text-gray-500 text-sm">{t.settings.days}</span>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Pallets checked out longer than this will be marked as overdue.</p>
+                <p className="text-xs text-gray-400 mt-1">{t.settings.overdueHint}</p>
             </div>
         </SettingsCard>
     );

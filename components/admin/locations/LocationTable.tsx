@@ -3,6 +3,7 @@ import { Department } from '../../../types';
 import { Edit2, Trash2, Power, MapPin, Search, Box, AlertTriangle, AlertOctagon, Save, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
 import { formatDateTime } from '../common/AdminHelpers';
+import { useT } from '../../../hooks/useT';
 
 export interface LocationStats {
     totalPallets: number;
@@ -64,6 +65,7 @@ export const LocationTable: React.FC<LocationTableProps> = ({
     sortConfig,
     onSort
 }) => {
+    const t = useT();
 
     const SortIcon = ({ column }: { column: LocationSortKey }) => {
         if (sortConfig?.key !== column) return <ArrowUpDown size={14} className="text-gray-300" />;
@@ -88,16 +90,16 @@ export const LocationTable: React.FC<LocationTableProps> = ({
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[600px] lg:h-[calc(100vh-280px)] overflow-hidden animate-in fade-in duration-500">
             <div className="flex-1 overflow-auto relative styled-scrollbar">
                 <table className="w-full text-left border-collapse min-w-[1000px]">
-                    <thead className="bg-gray-50 text-gray-500 text-sm font-semibold tracking-wide uppercase sticky top-0 z-10 shadow-sm">
+                    <thead className="bg-gray-50 text-gray-500 text-sm font-semibold sticky top-0 z-10 shadow-sm">
                         <tr>
                             <th className="p-3 border-b w-16 text-center">#</th>
-                            <Th label="Location Name" sortKey="name" />
-                            <Th label="Total" sortKey="totalPallets" width="w-28" centered />
-                            <Th label="Overdue" sortKey="overduePallets" width="w-28" centered />
-                            <Th label="Damaged" sortKey="damagedPallets" width="w-28" centered />
-                            <Th label="Last Updated" sortKey="lastActivity" width="w-40" />
-                            <Th label="Status" sortKey="is_active" width="w-32" centered />
-                            <th className="p-3 border-b text-right">Actions</th>
+                            <Th label={t.locations.locationName} sortKey="name" />
+                            <Th label={t.common.total} sortKey="totalPallets" width="w-28" centered />
+                            <Th label={t.locations.overdue} sortKey="overduePallets" width="w-28" centered />
+                            <Th label={t.status.damaged} sortKey="damagedPallets" width="w-28" centered />
+                            <Th label={t.locations.lastUpdated} sortKey="lastActivity" width="w-40" />
+                            <Th label={t.common.status} sortKey="is_active" width="w-32" centered />
+                            <th className="p-3 border-b text-right">{t.common.actions}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -171,12 +173,12 @@ export const LocationTable: React.FC<LocationTableProps> = ({
 
                                     {/* Status */}
                                     <td className="p-3 text-center">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${dept.is_active
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${dept.is_active
                                             ? 'bg-green-50 text-green-700 border-green-200'
                                             : 'bg-gray-100 text-gray-500 border-gray-200'
                                             }`}>
                                             <span className={`w-1.5 h-1.5 rounded-full ${dept.is_active ? 'bg-green-600' : 'bg-gray-400'}`} />
-                                            {dept.is_active ? 'Active' : 'Inactive'}
+                                            {dept.is_active ? t.common.active : t.common.inactive}
                                         </span>
                                     </td>
 
@@ -192,14 +194,14 @@ export const LocationTable: React.FC<LocationTableProps> = ({
                                                         onClick={() => onSave(dept.id)}
                                                         disabled={!editForm.name.trim()}
                                                         className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-full transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-50"
-                                                        title={editForm.name.trim() ? "Save Changes" : "Enter a location name first"}
+                                                        title={editForm.name.trim() ? t.locations.saveChanges : t.locations.enterNameFirst}
                                                     >
                                                         <Save size={18} />
                                                     </button>
                                                     <button
                                                         onClick={onCancelEdit}
                                                         className="p-2 bg-gray-50 text-gray-500 hover:bg-gray-100 rounded-full transition"
-                                                        title="Cancel Edit"
+                                                        title={t.locations.cancelEdit}
                                                     >
                                                         <X size={18} />
                                                     </button>
@@ -212,21 +214,21 @@ export const LocationTable: React.FC<LocationTableProps> = ({
                                                             ? 'text-green-600 hover:bg-green-100'
                                                             : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
                                                             }`}
-                                                        title={dept.is_active ? "Deactivate" : "Activate"}
+                                                        title={dept.is_active ? t.locations.deactivate : t.locations.activate}
                                                     >
                                                         <Power size={16} />
                                                     </button>
                                                     <button
                                                         onClick={() => onStartEdit(dept)}
                                                         className="p-2 text-blue-400 hover:bg-blue-100 hover:text-blue-600 rounded-full transition"
-                                                        title="Edit Name"
+                                                        title={t.locations.editName}
                                                     >
                                                         <Edit2 size={16} />
                                                     </button>
                                                     <button
                                                         onClick={() => onDelete(dept.id)}
                                                         className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-full transition"
-                                                        title="Delete Location"
+                                                        title={t.locations.deleteLocation}
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
@@ -254,8 +256,8 @@ export const LocationTable: React.FC<LocationTableProps> = ({
             {totalProcessedCount === 0 && (
                 <div className="p-12 text-center flex flex-col items-center text-gray-400 gap-3 flex-1 justify-center">
                     <Search size={48} className="opacity-20" />
-                    <p className="text-gray-500 font-medium">No locations found matching your criteria.</p>
-                    <button onClick={onClearFilters} className="text-blue-600 font-bold hover:underline">Clear Filters</button>
+                    <p className="text-gray-500 font-medium">{t.locations.noResults}</p>
+                    <button onClick={onClearFilters} className="text-blue-600 font-bold hover:underline">{t.common.clearFilters}</button>
                 </div>
             )}
         </div>

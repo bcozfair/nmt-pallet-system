@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react';
 import { Pallet } from '../../../types';
 import { CircleCheck, ClockAlert, Hammer } from 'lucide-react';
+import { useT } from '../../../hooks/useT';
 
 export const LocationRiskMatrix = ({ pallets, threshold, onLocationSelect }: { pallets: Pallet[], threshold: number, onLocationSelect: (loc: string) => void }) => {
+    const t = useT();
     const locationData = useMemo(() => {
         const locs: Record<string, { total: number, overdue: number, damaged: number }> = {};
 
@@ -38,7 +40,7 @@ export const LocationRiskMatrix = ({ pallets, threshold, onLocationSelect }: { p
             {locationData.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-gray-400 italic bg-gray-50 rounded-xl border border-dashed border-gray-200 py-8">
                     <CircleCheck size={32} className="text-green-500 mb-2 opacity-50" />
-                    <span className="text-sm">All systems normal.</span>
+                    <span className="text-sm">{t.dashboard.allSystemsNormal}</span>
                 </div>
             ) : (
                 <div className="space-y-2 overflow-y-auto pr-2 -mr-2 styled-scrollbar h-full pt-2">
@@ -58,7 +60,7 @@ export const LocationRiskMatrix = ({ pallets, threshold, onLocationSelect }: { p
                                             {loc.name}
                                         </span>
                                         <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                                            ({loc.total} Units)
+                                            ({t.dashboard.unitsCount(loc.total)})
                                         </span>
                                     </div>
 
@@ -72,13 +74,13 @@ export const LocationRiskMatrix = ({ pallets, threshold, onLocationSelect }: { p
                                 {/* Right: Stats Row */}
                                 <div className="flex items-center gap-3">
                                     {/* Overdue Stat */}
-                                    <div className={`flex items-center gap-1 ${loc.overdue > 0 ? 'opacity-100' : 'opacity-30'}`} title="Overdue">
+                                    <div className={`flex items-center gap-1 ${loc.overdue > 0 ? 'opacity-100' : 'opacity-30'}`} title={t.dashboard.overdue}>
                                         <ClockAlert size={14} className="text-orange-500" />
                                         <span className={`text-xs font-bold ${loc.overdue > 0 ? 'text-gray-700' : 'text-gray-400'}`}>{loc.overdue}</span>
                                     </div>
 
                                     {/* Damaged Stat */}
-                                    <div className={`flex items-center gap-1 ${loc.damaged > 0 ? 'opacity-100' : 'opacity-30'}`} title="Damaged">
+                                    <div className={`flex items-center gap-1 ${loc.damaged > 0 ? 'opacity-100' : 'opacity-30'}`} title={t.status.damaged}>
                                         <Hammer size={14} className="text-red-500" />
                                         <span className={`text-xs font-bold ${loc.damaged > 0 ? 'text-gray-700' : 'text-gray-400'}`}>{loc.damaged}</span>
                                     </div>
@@ -86,7 +88,7 @@ export const LocationRiskMatrix = ({ pallets, threshold, onLocationSelect }: { p
                                     {/* Total Badge */}
                                     <div className="pl-2 border-l border-gray-200">
                                         <span className={`font-bold text-xs px-2 py-1 rounded-md ${loc.overdue + loc.damaged > 0 ? 'text-red-700 bg-red-100' : 'text-gray-500 bg-gray-100'}`}>
-                                            {loc.overdue + loc.damaged} <span className="text-[9px] uppercase opacity-70 ml-0.5">Issues</span>
+                                            {loc.overdue + loc.damaged} <span className="text-[9px] opacity-70 ml-0.5">{t.dashboard.issues}</span>
                                         </span>
                                     </div>
                                 </div>

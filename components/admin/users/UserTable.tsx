@@ -2,6 +2,7 @@ import React from 'react';
 import { Edit2, Trash2, Save, X, KeyRound, MapPin, Hash, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { User } from '../../../types';
 import { formatDateTime } from '../common/AdminHelpers';
+import { useT } from '../../../hooks/useT';
 
 export type UserSortConfig = { key: keyof User; direction: 'asc' | 'desc' } | null;
 
@@ -36,6 +37,8 @@ export const UserTable: React.FC<UserTableProps> = ({
     sortConfig,
     onSort
 }) => {
+    const t = useT();
+
     const SortIcon = ({ column }: { column: keyof User }) => {
         if (sortConfig?.key !== column) return <ArrowUpDown size={14} className="text-gray-300" />;
         return sortConfig.direction === 'asc'
@@ -58,15 +61,15 @@ export const UserTable: React.FC<UserTableProps> = ({
     return (
         <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <table className="w-full text-left">
-                <thead className="bg-gray-50 text-gray-500 text-sm font-semibold tracking-wide uppercase">
+                <thead className="bg-gray-50 text-gray-500 text-sm font-semibold">
                     <tr>
-                        <Th label="Employee ID" sortKey="employee_id" width="w-40" />
-                        <Th label="Full Name" sortKey="full_name" width="w-64" />
-                        <Th label="Location" sortKey="department" width="w-48" />
-                        <Th label="Role" sortKey="role" width="w-32" />
-                        <Th label="Created At" sortKey="created_at" width="w-48" />
-                        <Th label="Last Sign In" sortKey="last_sign_in_at" width="w-48" />
-                        <th className="p-3 border-b text-right w-48">Actions</th>
+                        <Th label={t.users.employeeId} sortKey="employee_id" width="w-40" />
+                        <Th label={t.users.fullName} sortKey="full_name" width="w-64" />
+                        <Th label={t.common.location} sortKey="department" width="w-48" />
+                        <Th label={t.users.roleLabel} sortKey="role" width="w-32" />
+                        <Th label={t.users.createdAt} sortKey="created_at" width="w-48" />
+                        <Th label={t.users.lastSignIn} sortKey="last_sign_in_at" width="w-48" />
+                        <th className="p-3 border-b text-right w-48">{t.common.actions}</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -92,7 +95,7 @@ export const UserTable: React.FC<UserTableProps> = ({
                                         className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
                                         value={editForm.full_name || ''}
                                         onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-                                        placeholder="Full Name"
+                                        placeholder={t.users.fullName}
                                     />
                                 ) : (
                                     user.full_name
@@ -123,12 +126,12 @@ export const UserTable: React.FC<UserTableProps> = ({
                                         value={editForm.role || 'staff'}
                                         onChange={(e) => setEditForm({ ...editForm, role: e.target.value as any })}
                                     >
-                                        <option value="staff">Staff</option>
-                                        <option value="admin">Admin</option>
+                                        <option value="staff">{t.role.staff}</option>
+                                        <option value="admin">{t.role.admin}</option>
                                     </select>
                                 ) : (
-                                    <span className={`px-2 py-1 rounded text-xs font-bold uppercase border ${user.role === 'admin' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>
-                                        {user.role}
+                                    <span className={`px-2 py-1 rounded text-xs font-bold border ${user.role === 'admin' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>
+                                        {t.role[user.role]}
                                     </span>
                                 )}
                             </td>
@@ -143,7 +146,7 @@ export const UserTable: React.FC<UserTableProps> = ({
                                     <button
                                         onClick={() => onResetPassword(user)}
                                         className="p-2 text-yellow-500 hover:bg-yellow-50 hover:text-yellow-600 rounded-full transition"
-                                        title="Reset Password"
+                                        title={t.users.resetPassword}
                                     >
                                         <KeyRound size={16} />
                                     </button>
@@ -173,7 +176,7 @@ export const UserTable: React.FC<UserTableProps> = ({
                                             <button
                                                 onClick={() => onDelete(user)}
                                                 className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-full transition"
-                                                title="Delete User"
+                                                title={t.users.deleteUser}
                                             >
                                                 <Trash2 size={16} />
                                             </button>

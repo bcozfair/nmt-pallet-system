@@ -4,23 +4,38 @@ import { fetchUsers } from '../services/userService';
 import { fetchTransactions } from '../services/transactionService';
 import { formatDate, formatDateTime, palletStatusLabel } from '../components/admin/common/AdminHelpers';
 import { toast } from '../services/toast';
+import { dict } from '../services/i18n';
+import { describeAppError } from '../services/appError';
 
 
+
+// U+FEFF. Excel on Windows ignores the charset in a data: URI and falls back to
+// the system ANSI codepage, which turns every Thai character into mojibake. A
+// leading byte-order mark is the only thing that makes it read the file as
+// UTF-8. Harmless for the all-ASCII case, so it is always emitted.
+const UTF8_BOM = '﻿';
 
 export const generateCSV = (headers: string[], rows: (string | number)[][], filename: string) => {
 
     try {
-        const csvContent = "data:text/csv;charset=utf-8,"
-            + headers.join(",") + "\n"
-            + rows.map(e => (Array.isArray(e) ? e : [e]).map(cell => `"${(cell || '').toString().replace(/"/g, '""')}"`).join(",")).join("\n");
+        const csvContent = UTF8_BOM
+            + headers.map(h => `"${h.replace(/"/g, '""')}"`).join(",") + "\n"
+            + rows.map(e => (Array.isArray(e) ? e : [e]).map(cell => `"${(cell ?? '').toString().replace(/"/g, '""')}"`).join(",")).join("\n");
 
-        const encodedUri = encodeURI(csvContent);
+        // Blob + object URL rather than a data: URI. encodeURI() leaves the BOM
+        // and other non-ASCII characters to be re-encoded by the browser, and
+        // data: URIs are additionally capped at a couple of MB in some browsers
+        // -- a full transaction history export can exceed that.
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
         const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
+        link.setAttribute("href", url);
         link.setAttribute("download", filename);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         return true;
     } catch (e) {
         console.error("CSV generation failed", e);
@@ -30,8 +45,11 @@ export const generateCSV = (headers: string[], rows: (string | number)[][], file
 
 export const exportInventoryCSV = async () => {
 
+    // dict() throughout: this module is called from event handlers, not rendered.
+    const t = dict();
+
     try {
-        toast.info("Preparing inventory report...");
+        toast.info(t.csv.preparingInventory);
 
         // 1. Fetch all necessary data
         const [pallets, users, transactions] = await Promise.all([
@@ -55,16 +73,17 @@ export const exportInventoryCSV = async () => {
         });
 
         // 3. Define Columns
+        const h = t.csv.header;
         const headers = [
-            'Pallet ID',
-            'Status',
-            'Current Location',
-            'Responsible Person', // New
-            'Last Action',        // New
-            'Last Activity Date',
-            'Days Overdue',       // New
-            'Date Added',         // New
-            'Evidence File'       // storage object name; bucket is private
+            h.palletId,
+            h.status,
+            h.currentLocation,
+            h.responsiblePerson,
+            h.lastAction,
+            h.lastActivityDate,
+            h.daysOverdue,
+            h.dateAdded,
+            h.evidenceFile      // storage object name; bucket is private
         ];
 
         const rows = pallets.map(p => {
@@ -89,7 +108,9 @@ export const exportInventoryCSV = async () => {
                 palletStatusLabel(p.status),
                 p.current_location,
                 responsiblePerson,
-                tx ? tx.action_type : '-',
+                // Was tx.action_type -- the raw enum ("report_damage") in a column
+                // headed "Last Action". Same table the history export uses below.
+                tx ? (t.action[tx.action_type] ?? tx.action_type) : '-',
                 lastActivity,
                 overdue > 0 ? overdue.toString() : '0',
                 created,
@@ -105,16 +126,18 @@ export const exportInventoryCSV = async () => {
         generateCSV(headers, rows, filename);
 
 
-        toast.success(`Exported ${pallets.length} inventory items.`);
+        toast.success(t.csv.inventoryDone(pallets.length));
     } catch (e: any) {
         console.error(e);
-        toast.error("Export failed: " + e.message);
+        toast.error(t.csv.exportFailed(describeAppError(e)));
     }
 };
 
 export const exportHistoryCSV = async () => {
+    const t = dict();
+
     try {
-        toast.info("Preparing full history export...");
+        toast.info(t.csv.preparingHistory);
         // 1. Fetch data in parallel
         const [users, transactions] = await Promise.all([
             fetchUsers(),
@@ -125,14 +148,15 @@ export const exportHistoryCSV = async () => {
         const userMap = users.reduce((acc, u) => ({ ...acc, [u.id]: u.full_name }), {} as Record<string, string>);
 
         // 3. Build CSV Lines
+        const h = t.csv.header;
         const headers = [
-            'Date',
-            'Time',
-            'Pallet ID',
-            'Action Type',
-            'Performed By',
-            'Location/Destination',
-            'Evidence File'
+            h.date,
+            h.time,
+            h.palletId,
+            h.actionType,
+            h.performedBy,
+            h.locationDest,
+            h.evidenceFile
         ];
 
         const rows = transactions.map(tx => {
@@ -140,12 +164,10 @@ export const exportHistoryCSV = async () => {
             const dateStr = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
             const timeStr = `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
 
-            const userName = userMap[tx.user_id] || `User: ${tx.user_id}`;
-            const action = tx.action_type === 'check_out' ? 'Check Out' :
-                tx.action_type === 'check_in' ? 'Check In' :
-                    tx.action_type === 'report_damage' ? 'Damage Reported' :
-                        tx.action_type === 'repair' ? 'Repaired' :
-                            tx.action_type === 'scrap' ? 'Scrapped' : tx.action_type;
+            const userName = userMap[tx.user_id] || `${t.common.user}: ${tx.user_id}`;
+            // This used to be a five-branch ternary duplicating the same labels
+            // MobileHistory had its own copy of. Both now read the one table.
+            const action = t.action[tx.action_type] ?? tx.action_type;
 
             const evidence = tx.evidence_image_url && tx.evidence_image_url !== 'image_deleted' ? tx.evidence_image_url : '';
 
@@ -155,7 +177,7 @@ export const exportHistoryCSV = async () => {
                 tx.pallet_id,
                 action,
                 userName,
-                tx.department_dest || 'Warehouse',
+                tx.department_dest || t.csv.warehouse,
                 evidence
             ];
         });
@@ -169,10 +191,10 @@ export const exportHistoryCSV = async () => {
         generateCSV(headers, rows, filename);
 
 
-        toast.success(`Exported ${rows.length} records successfully.`);
+        toast.success(t.csv.historyDone(rows.length));
 
     } catch (e: any) {
         console.error(e);
-        toast.error("History export failed: " + e.message);
+        toast.error(t.csv.exportFailed(describeAppError(e)));
     }
 };

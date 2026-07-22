@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Department } from '../types';
+import { AppError } from './appError';
 
 // --- DEPARTMENTS ---
 
@@ -25,7 +26,7 @@ export const deleteDepartment = async (id: string): Promise<boolean> => {
     const { error, count } = await supabase.from('departments').delete({ count: 'exact' }).eq('id', id);
     if (error) throw error;
     if (count === 0) {
-        throw new Error("Deletion failed: Item not found or permission denied (RLS)");
+        throw new AppError('delete_denied');
     }
     return true;
 };

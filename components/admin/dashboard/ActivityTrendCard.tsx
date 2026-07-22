@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TrendingUp } from 'lucide-react';
 import { ActivityTrendChart } from '../charts/ActivityTrendChart';
 import { Pallet, Transaction } from '../../../types';
+import { useT } from '../../../hooks/useT';
 
 interface ActivityTrendCardProps {
     transactions: Transaction[];
@@ -9,6 +10,7 @@ interface ActivityTrendCardProps {
 }
 
 export const ActivityTrendCard: React.FC<ActivityTrendCardProps> = ({ transactions, pallets }) => {
+    const t = useT();
     const [chartPeriod, setChartPeriod] = useState<'day' | 'week' | 'month'>('day');
     const [activeSeries, setActiveSeries] = useState<('checkOut' | 'checkIn' | 'damage' | 'acquisition')[]>(['checkOut', 'checkIn', 'damage', 'acquisition']);
 
@@ -26,8 +28,8 @@ export const ActivityTrendCard: React.FC<ActivityTrendCardProps> = ({ transactio
                 <div className="flex items-center gap-2">
                     <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><TrendingUp size={20} /></div>
                     <div>
-                        <h3 className="font-bold text-gray-800 text-lg">Activity & Acquisition</h3>
-                        <p className="text-xs text-gray-400">Transactions & New Inventory Added</p>
+                        <h3 className="font-bold text-gray-800 text-lg">{t.dashboard.activityTitle}</h3>
+                        <p className="text-xs text-gray-400">{t.dashboard.activitySub}</p>
                     </div>
                 </div>
                 <div className="flex bg-gray-100 rounded-lg p-1">
@@ -37,7 +39,7 @@ export const ActivityTrendCard: React.FC<ActivityTrendCardProps> = ({ transactio
                             onClick={() => setChartPeriod(p)}
                             className={`px-3 py-1 text-xs font-bold rounded-md capitalize transition ${chartPeriod === p ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}
                         >
-                            {p}
+                            {t.dashboard.period[p]}
                         </button>
                     ))}
                 </div>
@@ -49,16 +51,16 @@ export const ActivityTrendCard: React.FC<ActivityTrendCardProps> = ({ transactio
 
             <div className="flex justify-center gap-6 mt-4 pt-4 border-t border-gray-50 shrink-0 flex-wrap">
                 <button onClick={() => toggleSeries('checkOut')} className={`flex items-center gap-2 text-xs font-bold transition-all duration-200 transform hover:scale-105 active:scale-95 ${activeSeries.includes('checkOut') ? 'text-gray-500 opacity-100' : 'text-gray-300 opacity-50 hover:opacity-75'}`}>
-                    <div className={`w-8 h-1 rounded-full shadow-sm ${activeSeries.includes('checkOut') ? 'bg-blue-500' : 'bg-gray-300'}`}></div> Check Out
+                    <div className={`w-8 h-1 rounded-full shadow-sm ${activeSeries.includes('checkOut') ? 'bg-blue-500' : 'bg-gray-300'}`}></div> {t.action.check_out}
                 </button>
                 <button onClick={() => toggleSeries('checkIn')} className={`flex items-center gap-2 text-xs font-bold transition-all duration-200 transform hover:scale-105 active:scale-95 ${activeSeries.includes('checkIn') ? 'text-gray-500 opacity-100' : 'text-gray-300 opacity-50 hover:opacity-75'}`}>
-                    <div className={`w-8 h-1 rounded-full shadow-sm ${activeSeries.includes('checkIn') ? 'bg-green-500' : 'bg-gray-300'}`}></div> Check In (Return)
+                    <div className={`w-8 h-1 rounded-full shadow-sm ${activeSeries.includes('checkIn') ? 'bg-green-500' : 'bg-gray-300'}`}></div> {t.action.check_in}
                 </button>
                 <button onClick={() => toggleSeries('damage')} className={`flex items-center gap-2 text-xs font-bold transition-all duration-200 transform hover:scale-105 active:scale-95 ${activeSeries.includes('damage') ? 'text-gray-500 opacity-100' : 'text-gray-300 opacity-50 hover:opacity-75'}`}>
-                    <div className={`w-8 h-1 rounded-full shadow-sm ${activeSeries.includes('damage') ? 'bg-red-500' : 'bg-gray-300'}`}></div> Reported Damage
+                    <div className={`w-8 h-1 rounded-full shadow-sm ${activeSeries.includes('damage') ? 'bg-red-500' : 'bg-gray-300'}`}></div> {t.dashboard.legendDamage}
                 </button>
                 <button onClick={() => toggleSeries('acquisition')} className={`flex items-center gap-2 text-xs font-bold transition-all duration-200 transform hover:scale-105 active:scale-95 ${activeSeries.includes('acquisition') ? 'text-gray-500 opacity-100' : 'text-gray-300 opacity-50 hover:opacity-75'}`}>
-                    <div className={`w-8 h-1 rounded-full shadow-sm ${activeSeries.includes('acquisition') ? 'bg-purple-500' : 'bg-gray-300'}`}></div> New Acquisition
+                    <div className={`w-8 h-1 rounded-full shadow-sm ${activeSeries.includes('acquisition') ? 'bg-purple-500' : 'bg-gray-300'}`}></div> {t.dashboard.legendAcquisition}
                 </button>
             </div>
         </div>

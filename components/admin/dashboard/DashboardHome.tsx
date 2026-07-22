@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Pallet, Transaction } from '../../../types';
 import { fetchPalletHistory } from '../../../services/transactionService';
 import { formatDateTime } from '../common/AdminHelpers';
+import { useT } from '../../../hooks/useT';
 
 // New Components
 import { DashboardHeader } from './DashboardHeader';
@@ -12,12 +13,17 @@ import { HighRiskZoneCard } from './HighRiskZoneCard';
 import { LocationUsageCard } from './LocationUsageCard';
 
 export const DashboardHome = ({ pallets, onNavigateToInventory }: { pallets: Pallet[], onNavigateToInventory: (filter: string, location?: string) => void }) => {
+    const t = useT();
     const [overdueThreshold, setOverdueThreshold] = useState(7);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
 
     useEffect(() => {
+        // Guarded: parseInt on a corrupted value yields NaN, and `days > NaN` is
+        // always false -- the overdue count silently dropped to zero instead of
+        // failing visibly. Keep the default rather than trust the stored value.
         const setting = localStorage.getItem('nmt_setting_overdue_days');
-        if (setting) setOverdueThreshold(parseInt(setting));
+        const parsed = parseInt(setting ?? '', 10);
+        if (Number.isFinite(parsed) && parsed > 0) setOverdueThreshold(parsed);
 
         fetchPalletHistory('').then(t => setTransactions(t));
     }, []);
@@ -76,6 +82,7 @@ export const DashboardHome = ({ pallets, onNavigateToInventory }: { pallets: Pal
                             velocity7Days,
                             overdueCount
                         }}
+                        overdueThreshold={overdueThreshold}
                     />
 
                     <FleetHealthCard stats={stats} />
@@ -104,7 +111,7 @@ export const DashboardHome = ({ pallets, onNavigateToInventory }: { pallets: Pal
                 </div>
 
                 <div className="hidden print:block text-center text-xs text-gray-400 mt-10">
-                    Printed from NMT Pallet Management System on {formatDateTime(new Date())}
+                    {t.dashboard.printedFooter(formatDateTime(new Date()))}
                 </div>
             </div>
         </div>

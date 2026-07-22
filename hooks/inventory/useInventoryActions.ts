@@ -7,8 +7,16 @@ import { resolveDamage, scrapPallet, createBulkTransaction } from '../../service
 import { fetchUsers } from '../../services/userService';
 import { supabase } from '../../services/supabase';
 import { toast } from '../../services/toast';
+import { dict } from '../../services/i18n';
 import { formatDate, palletStatusLabel } from '../../components/admin/common/AdminHelpers';
 import { ConfirmActionType } from '../../components/admin/inventory/InventoryModals';
+import { describeAppError } from '../../services/appError';
+
+// Text here is read through dict() rather than useT(). Every string below is
+// produced inside a handler -- either frozen into confirmAction state at click
+// time, or fired from a toast after an await -- so it has to be looked up when
+// the handler runs, not when the hook last rendered. useT() would also make the
+// whole inventory view re-render on a language change for no visible gain.
 
 export const useInventoryActions = (
     onRefresh: () => void,
@@ -30,13 +38,13 @@ export const useInventoryActions = (
     // retires a pallet and keeps the trail.
     const handleDeleteClick = (id: string) => {
         setConfirmAction({
-            title: "Delete Pallet?",
-            message: `Permanently delete ${id}? Its ENTIRE transaction history will be deleted with it and cannot be recovered. To retire a pallet while keeping its history, mark it Scrapped instead.`,
-            confirmLabel: "Delete",
+            title: dict().inventory.deleteTitle,
+            message: dict().inventory.deleteMessage(id),
+            confirmLabel: dict().common.delete,
             isDestructive: true,
             onConfirm: async () => {
                 await deletePallet(id);
-                toast.success(`Pallet ${id} deleted.`);
+                toast.success(dict().inventory.palletDeleted(id));
                 onRefresh();
             }
         });
@@ -44,13 +52,13 @@ export const useInventoryActions = (
 
     const handleBulkRepair = (selectedIds: Set<string>) => {
         setConfirmAction({
-            title: "Repair Selected Items?",
-            message: `Mark ${selectedIds.size} items as Repaired (Available)?`,
-            confirmLabel: "Mark Repaired",
+            title: dict().inventory.bulkRepairTitle,
+            message: dict().inventory.bulkRepairMessage(selectedIds.size),
+            confirmLabel: dict().inventory.markRepaired,
             isDestructive: false,
             onConfirm: async () => {
                 await Promise.all(Array.from(selectedIds).map((id: string) => resolveDamage(id, user?.id)));
-                toast.success(`${selectedIds.size} items marked as repaired.`);
+                toast.success(dict().inventory.repairedCount(selectedIds.size));
                 setSelectedIds(new Set());
                 onRefresh();
             }
@@ -59,13 +67,13 @@ export const useInventoryActions = (
 
     const handleBulkDelete = (selectedIds: Set<string>) => {
         setConfirmAction({
-            title: "Delete Selected Items?",
-            message: `PERMANENTLY DELETE ${selectedIds.size} pallets? The ENTIRE transaction history of each one will be deleted with it and cannot be recovered. To retire pallets while keeping their history, mark them Scrapped instead.`,
-            confirmLabel: "Delete All",
+            title: dict().inventory.bulkDeleteTitle,
+            message: dict().inventory.bulkDeleteMessage(selectedIds.size),
+            confirmLabel: dict().inventory.deleteAll,
             isDestructive: true,
             onConfirm: async () => {
                 await Promise.all(Array.from(selectedIds).map((id: string) => deletePallet(id)));
-                toast.success(`${selectedIds.size} items deleted.`);
+                toast.success(dict().inventory.deletedCount(selectedIds.size));
                 setSelectedIds(new Set());
                 onRefresh();
             }
@@ -74,13 +82,13 @@ export const useInventoryActions = (
 
     const handleRepairRow = (id: string) => {
         setConfirmAction({
-            title: "Repair Pallet?",
-            message: `Mark ${id} as Repaired (Available)?`,
-            confirmLabel: "Repair",
+            title: dict().inventory.repairTitle,
+            message: dict().inventory.repairMessage(id),
+            confirmLabel: dict().inventory.repair,
             isDestructive: false,
             onConfirm: async () => {
                 await resolveDamage(id, user?.id);
-                toast.success(`Pallet ${id} repaired.`);
+                toast.success(dict().inventory.palletRepaired(id));
                 onRefresh();
             }
         });
@@ -91,13 +99,13 @@ export const useInventoryActions = (
     // whole history survive, which is the difference from Delete.
     const handleScrapRow = (id: string) => {
         setConfirmAction({
-            title: "Scrap Pallet?",
-            message: `Mark ${id} as Scrapped? It leaves the fleet permanently and cannot be returned to service — but its history and damage evidence are kept.`,
-            confirmLabel: "Scrap",
+            title: dict().inventory.scrapTitle,
+            message: dict().inventory.scrapMessage(id),
+            confirmLabel: dict().inventory.scrap,
             isDestructive: true,
             onConfirm: async () => {
                 await scrapPallet(id, user?.id);
-                toast.success(`Pallet ${id} scrapped.`);
+                toast.success(dict().inventory.palletScrapped(id));
                 onRefresh();
             }
         });
@@ -105,13 +113,13 @@ export const useInventoryActions = (
 
     const handleBulkScrap = (selectedIds: Set<string>) => {
         setConfirmAction({
-            title: "Scrap Selected Items?",
-            message: `Mark ${selectedIds.size} items as Scrapped? They leave the fleet permanently and cannot be returned to service — but their history and damage evidence are kept.`,
-            confirmLabel: "Scrap All",
+            title: dict().inventory.bulkScrapTitle,
+            message: dict().inventory.bulkScrapMessage(selectedIds.size),
+            confirmLabel: dict().inventory.scrapAll,
             isDestructive: true,
             onConfirm: async () => {
                 await Promise.all(Array.from(selectedIds).map((id: string) => scrapPallet(id, user?.id)));
-                toast.success(`${selectedIds.size} items scrapped.`);
+                toast.success(dict().inventory.scrappedCount(selectedIds.size));
                 setSelectedIds(new Set());
                 onRefresh();
             }
@@ -137,16 +145,16 @@ export const useInventoryActions = (
             );
 
             if (result.failed.length > 0) {
-                toast.error(`Processed ${result.success.length} items. Failed: ${result.failed.join(', ')}`);
+                toast.error(dict().inventory.bulkPartial(result.success.length, result.failed.join(', ')));
             } else {
-                toast.success(`Successfully processed ${result.success.length} items.`);
+                toast.success(dict().inventory.bulkDone(result.success.length));
             }
 
             setSelectedIds(new Set());
             onRefresh();
         } catch (error: any) {
             console.error(error);
-            toast.error("Bulk transaction failed: " + (error.message || "Unknown error"));
+            toast.error(dict().inventory.bulkFailed(describeAppError(error)));
         }
     };
 
@@ -164,6 +172,11 @@ export const useInventoryActions = (
                 const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
                 const timeStr = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
                 const updater = user?.full_name || 'ADMIN';
+                // Deliberately not translated: this suffix is written into
+                // pallet_remark and stored, so translating it would stamp the
+                // editor's UI language onto the record and leave the same column
+                // reading differently row by row. Same reasoning as the fixed
+                // en-GB date above.
                 newRemark = `${newRemark} (Updated: ${dateStr}, ${timeStr} by ${updater})`;
             }
 
@@ -171,18 +184,18 @@ export const useInventoryActions = (
                 pallet_id: updates.pallet_id,
                 pallet_remark: newRemark
             });
-            toast.success("Pallet updated successfully");
+            toast.success(dict().inventory.palletUpdated);
             setEditPallet(null);
             onRefresh();
         } catch (error: any) {
             console.error(error);
-            const msg = error.code === '23505' ? 'Pallet ID already exists' : 'Failed to update pallet';
+            const msg = error.code === '23505' ? dict().inventory.idExists : dict().inventory.updateFailed;
             toast.error(msg);
         }
     };
 
     const handleExportFiltered = async (processedPallets: Pallet[]) => {
-        toast.info("Preparing export data... This may take a moment.");
+        toast.info(dict().csv.preparingInventory);
 
         try {
             // 1. Fetch Users Data for mapping IDs to Names
@@ -212,9 +225,13 @@ export const useInventoryActions = (
                 }
             }
 
+            // Column headers come from `csv.header` in locales/en.ts, the same
+            // table the transactions export reads, so the two files agree on what
+            // a column is called. Only "Last Checkout" is unique to this export.
+            const col = dict().csv.header;
             const headers = [
-                'Pallet ID', 'Status', 'Location', 'Date Added', 'Last Activity',
-                'Last Action Type', 'Action By', 'Last Checkout', 'Overdue Days', 'Evidence File'
+                col.palletId, col.status, col.currentLocation, col.dateAdded, col.lastActivityDate,
+                col.actionType, col.performedBy, dict().inventory.lastCheckout, col.daysOverdue, col.evidenceFile
             ];
 
             const rows = processedPallets.map(p => {
@@ -232,7 +249,10 @@ export const useInventoryActions = (
                     p.current_location,
                     formatDate(p.created_at) || '-',
                     tx ? formatDate(tx.timestamp) : '-',
-                    tx ? tx.action_type : '-',
+                    // Labelled, not the raw enum: 'check_out' in a spreadsheet cell
+                    // means nothing to the reader, and the status column beside it
+                    // is already translated through palletStatusLabel.
+                    tx ? dict().action[tx.action_type] : '-',
                     tx ? (userMap[tx.user_id] || tx.user_id) : '-',
                     formatDate(p.last_checkout_date) || '-',
                     overdue.toString(),
@@ -254,10 +274,10 @@ export const useInventoryActions = (
             link.click();
             document.body.removeChild(link);
 
-            toast.success(`Exported ${processedPallets.length} items successfully.`);
+            toast.success(dict().csv.inventoryDone(processedPallets.length));
         } catch (error) {
             console.error("Export failed", error);
-            toast.error("Export failed. Please try again.");
+            toast.error(dict().inventory.exportFailed);
         }
     };
 

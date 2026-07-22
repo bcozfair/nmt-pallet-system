@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
 import { Pallet } from '../../../types';
+import { useT } from '../../../hooks/useT';
 
 export const LocationInventoryChart = ({ pallets, onSelectLocation }: { pallets: Pallet[], onSelectLocation?: (location: string) => void }) => {
+    const t = useT();
     const chartData = useMemo(() => {
         const counts: Record<string, number> = {};
         pallets.forEach(p => {
@@ -43,7 +45,7 @@ export const LocationInventoryChart = ({ pallets, onSelectLocation }: { pallets:
 
                 {!hasData && (
                     <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs italic z-10">
-                        No active location data available (outside Warehouse)
+                        {t.dashboard.noLocationData}
                     </div>
                 )}
 
@@ -62,7 +64,7 @@ export const LocationInventoryChart = ({ pallets, onSelectLocation }: { pallets:
                                     >
                                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover/bar:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-50">
                                             <div className="bg-gray-900 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-xl relative">
-                                                {d.count} Units
+                                                {t.dashboard.unitsCount(d.count)}
                                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-l-4 border-l-transparent border-r-4 border-r-transparent border-t-4 border-t-gray-900"></div>
                                             </div>
                                         </div>

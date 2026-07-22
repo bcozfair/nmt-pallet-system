@@ -1,4 +1,13 @@
-import { ActionType, PalletStatus } from '../types';
+import { ActionType, PalletStatus, Role } from '../types';
+import {
+    dashboardEn,
+    inventoryEn,
+    transactionsEn,
+    usersEn,
+    locationsEn,
+    settingsEn,
+    modalsEn,
+} from './admin';
 
 // The source of truth for every string the user can see.
 //
@@ -16,9 +25,143 @@ export const en = {
         loadingProfile: 'Loading Profile...',
     },
 
+    // The shared vocabulary. Everything below is wording that recurs across
+    // several screens, and it lives here so the admin modules cannot drift into
+    // three different Thai renderings of "Save". Reach for a key here before
+    // adding one to a feature module.
     common: {
+        // Actions
+        save: 'Save',
+        saving: 'Saving...',
         cancel: 'Cancel',
+        delete: 'Delete',
+        edit: 'Edit',
+        close: 'Close',
+        confirm: 'Confirm',
+        add: 'Add',
+        search: 'Search',
+        export: 'Export',
+        print: 'Print',
+        download: 'Download',
+        refresh: 'Refresh',
+        retry: 'Try Again',
+        back: 'Back',
+        view: 'View',
+        apply: 'Apply',
+        clearFilters: 'Clear Filters',
+
+        // States
+        loading: 'Loading...',
+        noData: 'No data found',
         error: 'Error:',
+        required: 'Required',
+        popupBlocked: 'Popups are blocked. Please allow popups for this site to print.',
+
+        // Recurring labels and table headers
+        actions: 'Actions',
+        all: 'All',
+        status: 'Status',
+        location: 'Location',
+        department: 'Department',
+        date: 'Date',
+        time: 'Time',
+        user: 'User',
+        remark: 'Remark',
+        palletId: 'Pallet ID',
+        total: 'Total',
+        active: 'Active',
+        inactive: 'Inactive',
+    },
+
+    // CSV exports. Lives in the core dictionary rather than under a feature area
+    // because utils/exportHelpers.ts is shared by inventory and transactions.
+    csv: {
+        preparingInventory: 'Preparing inventory report...',
+        inventoryDone: (count: number) => `Exported ${count} inventory items.`,
+        preparingHistory: 'Preparing full history export...',
+        historyDone: (count: number) => `Exported ${count} records successfully.`,
+        exportFailed: (reason: string) => `Export failed: ${reason}`,
+        warehouse: 'Warehouse',
+        header: {
+            palletId: 'Pallet ID',
+            status: 'Status',
+            currentLocation: 'Current Location',
+            responsiblePerson: 'Responsible Person',
+            lastAction: 'Last Action',
+            lastActivityDate: 'Last Activity Date',
+            daysOverdue: 'Days Overdue',
+            dateAdded: 'Date Added',
+            evidenceFile: 'Evidence File',
+            date: 'Date',
+            time: 'Time',
+            actionType: 'Action Type',
+            performedBy: 'Performed By',
+            locationDest: 'Location/Destination',
+        },
+    },
+
+    // Rendered by services/appError.ts. Every deliberate service-layer failure
+    // resolves to exactly one of these; anything else falls back to `unknown`
+    // rather than surfacing an internal English string.
+    errors: {
+        unknown: 'Something went wrong. Please try again.',
+        palletNotFound: (palletId: string) => `Pallet ${palletId} not found.`,
+        palletExists: (palletId: string) => `Pallet ID ${palletId} already exists.`,
+        palletAlreadyScrapped: (palletId: string) => `Pallet ${palletId} has already been scrapped.`,
+        palletNotDamaged: (palletId: string, status: string) =>
+            `Pallet ${palletId} must be reported as damaged before it can be scrapped (it is currently ${status}).`,
+        palletMissingForCheckout: (palletId: string) =>
+            `Pallet ${palletId} not found. Add it in Inventory before checking it out.`,
+        scrapRequiresUser: 'Cannot scrap a pallet without a signed-in user to attribute it to.',
+        destinationRequired: 'A destination is required to check out a pallet.',
+        imageUploadFailed: (reason: string) => `Image upload failed: ${reason}`,
+        deleteDenied: 'Could not delete: the item no longer exists, or you do not have permission.',
+        updateDenied: 'Could not save: the user no longer exists, or you do not have permission.',
+        // Must keep saying the account exists. An admin who reads this as a plain
+        // failure will try again and hit "employee ID already taken".
+        adminPromotionFailed: (reason: string) =>
+            `The account was created, but it is still a staff account -- granting admin rights failed (${reason}). Change the role from the user list.`,
+    },
+
+    // Returned by services/reportService.ts and rendered verbatim by the
+    // settings screen. Core rather than per-area for the same reason as csv:
+    // the service is shared and cannot reach a feature module's dictionary.
+    report: {
+        notConfigured: 'Supabase URL is not configured.',
+        notSignedIn: 'Not signed in.',
+        sendFailed: (reason: string) => `Failed to send report: ${reason}`,
+        sentOverdue: 'Sent Overdue Report',
+        sentSummary: 'Sent Summary Report',
+    },
+
+    nav: {
+        menu: 'Menu',
+        system: 'System',
+        dashboard: 'Dashboard',
+        inventory: 'Inventory',
+        transactions: 'Transactions',
+        users: 'Users',
+        locations: 'Locations',
+        settings: 'Settings',
+        signOut: 'Sign Out',
+    },
+
+    // Roles are a closed set in types.ts, so the same completeness check that
+    // guards status and action applies here.
+    role: {
+        admin: 'Admin',
+        staff: 'Staff',
+    } satisfies Record<Role, string>,
+
+    pagination: {
+        firstPage: 'First Page',
+        prevPage: 'Previous Page',
+        nextPage: 'Next Page',
+        lastPage: 'Last Page',
+        page: 'Page',
+        ofTotal: (total: number) => `of ${total}`,
+        showing: (from: number, to: number, total: number) =>
+            `Showing ${from} to ${to} of ${total} items`,
     },
 
     // Shared by every badge, chip, dropdown and CSV cell. 'unknown' is here
@@ -178,6 +321,18 @@ export const en = {
         to: 'To:',
         showing: (count: number) => `Showing ${count} items`,
     },
+
+    // Admin modules live in locales/admin/*.ts, one file per feature area,
+    // each holding both languages side by side. Split that way so the six areas
+    // could be translated independently without fighting over one file -- and
+    // because a translation is far easier to review with its original next to it.
+    dashboard: dashboardEn,
+    inventory: inventoryEn,
+    transactions: transactionsEn,
+    users: usersEn,
+    locations: locationsEn,
+    settings: settingsEn,
+    modals: modalsEn,
 };
 
 // Every other locale is checked against this shape, so a key added here without
