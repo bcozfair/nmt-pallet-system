@@ -7,6 +7,33 @@
    can be added to the stack. */
 @theme {
   --font-sans: "Inter", "Noto Sans Thai", ui-sans-serif, system-ui, sans-serif;
+
+  /* Brand palette. `brand-600` and `accent-500` are the two colours the NMT
+     wordmark is actually drawn in (see public/favicon.svg); every other step is
+     a tint or shade of those, so nothing on screen introduces a hue the mark
+     does not already contain. Declared here rather than in tailwind.config.js
+     for the reason noted in that file: v4 reads its theme from CSS. */
+  --color-brand-50: #edf3fc;
+  --color-brand-100: #d8e5f9;
+  --color-brand-200: #b4cdf3;
+  --color-brand-300: #81abea;
+  --color-brand-400: #4b85dd;
+  --color-brand-500: #2365c7;
+  --color-brand-600: #1a51a4;
+  --color-brand-700: #154489;
+  --color-brand-800: #12376e;
+  --color-brand-900: #0f2a52;
+
+  --color-accent-50: #edfdfd;
+  --color-accent-100: #d1fafa;
+  --color-accent-200: #a3f5f4;
+  --color-accent-300: #61efef;
+  --color-accent-400: #11d0cf;
+  --color-accent-500: #01b5b4;
+  --color-accent-600: #029796;
+  --color-accent-700: #037777;
+  --color-accent-800: #065b5b;
+  --color-accent-900: #084545;
 }
 
 @layer base {
@@ -84,4 +111,76 @@
 
 .animate-toast-in {
   animation: toast-slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* --- Sign-in and password-reset screens --- */
+
+/* One soft brand wash falling from the top of the viewport, so the card sits in
+   light instead of on flat grey. Deliberately weak: the brief is low contrast,
+   and anything stronger starts competing with the card for attention. */
+.auth-canvas {
+  background-color: #f8fafc;
+  /* slate-50 */
+  background-image: radial-gradient(115% 75% at 50% -15%,
+      rgba(26, 81, 164, 0.1) 0%,
+      rgba(26, 81, 164, 0) 62%);
+}
+
+@keyframes auth-card-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-auth-card-in {
+  animation: auth-card-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes auth-banner-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-auth-banner-in {
+  animation: auth-banner-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* The brand hairline across the top of the card doubles as the progress
+   indicator: the gradient is laid out at twice the width and slid leftwards
+   while a request is in flight. One element, two jobs -- which is why there is
+   no separate loading bar anywhere on these screens. */
+@keyframes brand-sweep {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: 0 0;
+  }
+}
+
+.animate-brand-sweep {
+  animation: brand-sweep 1.1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .animate-auth-card-in,
+  .animate-auth-banner-in,
+  .animate-brand-sweep {
+    animation: none;
+  }
 }

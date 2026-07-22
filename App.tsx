@@ -5,18 +5,25 @@ import LoginPage from './components/LoginPage';
 import ResetPasswordPage from './components/ResetPasswordPage';
 import { ToastContainer } from './components/Toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { BrandMark } from './components/auth/BrandMark';
 import { useT } from './hooks/useT';
+
+// Shown while the session is being resolved and again if the profile lands
+// without a usable role. Wears the same canvas as the sign-in screen, so the
+// first paint after a reload is not a bare grey page that then jumps.
+const BootScreen: React.FC<{ message: string }> = ({ message }) => (
+  <div className="auth-canvas flex min-h-dvh flex-col items-center justify-center gap-4">
+    <BrandMark className="h-8 w-auto" />
+    <p className="text-sm font-medium text-slate-500">{message}</p>
+  </div>
+);
 
 function AppContent() {
   const { user, loading, signOut, isPasswordRecovery } = useAuth();
   const t = useT();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-blue-600 font-medium">
-        {t.app.loadingSystem}
-      </div>
-    );
+    return <BootScreen message={t.app.loadingSystem} />;
   }
 
   // Handle Logout
@@ -41,9 +48,7 @@ function AppContent() {
       ) : (
         // Any other role means the profile is not resolved yet. Defaulting to the
         // staff interface here would show admins the wrong screen on every login.
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 text-blue-600 font-medium">
-          {t.app.loadingProfile}
-        </div>
+        <BootScreen message={t.app.loadingProfile} />
       )}
     </>
   );

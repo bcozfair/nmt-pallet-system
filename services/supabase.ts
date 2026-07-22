@@ -9,14 +9,14 @@ import { sessionStore } from './sessionPolicy';
 // so services should check for valid configuration or fallback to mock.
 export const supabase = createClient(SUPABASE_URL || 'https://placeholder.supabase.co', SUPABASE_ANON_KEY || 'placeholder', {
     auth: {
-        // The storage is chosen per sign-in by the "Remember me" checkbox:
-        // localStorage when ticked, sessionStorage when not. See sessionPolicy.ts.
+        // Always sessionStorage, so a session cannot outlive the browser. See
+        // sessionPolicy.ts, which owns that decision.
         //
-        // An earlier version hardcoded sessionStorage, so sessions died on every
-        // tab close; the workaround at the time was to persist the user's raw
-        // password so the app could silently re-authenticate. Never do that. If a
-        // session ends, the user types their password again -- that is the whole
-        // point of the setting.
+        // A middle version of this app worked around the resulting re-logins by
+        // persisting the user's raw password so it could silently
+        // re-authenticate. Never do that. Signing in again is the browser
+        // password manager's problem to make painless -- that is why the fields
+        // in components/auth/AuthField.tsx carry real autocomplete tokens.
         storage: sessionStore,
         // Named explicitly so sessionPolicy.ts can clear the session out of both
         // storages by key. Without this, the key includes the project ref and

@@ -7,6 +7,7 @@ import {
     checkSessionPolicy,
     clearSessionArtifacts,
     markSessionStart,
+    purgeLegacyArtifacts,
     touchActivity,
     SessionVerdict,
 } from '../services/sessionPolicy';
@@ -103,6 +104,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // 0. Cache Hydration (Run once on mount)
     useEffect(() => {
+        // Anything an older build left in localStorage -- a session that was
+        // "remembered", a saved employee id, once even a plaintext password.
+        // Nothing reads those keys now, so the only thing left to do with them
+        // is delete them.
+        purgeLegacyArtifacts();
+
         // Detect Recovery Mode from URL initially (before Auth Listener fires)
         const hash = window.location.hash;
         if (hash && hash.includes('type=recovery')) {

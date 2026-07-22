@@ -52,6 +52,8 @@ export const en = {
 
         // States
         loading: 'Loading...',
+        showPassword: 'Show password',
+        hidePassword: 'Hide password',
         noData: 'No data found',
         error: 'Error:',
         required: 'Required',
@@ -193,17 +195,27 @@ export const en = {
     },
 
     login: {
-        title: 'NMT Pallet System',
-        subtitle: 'Secure Access Portal',
-        recoveryTitle: 'Password Recovery',
-        recoverySubtitle: 'Enter your Employee ID or email',
-        identifierLabel: 'Email or Employee ID',
-        identifierPlaceholder: 'admin@nmt.com or EMP001',
+        // Sits under the wordmark, so it names the product without repeating
+        // "NMT" -- the mark above it has already said that.
+        brandTagline: 'Pallet Management System',
+        title: 'Sign in',
+        subtitle: 'Enter your employee ID and password to continue.',
+        recoveryTitle: 'Reset your password',
+        recoverySubtitle: 'Enter your employee ID to start a password reset.',
+        // The field still accepts an email -- signIn() only builds an alias
+        // address when the input has no "@" in it. It is labelled by the one
+        // thing every employee actually knows, rather than by both paths.
+        identifierLabel: 'Employee ID',
+        identifierPlaceholder: 'EMP001',
         passwordLabel: 'Password',
-        rememberMe: 'Remember me',
-        rememberHint:
-            'Stays signed in on this device for up to 12 hours. Leave it unchecked on a shared device: the session then ends as soon as you close the tab.',
-        forgotPassword: 'Forgot Password?',
+        capsLockOn: 'Caps Lock is on.',
+        // Replaces the old "Remember me" hint. There is no such checkbox any
+        // more -- saving the password is the browser's job -- so this is the
+        // only place the session's actual lifetime is stated. Written as a
+        // function so both numbers come from constants.ts.
+        sessionNotice: (idleMinutes: number, maxHours: number) =>
+            `You stay signed in until you close the browser, after ${idleMinutes} minutes without activity, or ${maxHours} hours at most.`,
+        forgotPassword: 'Forgot password?',
         resetHint:
             'Reset links are delivered to the registered administrator mailbox. Staff should ask an administrator to reset their password.',
         // Says the same thing whether or not the account exists. Any translation
@@ -211,13 +223,15 @@ export const en = {
         // signal an account-enumeration attempt is looking for.
         resetSent:
             'If that ID belongs to an account, a reset link has been sent to the registered administrator mailbox. Contact your administrator if you do not receive it.',
-        signIn: 'Sign In',
-        resetPassword: 'Reset Password',
+        signIn: 'Sign in',
+        // Names what the button does. It does not reset anything by itself --
+        // it sends the link that lets the administrator do it.
+        resetPassword: 'Send reset link',
         processing: 'Processing...',
         authorizedOnly: 'Authorized access only.',
-        backToSignIn: 'Back to Sign In',
-        // Supabase raises its errors in English. These cover the two a user can
-        // actually trigger from this form; anything else falls back to
+        backToSignIn: 'Back to sign in',
+        // Supabase raises its errors in English; services/authError.ts maps them
+        // onto these. Anything it does not recognise falls back to
         // genericFailure rather than leaking an untranslated internal message.
         invalidCredentials: 'Incorrect employee ID or password.',
         tooManyAttempts: 'Too many attempts. Please wait a moment and try again.',
@@ -233,6 +247,9 @@ export const en = {
         passwordsDoNotMatch: 'Passwords do not match',
         tooShort: 'Password must be at least 6 characters long',
         updateFailed: 'Failed to update password.',
+        samePassword: 'Your new password must be different from your current one.',
+        weakPassword: 'That password does not meet the security requirements. Please choose one that is harder to guess.',
+        linkExpired: 'This reset link has expired or has already been used. Please request a new one from the sign-in page.',
         updating: 'Updating...',
         submit: 'Reset Password',
         successTitle: 'Password Reset Successful',

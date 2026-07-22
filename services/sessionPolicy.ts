@@ -13,16 +13,17 @@ import {
 // This module must not import services/supabase.ts -- that file imports this one
 // to get its storage adapter.
 
-// Kept in localStorage unconditionally: it has to be readable *before* we know
-// which storage the session itself lives in.
-const REMEMBER_KEY = 'nmt_remember_session';
-
 const META_KEY = 'nmt_session_meta';
 
 // Everything that must be gone once the session ends. PENDING_SCANS_KEY is in
 // here because scans staged by one employee would otherwise be submitted under
 // the next employee's id on a shared device.
 const SESSION_SCOPED_KEYS = [AUTH_STORAGE_KEY, META_KEY, PROFILE_CACHE_KEY, PENDING_SCANS_KEY];
+
+// Keys older builds wrote and nothing reads any more. Listed so they can be
+// deleted rather than left sitting in localStorage forever -- one of them held
+// the user's password in plaintext.
+const LEGACY_KEYS = ['nmt_remember_session', 'nmt_remember_id', 'nmt_remember_pass'];
 
 export type SessionVerdict = 'ok' | 'no_session' | 'expired_max_age' | 'expired_idle';
 
@@ -31,23 +32,21 @@ interface SessionMeta {
     lastActiveAt: number;
 }
 
-export const isRemembered = (): boolean => {
-    try {
-        return localStorage.getItem(REMEMBER_KEY) === '1';
-    } catch (e) {
-        console.warn('[Session] Storage unavailable, defaulting to per-tab session', e);
-        return false;
-    }
-};
+// The storage every session lives in. sessionStorage and nothing else: a
+// session has to be gone once the browser is closed, and localStorage is by
+// definition the store that survives that. The "Remember me" checkbox that used
+// to move the session into localStorage is gone -- remembering the *credential*
+// is the browser password manager's job, and that is a different thing from
+// keeping someone signed in.
+//
+// Consequence worth knowing: sessionStorage is per-tab, so opening the app in a
+// second tab asks for a sign-in again. That is the price of the guarantee above.
+export const activeStore = (): Storage => sessionStorage;
 
-// The storage the current session lives in. Must be resolved on every call: the
-// Supabase client is constructed at import time, long before the user ticks
-// "Remember me", so this can never be captured in a variable.
-export const activeStore = (): Storage => (isRemembered() ? localStorage : sessionStorage);
-
-// Wipes every session-scoped key from BOTH storages. Clearing both matters when
-// the user switches modes -- a session left behind in localStorage would survive
-// a sign-in that was meant to last only until the tab closes.
+// Wipes every session-scoped key from BOTH storages. localStorage is included
+// because builds before this one put the session there whenever "Remember me"
+// was ticked, and a session left behind in a store nothing reads is still a
+// session sitting on the disk.
 export const clearSessionArtifacts = (): void => {
     try {
         for (const key of SESSION_SCOPED_KEYS) {
@@ -59,18 +58,15 @@ export const clearSessionArtifacts = (): void => {
     }
 };
 
-// Call before signIn(): it decides where the session Supabase is about to write
-// will land.
-export const setRemembered = (remember: boolean): void => {
-    clearSessionArtifacts();
+// Run once at startup. Everything it touches is in localStorage only -- the
+// current session lives in sessionStorage and must survive this untouched.
+export const purgeLegacyArtifacts = (): void => {
     try {
-        if (remember) {
-            localStorage.setItem(REMEMBER_KEY, '1');
-        } else {
-            localStorage.removeItem(REMEMBER_KEY);
+        for (const key of [...LEGACY_KEYS, ...SESSION_SCOPED_KEYS]) {
+            localStorage.removeItem(key);
         }
     } catch (e) {
-        console.warn('[Session] Could not persist the remember-me choice', e);
+        console.warn('[Session] Failed to purge legacy storage', e);
     }
 };
 
@@ -128,8 +124,9 @@ const writeMeta = (meta: SessionMeta): void => {
 // Starts the 12h clock. Deliberately preserves an existing startedAt: Supabase
 // re-emits SIGNED_IN in situations other than a fresh login (a tab regaining
 // focus, for one), and resetting the start time there would push the hard cap
-// out of reach forever. A real login has already cleared the meta via
-// setRemembered()/signOut(), so it gets a fresh clock.
+// out of reach forever. A real login begins with an empty sessionStorage --
+// either a new tab, or one signOut() has already cleared -- so it gets a fresh
+// clock without any help from here.
 export const markSessionStart = (): void => {
     const now = Date.now();
     const existing = readMeta();

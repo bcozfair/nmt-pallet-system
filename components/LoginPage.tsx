@@ -1,56 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { signIn, resetPassword } from '../services/authService';
-import { setRemembered } from '../services/sessionPolicy';
-import { Lock, ArrowRight, ShieldCheck, CheckSquare, KeyRound, ChevronLeft, Eye, EyeOff } from 'lucide-react';
-import { LanguageToggle } from './LanguageToggle';
+import { ArrowRight, ChevronLeft, CircleAlert, KeyRound, Loader2, Lock, MailCheck, UserRound } from 'lucide-react';
+import { AuthShell } from './auth/AuthShell';
+import { AuthField } from './auth/AuthField';
+import { SESSION_IDLE_MS, SESSION_MAX_AGE_MS } from '../constants';
 import { useT } from '../hooks/useT';
-import type { Dictionary } from '../locales';
+import { translateAuthError } from '../services/authError';
 
 type AuthMode = 'login' | 'forgot_password';
 
-// Supabase reports auth failures in English. Echoing err.message straight to
-// the screen used to be fine when the UI was English-only; now it would print
-// "Invalid login credentials" under a Thai form. Matching on the message text is
-// admittedly brittle, but auth-js gives no stable error codes on this path, and
-// the fallback is a safe generic rather than a wrong one.
-const translateAuthError = (err: unknown, t: Dictionary): string => {
-  const raw = (err instanceof Error ? err.message : String(err ?? '')).toLowerCase();
-
-  if (raw.includes('invalid login credentials')) return t.login.invalidCredentials;
-  if (raw.includes('rate limit') || raw.includes('for security purposes')) return t.login.tooManyAttempts;
-
-  // Anything else: say something true and unspecific. The real message is
-  // already on the console for whoever is debugging.
-  return t.login.genericFailure;
-};
+const IDLE_MINUTES = Math.round(SESSION_IDLE_MS / 60_000);
+const MAX_AGE_HOURS = Math.round(SESSION_MAX_AGE_MS / 3_600_000);
 
 const LoginPage: React.FC = () => {
   const t = useT();
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [identifier, setIdentifier] = useState(''); // Email or Employee ID
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const [rememberMe, setRememberMe] = useState(false);
-
-  // Only the employee id is remembered. The password used to be persisted here
-  // in plaintext so the form could be pre-filled; anything able to read
-  // localStorage (any XSS, any shared device) could read the credential. The
-  // session itself now persists via localStorage in services/supabase.ts, which
-  // is what "remember me" actually needs.
-  useEffect(() => {
-    const savedId = localStorage.getItem('nmt_remember_id');
-    if (savedId) {
-      setIdentifier(savedId);
-      setRememberMe(true);
-    }
-    // Clear the credential left behind by older builds.
-    localStorage.removeItem('nmt_remember_pass');
-  }, []);
+  const isLogin = authMode === 'login';
 
   // Clear errors when switching modes
   useEffect(() => {
@@ -75,22 +48,10 @@ const LoginPage: React.FC = () => {
         setSuccessMsg(t.login.resetSent);
       }
       else {
-        // Must come before signIn: the storage adapter reads this to decide
-        // whether the session Supabase is about to write goes to localStorage
-        // (survives a tab close) or sessionStorage (does not).
-        setRemembered(rememberMe);
-
-        // Login
         await signIn(identifier, password);
-
-        // Remember the employee id only -- never the password.
-        if (rememberMe) {
-          localStorage.setItem('nmt_remember_id', identifier);
-        } else {
-          localStorage.removeItem('nmt_remember_id');
-        }
-
-        // App.tsx listener will handle redirection
+        // App.tsx listener will handle redirection. Nothing is written to
+        // storage here: the identifier and password are the browser's to
+        // remember, via the autocomplete attributes on the fields below.
       }
     } catch (err: any) {
       console.error(err);
@@ -99,163 +60,142 @@ const LoginPage: React.FC = () => {
         // an enumeration attack is looking for.
         setSuccessMsg(t.login.resetSent);
       } else {
-        setError(translateAuthError(err, t));
+        setError(translateAuthError(err, t, t.login.genericFailure));
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const renderHeader = () => {
-    switch (authMode) {
-      case 'forgot_password':
-        return { title: t.login.recoveryTitle, subtitle: t.login.recoverySubtitle };
-      default:
-        return { title: t.login.title, subtitle: t.login.subtitle };
-    }
-  };
-
-  const headerContent = renderHeader();
-
   return (
-    <div className="min-h-[calc(100vh-56px)] bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-300">
-        {/* Header */}
-        <div className={`relative p-8 pt-14 text-center transition-colors duration-300 ${authMode === 'forgot_password' ? 'bg-indigo-600' : 'bg-blue-600'}`}>
-          {/* The language choice has to be reachable before anyone signs in --
-              this is the only screen an unauthenticated user ever sees. */}
-          <div className="absolute top-4 right-4">
-            <LanguageToggle />
+    <AuthShell
+      title={isLogin ? t.login.title : t.login.recoveryTitle}
+      subtitle={isLogin ? t.login.subtitle : t.login.recoverySubtitle}
+      busy={loading}
+      footer={
+        isLogin ? (
+          <div className="space-y-1 text-center">
+            <p className="text-xs font-medium text-slate-500">{t.login.authorizedOnly}</p>
+            <p className="text-xs leading-relaxed text-slate-400">
+              {t.login.sessionNotice(IDLE_MINUTES, MAX_AGE_HOURS)}
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">{headerContent.title}</h1>
-          <p className="text-blue-100">
-            {headerContent.subtitle}
-          </p>
-        </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAuthMode('login')}
+            className="mx-auto flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-slate-500 transition-colors hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+          >
+            <ChevronLeft size={16} /> {t.login.backToSignIn}
+          </button>
+        )
+      }
+    >
+      {/* A real form element, submitted normally: that is what makes the browser
+          offer to save the credential and refill it next time. It is also why
+          this screen no longer keeps anything of its own -- see the comment in
+          services/supabase.ts about the build that stored the raw password. */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700 animate-auth-banner-in"
+          >
+            <CircleAlert size={16} className="mt-0.5 shrink-0 text-red-500" />
+            <span>{error}</span>
+          </div>
+        )}
+        {successMsg && (
+          <div
+            role="status"
+            className="flex items-start gap-2.5 rounded-xl border border-accent-100 bg-accent-50 p-3 text-sm leading-relaxed text-accent-800 animate-auth-banner-in"
+          >
+            <MailCheck size={16} className="mt-0.5 shrink-0 text-accent-600" />
+            <span>{successMsg}</span>
+          </div>
+        )}
 
-        {/* Form */}
-        <div className="p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-center gap-2">
-                <span className="font-bold">{t.common.error}</span> {error}
-              </div>
-            )}
-            {successMsg && (
-              <div className="p-3 bg-green-50 text-green-600 text-sm rounded-lg border border-green-100 flex items-center gap-2">
-                <CheckSquare size={16} /> {successMsg}
-              </div>
-            )}
+        <AuthField
+          id="nmt-identifier"
+          name="username"
+          label={t.login.identifierLabel}
+          icon={UserRound}
+          value={identifier}
+          onChange={setIdentifier}
+          autoComplete="username"
+          placeholder={t.login.identifierPlaceholder}
+          hint={!isLogin && t.login.resetHint}
+        />
 
+        {/* Collapsed rather than unmounted, so switching modes glides instead of
+            snapping the card to a new height. `disabled` is what actually takes
+            it out of the form: a hidden-but-required field would silently block
+            submission in recovery mode, and a hidden password field is exactly
+            the shape browsers refuse to autofill. */}
+        <div
+          aria-hidden={!isLogin}
+          className={
+            'grid transition-[grid-template-rows,opacity] duration-300 ease-out ' +
+            (isLogin ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0')
+          }
+        >
+          <div className="overflow-hidden">
+            <AuthField
+              id="nmt-password"
+              name="password"
+              label={t.login.passwordLabel}
+              icon={Lock}
+              type="password"
+              value={password}
+              onChange={setPassword}
+              autoComplete="current-password"
+              placeholder="••••••••"
+              required={isLogin}
+              disabled={!isLogin}
+              onKeyUp={(e) => setCapsLock(e.getModifierState('CapsLock'))}
+              onBlur={() => setCapsLock(false)}
+              hint={
+                capsLock && (
+                  <span className="font-medium text-amber-600">{t.login.capsLockOn}</span>
+                )
+              }
+            />
 
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t.login.identifierLabel}
-              </label>
-              <div className="relative">
-                <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white text-gray-900"
-                  placeholder={t.login.identifierPlaceholder}
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                />
-              </div>
-              {authMode === 'forgot_password' && (
-                <p className="mt-2 text-xs text-gray-500">
-                  {t.login.resetHint}
-                </p>
-              )}
-            </div>
-
-            {authMode !== 'forgot_password' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t.login.passwordLabel}</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    required
-                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white text-gray-900"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition outline-none"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {authMode === 'login' && (
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 cursor-pointer group select-none">
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition ${rememberMe ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 bg-white'}`}>
-                      {rememberMe && <CheckSquare size={14} />}
-                    </div>
-                    <input
-                      type="checkbox"
-                      className="hidden"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                    />
-                    <span className="text-sm text-gray-600 font-medium group-hover:text-blue-600 transition">{t.login.rememberMe}</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setAuthMode('forgot_password')}
-                    className="text-sm text-blue-600 font-bold hover:underline"
-                  >
-                    {t.login.forgotPassword}
-                  </button>
-                </div>
-                <p className="mt-2 text-xs text-gray-500">
-                  {t.login.rememberHint}
-                </p>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full py-4 text-white rounded-xl font-bold text-lg transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-70 ${authMode === 'forgot_password' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'}`}
-            >
-              {loading ? (
-                t.login.processing
-              ) : authMode === 'forgot_password' ? (
-                <>{t.login.resetPassword} <KeyRound size={20} /></>
-              ) : (
-                <>{t.login.signIn} <ArrowRight size={20} /></>
-              )}
-            </button>
-          </form>
-
-          <div className="mt-8 text-center space-y-2">
-            {authMode === 'login' ? (
-              <p className="text-gray-600">
-                {t.login.authorizedOnly}
-              </p>
-            ) : (
+            <div className="mt-1.5 flex justify-end">
               <button
-                onClick={() => setAuthMode('login')}
-                className="flex items-center justify-center gap-2 mx-auto text-gray-500 font-bold hover:text-gray-800 transition"
+                type="button"
+                onClick={() => setAuthMode('forgot_password')}
+                tabIndex={isLogin ? undefined : -1}
+                className="rounded-lg px-1 py-0.5 text-sm font-medium text-brand-600 transition-colors hover:text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
               >
-                <ChevronLeft size={18} /> {t.login.backToSignIn}
+                {t.login.forgotPassword}
               </button>
-            )}
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="group flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 py-3 font-semibold text-white shadow-lg shadow-brand-600/20 transition duration-200 hover:bg-brand-700 hover:shadow-brand-700/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-brand-600"
+        >
+          {loading ? (
+            <>
+              <Loader2 size={18} className="animate-spin" /> {t.login.processing}
+            </>
+          ) : isLogin ? (
+            <>
+              {t.login.signIn}
+              <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+            </>
+          ) : (
+            <>
+              {t.login.resetPassword} <KeyRound size={18} />
+            </>
+          )}
+        </button>
+      </form>
+    </AuthShell>
   );
 };
 
