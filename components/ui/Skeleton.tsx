@@ -52,13 +52,19 @@ export interface SkeletonTileProps {
 }
 
 // Shares STAT_TILE_BOX with the real tile, so the grid does not reflow on load.
+// The shapes inside mirror StatTile's one-row header: chip, label, and the value
+// hard against the right edge -- including the chip's `sm:` visibility, so the
+// placeholder is not showing an element the loaded tile will not.
 export const SkeletonTile: React.FC<SkeletonTileProps> = ({ ariaLabel }) => (
     <div className={STAT_TILE_BOX} {...statusProps(ariaLabel)}>
-        <div className="flex items-start gap-3">
-            <div className="skeleton h-9 w-9 shrink-0 rounded-xl" aria-hidden="true" />
-            <div className="skeleton mt-1 h-3.5 w-24 rounded-md" aria-hidden="true" />
+        <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+                <div className="skeleton hidden h-8 w-8 shrink-0 rounded-xl sm:block" aria-hidden="true" />
+                <div className="skeleton h-3.5 w-20 rounded-md" aria-hidden="true" />
+            </div>
+            <div className="skeleton h-7 w-14 shrink-0 rounded-md" aria-hidden="true" />
         </div>
-        <div className="skeleton mt-4 h-8 w-20 rounded-md" aria-hidden="true" />
+        <div className="skeleton mt-3 h-3 w-24 rounded-md" aria-hidden="true" />
     </div>
 );
 

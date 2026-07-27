@@ -33,7 +33,13 @@ export interface StatTileProps {
 // `flex flex-col` is what lets the meter's `mt-auto` sit on the tile's floor
 // rather than immediately under the caption, so a tile with a meter and one
 // without still line up along the bottom edge of the row.
-export const STAT_TILE_BOX = `${CARD_SHELL} flex min-h-[7.5rem] w-full flex-col p-5 text-left`;
+//
+// 5.5rem and p-4, down from 7.5rem and p-5. The value used to be a row of its
+// own under the label; it now shares the label's row (see `body` below), which
+// removed a 36px line plus its 12px top margin from every tile. The floor and
+// the padding came down with it -- a 120px floor under a ~96px tile is not a
+// floor, it is 24px of white nobody asked for.
+export const STAT_TILE_BOX = `${CARD_SHELL} flex min-h-[5.5rem] w-full flex-col p-4 text-left`;
 
 // Tints the chip behind the icon and nothing else. The value itself is always
 // slate-900: a number that changes colour with its own tone is unreadable to
@@ -85,13 +91,19 @@ export const StatTile: React.FC<StatTileProps> = ({
     loading = false,
 }) => {
     if (loading) {
+        // Same three boxes on the same one row as the loaded tile, so the swap
+        // moves nothing. Kept in step with SkeletonTile in Skeleton.tsx, which
+        // stands in for this component in a grid.
         return (
             <div className={STAT_TILE_BOX} aria-hidden="true">
-                <div className="flex items-start gap-3">
-                    <div className="skeleton h-9 w-9 shrink-0 rounded-xl" />
-                    <div className="skeleton mt-1 h-3.5 w-24 rounded-md" />
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                        <div className="skeleton hidden h-8 w-8 shrink-0 rounded-xl sm:block" />
+                        <div className="skeleton h-3.5 w-20 rounded-md" />
+                    </div>
+                    <div className="skeleton h-7 w-14 shrink-0 rounded-md" />
                 </div>
-                <div className="skeleton mt-4 h-8 w-20 rounded-md" />
+                <div className="skeleton mt-3 h-3 w-24 rounded-md" />
             </div>
         );
     }
@@ -109,31 +121,63 @@ export const StatTile: React.FC<StatTileProps> = ({
 
     const body = (
         <>
-            <div className="flex items-start gap-3">
-                {Icon && (
-                    <span
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${TONE_CHIP[tone]}`}
-                        aria-hidden="true"
-                    >
-                        <Icon size={18} />
-                    </span>
-                )}
-                {/* Wraps rather than truncates: a clipped Thai label is not a
-                    shorter label, it is a different word. */}
-                <p className="text-sm font-medium leading-snug text-slate-500">{label}</p>
-            </div>
+            {/* ONE row: icon, label, value. The value used to sit on its own line
+                underneath, which cost every tile a 36px line box plus a 12px
+                margin and left the right half of the row empty -- so the tile was
+                tall AND had a hole in it. `justify-between` puts the figure hard
+                against the right edge, which is also where the eye goes to
+                compare four tiles down a row.
 
-            {/* font-semibold (600), not font-black. Google Fonts loads Inter and
-                Noto Sans Thai at 300-700 only, so a 900 weight is synthesised by
-                the browser -- it smears the Thai glyphs and never matches the
-                Latin. Size carries the emphasis here instead of weight. No
-                `tabular-nums` either: this is one display figure, not a column,
-                and proportional figures set better on their own. */}
-            <p
-                className={`mt-3 font-semibold tracking-tight text-slate-900 ${size === 'hero' ? 'text-4xl' : 'text-3xl'}`}
-            >
-                {value}
-            </p>
+                `items-center`, not `items-start`: at text-3xl the value's line
+                box is 36px and the icon chip is 32px, while the label is a 20px
+                line that may wrap to two. Aligning tops would leave the number
+                looking like it had slipped below the label it belongs to. */}
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2.5">
+                    {Icon && (
+                        // Hidden below `sm`, and this is arithmetic rather than
+                        // taste. The row is two columns at 360px, so a tile is
+                        // 158px and its content box 126px. A 32px chip and its
+                        // gap take 42 of that, "100%" at text-2xl takes ~58, and
+                        // the label is left with 26px -- too narrow for Thai to
+                        // break in, so it would spill out of the tile. The chip
+                        // is aria-hidden decoration that repeats what the label
+                        // already says, so it is the one thing here that can go.
+                        <span
+                            className={`hidden h-8 w-8 shrink-0 items-center justify-center rounded-xl sm:flex ${TONE_CHIP[tone]}`}
+                            aria-hidden="true"
+                        >
+                            <Icon size={16} />
+                        </span>
+                    )}
+                    {/* Wraps rather than truncates: a clipped Thai label is not a
+                        shorter label, it is a different word. `min-w-0` so the
+                        wrapping actually happens -- a flex item defaults to
+                        min-width:auto and would push the value off the tile
+                        instead of breaking. */}
+                    <p className="min-w-0 text-sm font-medium leading-snug text-slate-500">{label}</p>
+                </div>
+
+                {/* font-semibold (600), not font-black. Google Fonts loads Inter
+                    and Noto Sans Thai at 300-700 only, so a 900 weight is
+                    synthesised by the browser -- it smears the Thai glyphs and
+                    never matches the Latin. Size carries the emphasis here
+                    instead of weight. No `tabular-nums` either: this is one
+                    display figure, not a column, and proportional figures set
+                    better on their own.
+
+                    One step down below `sm`, where the tile is 158px wide and a
+                    30px "100%" would take half of it. `shrink-0` because this is
+                    the element the tile exists for: if something has to give, it
+                    is the label, which can wrap. */}
+                <p
+                    className={`shrink-0 font-semibold tracking-tight text-slate-900 ${
+                        size === 'hero' ? 'text-3xl sm:text-4xl' : 'text-2xl sm:text-3xl'
+                    }`}
+                >
+                    {value}
+                </p>
+            </div>
 
             {(delta || caption) && (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -157,7 +201,10 @@ export const StatTile: React.FC<StatTileProps> = ({
                 another component's DOM from a class is what made that possible;
                 a prop cannot do it. */}
             {typeof meterPct === 'number' && (
-                <div className="mt-auto pt-4">
+                // pt-3, not pt-4: this tile is the tallest in its row and so
+                // sets the height of the three beside it. On a ~96px tile a 16px
+                // gap above a 6px bar is most of a line.
+                <div className="mt-auto pt-3">
                     <div className="h-1.5 overflow-hidden rounded-full bg-brand-100" aria-hidden="true">
                         {/* Width is a runtime number, so it goes through `style`.
                             A `w-[${n}%]` class is assembled after build time and
