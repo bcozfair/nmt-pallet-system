@@ -1,15 +1,16 @@
 import React, { useMemo } from 'react';
-import { UserCheck, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 import type { TooltipContentProps } from 'recharts';
 import type { ActionType } from '../../../../types';
-import { ChartFrame, DataTableView, EmptyState, StatTile } from '../../../ui';
+import { ChartFrame, DataTableView, EmptyState } from '../../../ui';
 import {
     AXIS_PROPS,
     GRID_PROPS,
     SEGMENT_GAP,
     SERIES_COLORS,
     SERIES_ORDER,
+    bandPlotHeight,
 } from '../../charts/chartTheme';
 import { formatDateTime } from '../../common/AdminHelpers';
 import { RangeMenu } from '../RangeMenu';
@@ -20,8 +21,16 @@ import { UNKNOWN_USER_KEY } from '../../../../services/analytics/dashboardAnalyt
 import type { DashboardAnalytics, StaffRow } from '../../../../services/analytics/dashboardAnalytics';
 
 /**
- * Who is recording the transactions: one horizontal stacked bar plus the
- * active-headcount tile.
+ * Who is recording the transactions: one horizontal stacked bar.
+ *
+ * A StatTile carrying `activeStaffCount` ("N of M staff active in this range")
+ * used to sit beside it at xl:col-span-1. It was removed because it restated
+ * the chart: the bars ARE the active staff, one per person, so the count was
+ * the row count of the thing directly to its right, and the card ended up
+ * announcing the section title twice -- StatTile has no subtitle slot, so its
+ * label had to be `staff.title`, the same string as the chart's heading.
+ * `analytics.activeStaffCount` is still computed and still goes into the
+ * summary CSV, where there is no chart to read it off.
  *
  * ===================== WHY THE CHART IS THE SHAPE IT IS =====================
  *
@@ -87,10 +96,8 @@ export interface StaffSectionProps {
     isLoading: boolean;
     isRefreshing?: boolean;
     /**
-     * The chart and the tile beside it are both range-scoped -- a ranking is
-     * counted from the transactions in the window, and `activeStaffCount` means
-     * "recorded at least one transaction IN IT". The chip goes on the chart:
-     * StatTile has no header slot, and the two sit in one row.
+     * Range-scoped: a ranking is counted from the transactions inside the
+     * window, so the chip is interactive rather than the static "as of now" one.
      */
     range: DashboardRange;
     onRangeChange: (range: DashboardRange) => void;
@@ -100,17 +107,13 @@ export interface StaffSectionProps {
 const TOP_N = 10;
 
 /**
- * The height formula, and the ONE legitimate pixel constant in this file.
- *
- * A ranking chart's height is a function of how many rows it has, not of how
- * wide its column is, so `aspect` cannot express it -- eleven bars in a 328px
- * column at aspect 2 would be 15px apart. 34px per row is the row pitch (a
- * ~20px bar plus breathing room at the 12px tick size AXIS_PROPS sets); 56px
- * is the x-axis, its ticks and the plot margins.
+ * Only so the loading skeleton reserves a believable box rather than one bar's
+ * worth. The height itself comes from `bandPlotHeight` in chartTheme.ts: a
+ * ranking's height is a function of how many rows it has, not of how wide its
+ * column is, so `aspect` cannot express it -- eleven bars in a 328px column at
+ * aspect 2 would be 15px apart. This file used to carry its own 34+56; the
+ * shared pitch is 30+40, which is ~4px tighter per bar and 16px tighter overall.
  */
-const ROW_PITCH_PX = 34;
-const CHART_CHROME_PX = 56;
-/** Only so the loading skeleton reserves a believable box rather than 56px. */
 const SKELETON_ROWS = 8;
 
 /**
@@ -256,7 +259,7 @@ export const StaffSection: React.FC<StaffSectionProps> = ({
 
     const isEmpty = !isLoading && rows.length === 0;
     const plotRows = rows.length > 0 ? rows.length : SKELETON_ROWS;
-    const plotHeight = plotRows * ROW_PITCH_PX + CHART_CHROME_PX;
+    const plotHeight = bandPlotHeight(plotRows);
 
     // --- The HTML tooltip ------------------------------------------------
     // A function rather than an element so it closes over `t`: Recharts calls
@@ -335,131 +338,101 @@ export const StaffSection: React.FC<StaffSectionProps> = ({
     );
 
     return (
-        // One row, not two. The tile used to sit alone in its own
-        // `xl:grid-cols-4` above the chart, which left three empty columns beside
-        // it -- a single small card stranded in a wide gap. Pairing it with the
-        // chart fills the row and puts the headline count next to the breakdown
-        // that explains it.
-        <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-4">
-            <div
-                className={`grid xl:col-span-1 ${
-                    isRefreshing ? 'opacity-60 transition-opacity' : 'transition-opacity'
-                }`}
-            >
-                <StatTile
-                    label={staffDict.title}
-                    value={analytics ? analytics.activeStaffCount : 0}
-                    // Both halves of the ratio, from the reducer: "8 active"
-                    // reads as good news whether the team is nine people or
-                    // ninety, so the denominator is not optional.
-                    caption={staffDict.activeStaff(
-                        analytics ? analytics.activeStaffCount : 0,
-                        analytics ? analytics.totalStaffCount : 0,
-                    )}
-                    icon={UserCheck}
-                    tone="brand"
-                    loading={isLoading}
-                />
-            </div>
-
-            <div className="grid xl:col-span-3">
-                <ChartFrame
-                    title={staffDict.title}
-                    subtitle={staffDict.subtitle}
+        // The card renders bare, with no grid around it. It is the only thing in
+        // its section now, and the chart is a ranking whose y-axis gutter is a
+        // fixed 112px -- the wider the card, the more of each row is plot rather
+        // than name, so full width is the useful width. The gap to the sections
+        // above and below is owned by DashboardHome's column, not by this file.
+        <ChartFrame
+            title={staffDict.title}
+            subtitle={staffDict.subtitle}
+            icon={Users}
+            action={<RangeMenu value={range} onChange={onRangeChange} />}
+            fixedPlotHeight={plotHeight}
+            isLoading={isLoading}
+            isRefreshing={isRefreshing}
+            isEmpty={isEmpty}
+            emptyState={
+                <EmptyState
+                    variant="plot"
                     icon={Users}
-                    action={<RangeMenu value={range} onChange={onRangeChange} />}
-                    fixedPlotHeight={plotHeight}
-                    isLoading={isLoading}
-                    isRefreshing={isRefreshing}
-                    isEmpty={isEmpty}
-                    emptyState={
-                        <EmptyState
-                            variant="plot"
-                            icon={Users}
-                            title={chartDict.noDataInRange}
-                            hint={chartDict.widenRange}
-                        />
-                    }
-                    footer={
-                        <div className="flex flex-col gap-3">
-                            {/* No fixed height and no `h-*`: a Thai action label
-                                wraps to a second line and a fixed-height legend
-                                would clip it in exactly one language. */}
-                            <ul className="flex flex-wrap gap-x-4 gap-y-2">
-                                {SERIES_ORDER.map((action) => (
-                                    <li
-                                        key={action}
-                                        className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-slate-600"
-                                    >
-                                        <span
-                                            className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                                            style={{ backgroundColor: SERIES_COLORS[action] }}
-                                            aria-hidden="true"
-                                        />
-                                        {t.action[action]}
-                                    </li>
-                                ))}
-                            </ul>
-
-                            <DataTableView
-                                caption={chartDict.tableCaption(staffDict.title)}
-                                columns={tableColumns}
-                                rows={tableRows}
-                                summaryLabel={chartDict.showTable}
-                            />
-                        </div>
-                    }
-                >
-                    <BarChart
-                        data={rows}
-                        layout="vertical"
-                        margin={{ top: 4, right: 16, bottom: 4, left: 0 }}
-                    >
-                        {/* GRID_PROPS carries the stroke and the never-dashed rule.
-                            The two orientation flags are transposed because this
-                            chart is: with layout="vertical" the VALUE axis is x, so
-                            the useful gridlines are the vertical ones. */}
-                        <CartesianGrid {...GRID_PROPS} horizontal={false} vertical />
-
-                        <XAxis type="number" allowDecimals={false} {...AXIS_PROPS} />
-
-                        {/* dataKey is the user id, not the name: two staff can share
-                            a display name and a band scale would collapse them into
-                            one row. The tick is formatted back to a name below. */}
-                        <YAxis
-                            type="category"
-                            dataKey="key"
-                            width={Y_AXIS_WIDTH}
-                            interval={0}
-                            tickFormatter={(value: string) =>
-                                truncateName(nameByKey.get(value) ?? value)
-                            }
-                            axisLine={false}
-                            {...AXIS_PROPS}
-                        />
-
-                        <Tooltip
-                            content={renderTooltip}
-                            cursor={{ fill: 'rgba(15, 42, 82, 0.06)' }}
-                        />
-
-                        {SERIES_ORDER.map((action: ActionType) => (
-                            <Bar
+                    title={chartDict.noDataInRange}
+                    hint={chartDict.widenRange}
+                />
+            }
+            footer={
+                <div className="flex flex-col gap-3">
+                    {/* No fixed height and no `h-*`: a Thai action label wraps to
+                        a second line and a fixed-height legend would clip it in
+                        exactly one language. */}
+                    <ul className="flex flex-wrap gap-x-4 gap-y-2">
+                        {SERIES_ORDER.map((action) => (
+                            <li
                                 key={action}
-                                dataKey={action}
-                                stackId="staff"
-                                fill={SERIES_COLORS[action]}
-                                name={t.action[action]}
-                                // SEGMENT_GAP draws the separator as a stroke in the
-                                // surface colour rather than a border, so segments
-                                // stay flush and the gap is genuinely transparent.
-                                {...SEGMENT_GAP}
-                                isAnimationActive={!reducedMotion}
-                            />
+                                className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-slate-600"
+                            >
+                                <span
+                                    className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                                    style={{ backgroundColor: SERIES_COLORS[action] }}
+                                    aria-hidden="true"
+                                />
+                                {t.action[action]}
+                            </li>
                         ))}
-                    </BarChart>
-                </ChartFrame>
-            </div>
-        </div>
+                    </ul>
+
+                    <DataTableView
+                        caption={chartDict.tableCaption(staffDict.title)}
+                        columns={tableColumns}
+                        rows={tableRows}
+                        summaryLabel={chartDict.showTable}
+                    />
+                </div>
+            }
+        >
+            <BarChart
+                data={rows}
+                layout="vertical"
+                margin={{ top: 4, right: 16, bottom: 4, left: 0 }}
+            >
+                {/* GRID_PROPS carries the stroke and the never-dashed rule. The
+                    two orientation flags are transposed because this chart is:
+                    with layout="vertical" the VALUE axis is x, so the useful
+                    gridlines are the vertical ones. */}
+                <CartesianGrid {...GRID_PROPS} horizontal={false} vertical />
+
+                <XAxis type="number" allowDecimals={false} {...AXIS_PROPS} />
+
+                {/* dataKey is the user id, not the name: two staff can share a
+                    display name and a band scale would collapse them into one
+                    row. The tick is formatted back to a name below. */}
+                <YAxis
+                    type="category"
+                    dataKey="key"
+                    width={Y_AXIS_WIDTH}
+                    interval={0}
+                    tickFormatter={(value: string) => truncateName(nameByKey.get(value) ?? value)}
+                    axisLine={false}
+                    {...AXIS_PROPS}
+                />
+
+                <Tooltip content={renderTooltip} cursor={{ fill: 'rgba(15, 42, 82, 0.06)' }} />
+
+                {SERIES_ORDER.map((action: ActionType) => (
+                    <Bar
+                        key={action}
+                        dataKey={action}
+                        stackId="staff"
+                        fill={SERIES_COLORS[action]}
+                        name={t.action[action]}
+                        // SEGMENT_GAP draws the separator as a stroke in the
+                        // surface colour rather than a border, so segments stay
+                        // flush and the gap is genuinely transparent.
+                        {...SEGMENT_GAP}
+                        isAnimationActive={!reducedMotion}
+                    />
+                ))}
+            </BarChart>
+        </ChartFrame>
     );
 };

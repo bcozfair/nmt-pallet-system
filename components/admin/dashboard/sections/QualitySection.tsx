@@ -21,6 +21,7 @@ import {
     QUALITY_STACK,
     SEGMENT_GAP,
     SERIES_COLORS,
+    bandPlotHeight,
 } from '../../charts/chartTheme';
 import { PALLET_STATUS_META, formatDate, formatDuration } from '../../common/AdminHelpers';
 import { DormantPalletsCard } from '../DormantPalletsCard';
@@ -196,6 +197,21 @@ const FUNNEL_RAMP = [HEAT_SCALE[3], HEAT_SCALE[2], HEAT_SCALE[0]] as const;
  * would be free to drift from the median printed beside it.
  */
 const BAND_MAX_DAYS = [1, 3, 7, 14, 30, Infinity];
+
+/**
+ * The quality trend's plot height.
+ *
+ * Its category axis is time, so it is the one chart here that cannot use
+ * `bandPlotHeight` -- the band count is whatever the range chip says (7, 30, 90
+ * or 12), and a per-band height would make the card grow and shrink as the
+ * reader changes the range. A constant is the correct shape for it.
+ *
+ * 240 rather than the 300 it carried before: it shares its row with the dormant
+ * table, and in a stretched grid row the taller card sets the height of both. At
+ * 300 this was the taller one on every range, so the 60px it did not need was
+ * being drawn as white on the card beside it as well as on this one.
+ */
+const QUALITY_TREND_PLOT_HEIGHT = 240;
 
 /** Bucket key -> the locale key that names it. `resolve` deliberately reuses the
  *  same six bucket names as `dwell`, so the two histograms can be compared. */
@@ -475,7 +491,16 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
                     // RULE 4: fixed, not aspect. At aspect this card is 1120px
                     // wide on a desktop and 328px on a phone, so the plot would
                     // swing between 373px and 109px tall for the same data.
-                    fixedPlotHeight={300}
+                    //
+                    // Not bandPlotHeight: this is the one chart in the section
+                    // whose category axis is TIME, so its band count is 7, 30, 90
+                    // or 12 depending on the range and a per-band pitch would
+                    // make the card change height when the range chip is used.
+                    // 240 is the tallest bar's room, and it is chosen against the
+                    // dormant table beside it rather than in isolation -- the two
+                    // share a row, so the taller one sets both. 300 made this the
+                    // taller card by ~60px on every range.
+                    fixedPlotHeight={QUALITY_TREND_PLOT_HEIGHT}
                     isLoading={isLoading}
                     isRefreshing={isRefreshing}
                     isEmpty={trendEmpty}
@@ -713,10 +738,21 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
                     subtitle={a.resolve.subtitle}
                     icon={Timer}
                     action={rangeChip}
-                    // RULE 4: six bands on a 328px column. Fixed height gives
-                    // each band ~34px whatever the width; `aspect` would give
-                    // the whole plot 164px there and squeeze them to 20px.
-                    fixedPlotHeight={260}
+                    // RULE 4: six bands on a 328px column. `aspect` would give
+                    // the whole plot 164px there and squeeze them to 27px each.
+                    // The band count comes off the data, and the pixels come off
+                    // the shared pitch in chartTheme.ts -- the literal 260 that
+                    // used to sit here was ~37px per band for an 18px bar, and
+                    // this card is the tallest of the three in its row, so the
+                    // slack it carried was also being handed to the funnel and
+                    // the offenders table beside it.
+                    //
+                    // Counted off BAND_MAX_DAYS, NOT off resolveData: that array
+                    // is empty while loading and while the range holds no closed
+                    // report, and a height derived from it would give the
+                    // skeleton a 40px box that jumped to 220px when the data
+                    // landed. The band edges are fixed, so the height is too.
+                    fixedPlotHeight={bandPlotHeight(BAND_MAX_DAYS.length)}
                     isLoading={isLoading}
                     isRefreshing={isRefreshing}
                     isEmpty={resolveEmpty}

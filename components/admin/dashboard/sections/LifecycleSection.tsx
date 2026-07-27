@@ -20,6 +20,7 @@ import {
     CHART_CHROME,
     DISTRIBUTION_COLOR,
     GRID_PROPS,
+    bandPlotHeight,
 } from '../../charts/chartTheme';
 import { formatDuration } from '../../common/AdminHelpers';
 import { AsOfNowChip, RangeMenu } from '../RangeMenu';
@@ -266,9 +267,15 @@ const bandTotal = (rows: readonly BandRow[]): number => rows.reduce((sum, row) =
 
 // --- SHARED CHART GEOMETRY --------------------------------------------------
 
-// Six bands at ~39px each plus the value axis. A pixel height, not an aspect:
-// see rule 2. Both charts use it so the two shapes are directly comparable.
-const PLOT_HEIGHT = 264;
+// Both histograms draw the same six bands (BAND_KEYS), and both take their
+// height from the shared rule in chartTheme.ts rather than from a number of
+// their own. Counted off BAND_KEYS rather than written as `6`, so adding a band
+// to the reducer cannot leave the plot one band short of its own data.
+//
+// It used to be a literal 264, which reserved ~39px per band to draw an 18px
+// bar. At the shared 30px pitch the same six bands come out at 220 -- 44px of
+// white gone from each card, and, because they share a row, 44px off the row.
+const PLOT_HEIGHT = bandPlotHeight(BAND_KEYS.length);
 
 // The category gutter. Sized for the widest label in either language --
 // "เกิน 30 วัน" (~66px at 12px) -- with room left for the tick gap. This is the

@@ -9,6 +9,7 @@ import {
     GRID_PROPS,
     HEAT_EMPTY_CLASS,
     HEAT_SCALE,
+    bandPlotHeight,
     heatColor,
 } from '../../charts/chartTheme';
 import { RangeMenu } from '../RangeMenu';
@@ -149,10 +150,6 @@ const CELL_BOX =
     'relative flex min-h-6 items-center justify-center rounded-[3px] outline-offset-1 ' +
     'focus-visible:outline-2 focus-visible:outline-brand-600';
 
-/** Same row-pitch formula as the staff ranking: a category-count-driven chart
- *  cannot use `aspect`, so its height is derived from its seven rows. */
-const ROW_PITCH_PX = 34;
-const CHART_CHROME_PX = 56;
 const WEEKDAY_COUNT = 7;
 
 /** Matches the 3.5rem row-header gutter of the heatmap beside it. */
@@ -593,7 +590,13 @@ export const TimeSection: React.FC<TimeSectionProps> = ({
                 title={heatDict.weekdayTotals}
                 icon={CalendarDays}
                 action={<RangeMenu value={range} onChange={onRangeChange} />}
-                fixedPlotHeight={WEEKDAY_COUNT * ROW_PITCH_PX + CHART_CHROME_PX}
+                // Seven rows, at the shared pitch in chartTheme.ts. This card
+                // used to compute its own 34+56 and came out at 294, which made
+                // it ~70px taller than the heatmap beside it -- and since a grid
+                // row stretches to its tallest card, that 70px was drawn as
+                // white under the heatmap's legend, not here. 250 puts the two
+                // within a legend's height of each other.
+                fixedPlotHeight={bandPlotHeight(WEEKDAY_COUNT)}
                 isLoading={isLoading}
                 isRefreshing={isRefreshing}
                 isEmpty={isEmpty}

@@ -256,3 +256,36 @@ export const GRID_PROPS = {
     strokeDasharray: undefined,
     vertical: false,
 } as const;
+
+// --- HEIGHT FOR A CATEGORY-COUNT CHART --------------------------------------
+//
+// Every horizontal bar chart on this dashboard is sized by how many CATEGORIES
+// it has, not by how wide its column is: six dwell bands, six resolution bands,
+// seven weekdays, N staff. ChartFrame's `aspect` cannot express that -- eleven
+// bars in a 328px column at aspect 2 would be 15px apart -- so each of those
+// charts passes `fixedPlotHeight`, and each one used to carry its own hand-tuned
+// number: 264 here, 260 there, 34+56 in two more. Four numbers for one rule.
+//
+// This is the rule. `bands * PITCH + CHROME`:
+//
+//   PITCH is one band's share of the plot. Bars are drawn at up to ~18-20px and
+//   the tick beside them has a 12px line box (AXIS_TICK_PROPS), so 30px is the
+//   bar plus a clear gap above and below it -- tight, but never touching. The
+//   numbers it replaces ran 34-44px per band, which is where the white space in
+//   the deep-dive cards came from: a 6-band chart was reserving 264px to draw
+//   108px of bars.
+//
+//   CHROME is everything that is not a band: the value axis (Recharts gives an
+//   XAxis 30px by default) plus the plot's own top margin, which the charts here
+//   set at 4-8px.
+//
+// Deliberately NOT responsive. A chart whose height changed at a breakpoint
+// would reflow the grid row it sits in, and the two lifecycle histograms are
+// meant to be compared by shape -- which only works while they are the same
+// size as each other on every screen.
+export const BAND_PITCH_PX = 30;
+export const PLOT_CHROME_PX = 40;
+
+/** Plot height for a chart with `bands` categories on its category axis. */
+export const bandPlotHeight = (bands: number): number =>
+    bands * BAND_PITCH_PX + PLOT_CHROME_PX;

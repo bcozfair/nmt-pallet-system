@@ -89,7 +89,17 @@ export const DormantPalletsCard: React.FC<DormantPalletsCardProps> = ({
         return (
             // The scroll lives here, not on the page: four columns of Thai in a
             // half-width card has to be able to move sideways on its own.
-            <div className="max-h-[26rem] overflow-auto styled-scrollbar">
+            //
+            // 20rem, down from 26rem. This box is the tallest thing in its grid
+            // row, and a grid row stretches every card in it to its tallest, so
+            // this number was setting the height of the quality-trend card next
+            // door too -- and that card has a fixed 240px plot, so everything it
+            // was given above its own content came out as a band of white
+            // between the plot and its footer strip. 20rem lands the two within
+            // a line or two of each other. Fifteen rows still fit; ~8 of them
+            // are visible and the rest are a scroll away, which is what a
+            // longest-idle-first list is for.
+            <div className="max-h-[20rem] overflow-auto styled-scrollbar">
                 <table className="w-full border-collapse text-sm">
                     <caption className="sr-only">{copy.dormant.title}</caption>
                     <thead>
