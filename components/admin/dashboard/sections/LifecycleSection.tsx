@@ -11,9 +11,9 @@ import {
     YAxis,
 } from 'recharts';
 import type { LabelProps } from 'recharts';
-import { AlarmClock, AlertTriangle, Hourglass, Moon } from 'lucide-react';
+import { AlarmClock, AlertTriangle, Hourglass } from 'lucide-react';
 
-import { Card, ChartFrame, DataTableView, EmptyState, SectionHeader, SkeletonRows } from '../../../ui';
+import { ChartFrame, DataTableView, EmptyState } from '../../../ui';
 import {
     AXIS_PROPS,
     BREACH_COLOR,
@@ -21,7 +21,7 @@ import {
     DISTRIBUTION_COLOR,
     GRID_PROPS,
 } from '../../charts/chartTheme';
-import { StatusBadge, formatDuration } from '../../common/AdminHelpers';
+import { formatDuration } from '../../common/AdminHelpers';
 import { AsOfNowChip, RangeMenu } from '../RangeMenu';
 import type { DashboardRange } from '../../../../hooks/dashboard/useDashboardData';
 import { useReducedMotion } from '../../../../hooks/useReducedMotion';
@@ -29,7 +29,6 @@ import { useLang, useT } from '../../../../hooks/useT';
 import type {
     AgingStats,
     DashboardAnalytics,
-    DormantPallet,
     DwellBucketKey,
     DwellHistogramBin,
     DwellStats,
@@ -39,9 +38,18 @@ import type {
 // =============================================================================
 // LIFECYCLE & AGEING
 //
-// Three panels answering one question in three parts: how long does a pallet
-// stay out (dwell), how far past the threshold are the ones that have not come
-// back (overdue ageing), and which pallets has nobody touched at all (dormant).
+// Two panels answering one question in two parts: how long does a pallet stay
+// out (dwell), and how far past the threshold are the ones that have not come
+// back (overdue ageing).
+//
+// There was a third -- the dormant-pallet table, "which pallets has nobody
+// touched at all". It now lives in components/admin/dashboard/
+// DormantPalletsCard.tsx and renders in the quality grid, which is where a
+// screenful of stacked full-width blocks needed a second column; that file
+// carries the reasoning. The trio was a sound grouping and the pair left behind
+// is a better one: the two histograms below are built on ONE geometry, on
+// purpose, so a reader can compare them by shape -- and they now sit side by
+// side, which is the only arrangement where that actually happens.
 //
 // -----------------------------------------------------------------------------
 // THE RULES THIS FILE IS BUILT AROUND. Each one is a defect that has already
@@ -168,7 +176,6 @@ export interface LifecycleSectionProps {
      */
     range: DashboardRange;
     onRangeChange: (range: DashboardRange) => void;
-    onSelectPallet?: (palletId: string) => void;
 }
 
 // --- BAND PLUMBING ----------------------------------------------------------
@@ -596,147 +603,6 @@ const OverdueCard: React.FC<OverdueCardProps> = ({ aging, overdueDays, isLoading
     );
 };
 
-// --- CARD 3: DORMANT PALLETS ------------------------------------------------
-
-interface DormantCardProps {
-    rows: readonly DormantPallet[] | null;
-    isLoading: boolean;
-    isRefreshing: boolean;
-    onSelectPallet?: (palletId: string) => void;
-}
-
-// Cell padding is shared by the header and the body so the two cannot drift,
-// and it is deliberately tight: SkeletonRows draws a ~35px row, and a real row
-// here carries a StatusBadge (~24px), so py-1.5 keeps the placeholder and the
-// loaded table within a couple of pixels of each other.
-const CELL = 'border-b border-slate-100 px-3 py-1.5';
-
-const DormantCard: React.FC<DormantCardProps> = ({ rows, isLoading, isRefreshing, onSelectPallet }) => {
-    const t = useT();
-    const copy = t.dashboard.analytics;
-    const selectable = Boolean(onSelectPallet);
-
-    const body = () => {
-        if (isLoading) {
-            // First load only. Four columns, matching the table below.
-            return <SkeletonRows rows={6} cols={4} ariaLabel={copy.dormant.title} />;
-        }
-
-        if (!rows || rows.length === 0) {
-            return (
-                <EmptyState
-                    icon={Moon}
-                    title={copy.chart.noDataInRange}
-                    // Again no `widenRange`: dormancy is measured from `now`
-                    // across the whole fleet and ignores the range selector
-                    // entirely, so widening it cannot produce a row.
-                />
-            );
-        }
-
-        return (
-            // The scroll lives here, not on the page: four columns of Thai in a
-            // 328px column has to be able to move sideways on its own.
-            <div className="max-h-[26rem] overflow-auto styled-scrollbar">
-                <table className="w-full border-collapse text-sm">
-                    <caption className="sr-only">{copy.dormant.title}</caption>
-                    <thead>
-                        <tr>
-                            {/* font-bold (700) is reserved for table headers and is
-                                the heaviest weight actually served for Inter and
-                                Noto Sans Thai. No uppercase, no tracking. */}
-                            <th scope="col" className="sticky top-0 z-10 border-b border-slate-200 bg-white px-3 py-2 text-left text-xs font-bold text-slate-600">
-                                {copy.dormant.palletId}
-                            </th>
-                            <th scope="col" className="sticky top-0 z-10 border-b border-slate-200 bg-white px-3 py-2 text-left text-xs font-bold text-slate-600">
-                                {copy.dormant.status}
-                            </th>
-                            <th scope="col" className="sticky top-0 z-10 border-b border-slate-200 bg-white px-3 py-2 text-left text-xs font-bold text-slate-600">
-                                {copy.dormant.location}
-                            </th>
-                            <th scope="col" className="sticky top-0 z-10 border-b border-slate-200 bg-white px-3 py-2 text-right text-xs font-bold text-slate-600">
-                                {copy.dormant.daysIdle}
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((row) => (
-                            <tr
-                                key={row.palletId}
-                                onClick={onSelectPallet ? () => onSelectPallet(row.palletId) : undefined}
-                                className={
-                                    'even:bg-slate-50/60 ' +
-                                    (selectable ? 'cursor-pointer transition-colors hover:bg-brand-50' : '')
-                                }
-                            >
-                                <td className={`${CELL} whitespace-nowrap`}>
-                                    {onSelectPallet ? (
-                                        // A real <button> rather than role="button"
-                                        // on the <tr>: that role would replace the
-                                        // row's own semantics and take the cell
-                                        // relationships with it. The row click is
-                                        // pointer convenience; this is the
-                                        // keyboard path. stopPropagation so the
-                                        // two never both fire.
-                                        <button
-                                            type="button"
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                onSelectPallet(row.palletId);
-                                            }}
-                                            className="rounded-md font-medium text-brand-700 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-                                        >
-                                            {row.palletId}
-                                        </button>
-                                    ) : (
-                                        <span className="font-medium text-slate-700">{row.palletId}</span>
-                                    )}
-                                </td>
-                                <td className={CELL}>
-                                    <StatusBadge status={row.status} />
-                                </td>
-                                <td className={`${CELL} text-slate-700`}>{row.location}</td>
-                                {/* tabular-nums because these figures ARE a column
-                                    and have to line up digit over digit. Fixed to
-                                    one decimal so 41 and 41.2 do not sit at
-                                    different widths -- the reducer already rounds
-                                    to 1dp, this only makes it visible. */}
-                                <td className={`${CELL} whitespace-nowrap text-right tabular-nums text-slate-700`}>
-                                    {row.daysIdle.toFixed(1)}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        );
-    };
-
-    return (
-        <Card accent busy={isRefreshing} as="section" className="animate-surface-in flex flex-col xl:col-span-2">
-            <div className="flex flex-col p-5 sm:p-6">
-                <SectionHeader
-                    level="h3"
-                    title={copy.dormant.title}
-                    subtitle={copy.dormant.subtitle}
-                    icon={Moon}
-                    // Dormancy is measured from `now` across the whole fleet and
-                    // ignores the range entirely.
-                    action={<AsOfNowChip />}
-                />
-                {/* isRefreshing dims what is already there and never swaps in a
-                    skeleton: this app refetches on every realtime row change, so
-                    a bulk check-out of 30 pallets would tear the table down and
-                    rebuild it 30 times and the panel would strobe. The hairline
-                    on the Card above is what says "working". */}
-                <div className={`mt-4 ${isRefreshing ? 'opacity-60 transition-opacity' : 'transition-opacity'}`}>
-                    {body()}
-                </div>
-            </div>
-        </Card>
-    );
-};
-
 // --- SECTION ----------------------------------------------------------------
 
 export const LifecycleSection: React.FC<LifecycleSectionProps> = ({
@@ -746,8 +612,13 @@ export const LifecycleSection: React.FC<LifecycleSectionProps> = ({
     overdueDays,
     range,
     onRangeChange,
-    onSelectPallet,
 }) => (
+    // Exactly one row of exactly two cards now, and the pairing is the point:
+    // these are the two histograms built on one geometry (PLOT_HEIGHT,
+    // Y_AXIS_WIDTH, CHART_MARGIN, the same six day-bands) precisely so a reader
+    // can compare them by SHAPE. Side by side is the only arrangement in which
+    // that comparison is available at a glance.
+    //
     // Columns step at md/xl only. `lg` is reserved for the shell: the sidebar
     // takes 256px from that breakpoint up, which is why the measured content
     // width at 1024px (704px) is NARROWER than at 768px (736px). A second
@@ -765,12 +636,6 @@ export const LifecycleSection: React.FC<LifecycleSectionProps> = ({
             overdueDays={overdueDays}
             isLoading={isLoading}
             isRefreshing={isRefreshing}
-        />
-        <DormantCard
-            rows={analytics?.aging.dormant ?? null}
-            isLoading={isLoading}
-            isRefreshing={isRefreshing}
-            onSelectPallet={onSelectPallet}
         />
     </div>
 );

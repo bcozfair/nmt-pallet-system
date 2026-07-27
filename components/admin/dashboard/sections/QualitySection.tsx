@@ -23,6 +23,7 @@ import {
     SERIES_COLORS,
 } from '../../charts/chartTheme';
 import { PALLET_STATUS_META, formatDate, formatDuration } from '../../common/AdminHelpers';
+import { DormantPalletsCard } from '../DormantPalletsCard';
 import { RangeMenu } from '../RangeMenu';
 import { ResolutionGauge } from '../ResolutionGauge';
 import type { DashboardRange } from '../../../../hooks/dashboard/useDashboardData';
@@ -38,6 +39,15 @@ import type {
 //
 // Four cards over one question: how much damage is there, what happened to it,
 // how long it took, and which pallets keep coming back.
+//
+// Plus one that is not about quality at all: DormantPalletsCard, which used to
+// close LifecycleSection. It is here because the four sections of the deep-dive
+// panel render as one continuous list of cards with NO headings between them,
+// so the boundary this file sits behind is invisible on screen -- and what the
+// reader saw at that boundary was the dormant table and the quality trend as
+// two full-width blocks stacked one on the other. Pairing them fills a row.
+// DormantPalletsCard.tsx carries the full reasoning and its own AsOfNowChip,
+// which is what keeps it honest beside four range-scoped neighbours.
 //
 // ---------------------------------------------------------------------------
 // RULE 1 -- THE QUALITY TREND IS A STACKED BAR, STACKED IN `QUALITY_STACK` ORDER
@@ -79,7 +89,7 @@ import type {
 // holds by construction and can never go negative (see the funnel counters in
 // services/analytics/dashboardAnalytics.ts).
 //
-// The trend chart directly above IS raw per-period event counts, so its
+// The trend chart in the row above IS raw per-period event counts, so its
 // `repair` and `scrap` bars will NOT add up to the funnel's numbers: a repair
 // logged this week can close a report raised last month, and a report raised
 // today may be closed after the range ends. The card's subtitle carries the
@@ -142,11 +152,16 @@ interface QualitySectionProps {
     isLoading: boolean;
     isRefreshing?: boolean;
     /**
-     * All four cards here are range-scoped, so all four carry the picker and
-     * none carries AsOfNowChip. That is not repetition for its own sake: a
-     * reader arriving at the repeat-offender table from the deep-dive
-     * disclosure has no other way to see that "2 damage reports" means two
-     * inside the selected window rather than two ever.
+     * All four QUALITY cards are range-scoped, so all four carry the picker.
+     * That is not repetition for its own sake: a reader arriving at the
+     * repeat-offender table from the deep-dive disclosure has no other way to
+     * see that "2 damage reports" means two inside the selected window rather
+     * than two ever.
+     *
+     * The fifth card in this grid -- the dormant table -- is the exception, and
+     * it wears AsOfNowChip instead. It is the clearest case on the dashboard for
+     * the two-chip system: an as-of-now table sitting in a row of range-scoped
+     * charts, where nothing but the chips distinguishes them.
      */
     range: DashboardRange;
     onRangeChange: (range: DashboardRange) => void;
@@ -419,10 +434,39 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
     // nothing else -- in particular never `h-full`, which would re-introduce the
     // percentage-height dependency that collapses a ResponsiveContainer to zero.
     return (
-        <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-3">
-            {/* --- QUALITY TREND (full width, first: the funnel's subtitle
-                    refers to it as the chart above) ------------------------- */}
-            <div className="xl:col-span-3">
+        // SIX columns at xl, not three. This grid needs a 1:1 row (the dormant
+        // table beside the quality trend) and a 1:1:1 row (funnel, resolve,
+        // offenders), and 3 is not divisible by 2. Six is the lowest common
+        // multiple, so both splits are exact and neither row needs a nested
+        // grid -- the same arithmetic FleetSection uses.
+        //
+        // The three-across row is pixel-identical to the version it replaces: at
+        // a 1120px content width, 6 tracks with 5 x 24px gaps give
+        // (1120 - 120) / 6 = 166.67px each, so a 2-span plus its internal gap is
+        // 357px -- exactly one third of a 3-column grid.
+        <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-6">
+            {/* --- DORMANT PALLETS ---
+                Not a quality metric, and it says so with its own AsOfNowChip
+                against four range-scoped neighbours. It is here because the
+                sections have no headings on screen: this table and the quality
+                trend were two full-width blocks stacked with nothing between
+                them, and the reader saw one long column, not two sections.
+                DormantPalletsCard.tsx carries the full note. */}
+            <div className="grid xl:col-span-3">
+                <DormantPalletsCard
+                    rows={analytics?.aging.dormant ?? null}
+                    isLoading={isLoading}
+                    isRefreshing={isRefreshing}
+                    onSelectPallet={onSelectPallet}
+                />
+            </div>
+
+            {/* --- QUALITY TREND ---
+                Half the row, and still ABOVE the funnel, which is what RULE 3
+                and the funnel's composed subtitle depend on: the funnel is a
+                cohort and this chart is raw per-period counts, so the two do not
+                add up and the reader needs them adjacent to reconcile that. */}
+            <div className="grid xl:col-span-3">
                 <ChartFrame
                     title={a.qualityTrend.title}
                     subtitle={a.qualityTrend.subtitle}
@@ -504,7 +548,7 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
             </div>
 
             {/* --- DAMAGE FUNNEL --------------------------------------------- */}
-            <div className="grid xl:col-span-1">
+            <div className="grid xl:col-span-2">
                 {/* Hand-rolled, NOT Recharts' FunnelChart. That component lays
                     its stage labels out inside the SVG at a width derived from
                     the trapezoid, and Thai stage names ("ตัดออกจากระบบ") are
@@ -663,7 +707,7 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
             </div>
 
             {/* --- TIME TO RESOLVE ------------------------------------------- */}
-            <div className="grid xl:col-span-1">
+            <div className="grid xl:col-span-2">
                 <ChartFrame
                     title={a.resolve.title}
                     subtitle={a.resolve.subtitle}
@@ -797,7 +841,7 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
             </div>
 
             {/* --- REPEAT OFFENDERS ------------------------------------------ */}
-            <div className="grid xl:col-span-1">
+            <div className="grid xl:col-span-2">
                 <Card accent busy={isRefreshing} as="section" className="animate-surface-in flex flex-col">
                     <div className="flex flex-col p-5 sm:p-6">
                         <SectionHeader

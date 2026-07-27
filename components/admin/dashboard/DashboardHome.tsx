@@ -444,7 +444,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                     <DeferredSection
                         id="dashboard-lifecycle"
                         forceMount={mountAllSections}
-                        placeholder={<SectionPlaceholder cards={3} />}
+                        placeholder={<SectionPlaceholder cards={2} />}
                     >
                         <LifecycleSection
                             analytics={analytics}
@@ -453,14 +453,19 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                             overdueDays={overdueDays}
                             range={range}
                             onRangeChange={setRange}
-                            onSelectPallet={onSelectPallet}
                         />
                     </DeferredSection>
 
+                    {/* Five cards, not four: the dormant-pallet table moved
+                        here from the lifecycle section so it could share a row
+                        with the quality trend. See DormantPalletsCard.tsx --
+                        the section boundary between the two is invisible on
+                        screen, so what the reader saw was two full-width blocks
+                        stacked. */}
                     <DeferredSection
                         id="dashboard-quality"
                         forceMount={mountAllSections}
-                        placeholder={<SectionPlaceholder cards={4} />}
+                        placeholder={<SectionPlaceholder cards={5} />}
                     >
                         <QualitySection
                             analytics={analytics}

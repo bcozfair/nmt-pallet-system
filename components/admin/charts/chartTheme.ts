@@ -95,6 +95,61 @@ export const SERIES_ORDER: ActionType[] = [
 export const MOVEMENT_SERIES: ActionType[] = ['check_out', 'check_in'];
 export const QUALITY_STACK: ActionType[] = ['report_damage', 'scrap', 'repair'];
 
+// --- ACQUISITION: the one series that is not an ActionType ------------------
+//
+// `TrendPoint.acquisition` counts pallets ADDED to the fleet. It is not a
+// transaction anybody performs, which is why it has no slot in SERIES_COLORS.
+//
+// Achromatic on purpose, and it is the safest thing this file can do. The five
+// categorical slots are already packed into one lightness band with a chroma
+// floor, so a sixth chromatic hue would have to thread between them and would
+// fail the all-pairs CVD test against at least one -- the orange region, the
+// only real gap left, collapses into #d94b46 under deuteranopia. A neutral has
+// no hue to confuse: it is separable from all five under every simulated
+// deficiency, because CHROMA is what distinguishes it rather than hue.
+//
+//   #334155  slate-700   10.4:1 on white   chroma ~0.02
+//
+// Darker than every chrome value in this file (#e2e8f0 / #cbd5e1 / #64748b /
+// #475569), so it cannot be mistaken for a gridline or an axis.
+export const ACQUISITION_COLOR = '#334155';
+
+/** Every series the movement trend can draw. `acquisition` is not an ActionType. */
+export type TrendSeriesKey = ActionType | 'acquisition';
+
+/**
+ * The movement chart's series, in legend and tooltip order.
+ *
+ * The order is doing the same job SERIES_ORDER does: it keeps slot 1 (blue
+ * `check_out`) and slot 4 (violet `scrap`) at opposite ends, which is the pair
+ * that measures dE 0.6 under deuteranopia. `repair` is deliberately absent --
+ * the quality section already stacks it, and a sixth line would add nothing the
+ * stacked chart does not say better.
+ */
+export const TREND_SERIES: TrendSeriesKey[] = [
+    'check_out',
+    'check_in',
+    'acquisition',
+    'report_damage',
+    'scrap',
+];
+
+export const TREND_COLORS: Record<TrendSeriesKey, string> = {
+    ...SERIES_COLORS,
+    acquisition: ACQUISITION_COLOR,
+};
+
+// A note on what is deliberately NOT here: there is no per-series dash table.
+//
+// One existed briefly, when the movement chart drew all five as co-plotted
+// lines and needed a non-colour channel to carry identity past the blue/violet
+// collapse. That chart is now five separate strips (TrendStrips.tsx), one
+// series each -- and two marks can only be confused if they share a plot. The
+// constraint dissolved rather than being paid for, so the dashes went with it.
+//
+// If a future chart does co-plot these as lines, it needs that second channel
+// back. Dashes are the cheapest one; they are not optional.
+
 // --- DISTRIBUTIONS: one hue, always -----------------------------------------
 //
 // Histograms (dwell time, days overdue, time to resolve), location bars and

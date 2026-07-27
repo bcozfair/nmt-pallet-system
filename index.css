@@ -65,14 +65,24 @@
      collapse to a ΔE of 0.6 under deuteranopia -- indistinguishable. That is
      tolerable only where the two marks physically touch and the viewer can read
      them off the boundary between them, i.e. adjacent segments of a stacked
-     bar. All five must therefore never be co-plotted as five separate lines,
-     where nothing but hue separates them. Reordering the slots silently moves
-     which pair lands adjacent and breaks that guarantee. */
+     bar. All five must therefore never be co-plotted as five separate lines
+     WITH HUE AS THE ONLY DIFFERENCE. Reordering the slots silently moves which
+     pair lands adjacent and breaks that guarantee.
+
+     The movement trend does show all five at once, and it satisfies the rule
+     rather than working around it: each series gets a small chart of its own
+     (TrendStrips.tsx), so no two of these colours ever share a plot and none of
+     them is carrying identity on its own. */
   --color-series-checkout: #2365c7;
   --color-series-checkin:  #029796;
   --color-series-damage:   #d94b46;
   --color-series-scrap:    #6d4bc4;
   --color-series-repair:   #1a8f4c;
+  /* Not an action type -- pallets ADDED to the fleet. Achromatic on purpose:
+     a sixth chromatic hue cannot thread between the five above without failing
+     the all-pairs CVD test against one of them, and a neutral is separated by
+     chroma instead of hue, which every deficiency leaves intact. */
+  --color-series-acquisition: #334155;
 
   /* Sequential ramp for heat/density marks: four steps of a single hue, chosen
      so lightness decreases monotonically (each step is visibly darker than the

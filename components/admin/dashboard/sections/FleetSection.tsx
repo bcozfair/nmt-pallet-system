@@ -1,18 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-    Area,
-    Bar,
-    BarChart,
-    CartesianGrid,
-    Cell,
-    ComposedChart,
-    Line,
-    Pie,
-    PieChart,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, Tooltip, XAxis, YAxis } from 'recharts';
 import {
     AlertCircle,
     ArrowLeft,
@@ -24,24 +11,33 @@ import {
     TrendingUp,
 } from 'lucide-react';
 
-import { Card, ChartFrame, DataTableView, EmptyState, SectionHeader, SkeletonRows } from '../../../ui';
+import {
+    Card,
+    ChartFrame,
+    DataTableView,
+    EmptyState,
+    SectionHeader,
+    Skeleton,
+    SkeletonRows,
+} from '../../../ui';
 import { LocationRiskMatrix } from '../../charts/LocationRiskMatrix';
 import {
     AXIS_PROPS,
-    CHART_CHROME,
     DISTRIBUTION_COLOR,
     GRID_PROPS,
-    MOVEMENT_SERIES,
-    SERIES_COLORS,
+    TREND_COLORS,
+    TREND_SERIES,
     statusColor,
 } from '../../charts/chartTheme';
+import type { TrendSeriesKey } from '../../charts/chartTheme';
+import { STRIP_AXIS_HEIGHT, STRIP_HEIGHT, TrendStrips } from '../TrendStrips';
 import { AsOfNowChip, RangeMenu } from '../RangeMenu';
-import type { DashboardAnalytics, LocationRow, TrendPoint } from '../../../../services/analytics/dashboardAnalytics';
+import type { DashboardAnalytics, LocationRow } from '../../../../services/analytics/dashboardAnalytics';
 import { OTHER_LOCATION_KEY } from '../../../../services/analytics/dashboardAnalytics';
 import type { DashboardRange } from '../../../../hooks/dashboard/useDashboardData';
 import { useReducedMotion } from '../../../../hooks/useReducedMotion';
 import { useT } from '../../../../hooks/useT';
-import type { ActionType, PalletStatus } from '../../../../types';
+import type { PalletStatus } from '../../../../types';
 
 /**
  * "Fleet & flow" -- the first section of the redesigned analytics dashboard.
@@ -112,7 +108,6 @@ export interface FleetSectionProps {
 // ~174px of the width and left 111px, so min() picked the width and the donut
 // drew at ~102px inside a 240px box. Ten pixels shorter, twice as big.
 const DONUT_PLOT_HEIGHT = 220;
-const TREND_PLOT_HEIGHT = 260;
 // Row-count driven: one 20px bar plus breathing room, floored so a single
 // location does not produce a 68px-tall card.
 const LOCATION_ROW_HEIGHT = 32;
@@ -173,28 +168,76 @@ const ChartTooltip: React.FC<{
 );
 
 /**
- * A chart legend.
+ * The trend card's switchboard: one button per series.
+ *
+ * Every series gets a strip of its own in TrendStrips, so these no longer exist
+ * to declutter an overplotted axis -- they exist to let a reader drop the
+ * series they are not asking about and shorten the card. Each strip is ~52px,
+ * so switching two off is ~104px of page back.
  *
  * `flex flex-wrap` with a row AND column gap, every item `whitespace-nowrap`,
- * and no fixed height anywhere. A Thai legend label runs 1.4-1.7x the width of
- * its English source with no spaces inside it to wrap at, so a fixed-height
- * single-line legend row either clips or overflows the moment the language
- * changes. Wrapping to a second line is the only behaviour that survives both.
+ * no fixed height anywhere. A Thai legend label runs 1.4-1.7x its English
+ * source with no spaces inside it to wrap at, so a fixed-height single-line
+ * legend either clips or overflows the moment the language changes.
  */
-const ChartLegend: React.FC<{
-    items: readonly { key: string; label: string; color: string; shape: 'dot' | 'line' }[];
-}> = ({ items }) => (
-    <ul className="flex min-h-6 flex-wrap items-center gap-x-4 gap-y-2">
-        {items.map((item) => (
-            <li key={item.key} className="flex items-center gap-1.5 whitespace-nowrap text-xs text-slate-600">
-                <span
-                    className={item.shape === 'dot' ? 'h-2.5 w-2.5 rounded-full' : 'h-0.5 w-4 rounded-full'}
-                    style={{ backgroundColor: item.color }}
-                    aria-hidden="true"
-                />
-                {item.label}
-            </li>
-        ))}
+const SeriesToggleLegend: React.FC<{
+    items: readonly {
+        key: string;
+        label: string;
+        color: string;
+        visible: boolean;
+    }[];
+    onToggle: (key: string) => void;
+    /** True when exactly one series is left on, so it cannot be switched off. */
+    isLastVisible: (key: string) => boolean;
+}> = ({ items, onToggle, isLastVisible }) => (
+    <ul className="flex min-h-6 flex-wrap items-center gap-x-2 gap-y-2">
+        {items.map((item) => {
+            const locked = item.visible && isLastVisible(item.key);
+            return (
+                <li key={item.key}>
+                    <button
+                        type="button"
+                        // aria-pressed, not a checkbox: this is a toggle button
+                        // in the ARIA sense -- it changes what the chart draws,
+                        // it does not submit a value.
+                        aria-pressed={item.visible}
+                        // aria-disabled rather than `disabled`: a disabled button
+                        // leaves the tab order, so the one series that happens to
+                        // be last would silently become unreachable. It stays
+                        // focusable and announces its state; the click is a
+                        // no-op, handled in the parent.
+                        aria-disabled={locked || undefined}
+                        onClick={() => onToggle(item.key)}
+                        className={
+                            'flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs whitespace-nowrap transition ' +
+                            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ' +
+                            (locked ? 'cursor-default ' : '') +
+                            (item.visible
+                                ? 'text-slate-700 hover:bg-slate-100'
+                                : // Off: greyed AND struck through. Opacity alone
+                                  // would read as "loading" or "disabled" rather
+                                  // than "switched off", and a reader who cannot
+                                  // separate the hues needs a non-colour signal
+                                  // for this state too.
+                                  'text-slate-400 line-through hover:bg-slate-50')
+                        }
+                    >
+                        {/* A filled block, matching the strip's area rather
+                            than a line: the strips are filled shapes now, and a
+                            legend swatch should look like the thing it names.
+                            Grey when off, so the swatch carries the state too
+                            and not only the label's strikethrough. */}
+                        <span
+                            className="h-2.5 w-4 shrink-0 rounded-sm"
+                            style={{ backgroundColor: item.visible ? item.color : '#cbd5e1' }}
+                            aria-hidden="true"
+                        />
+                        {item.label}
+                    </button>
+                </li>
+            );
+        })}
     </ul>
 );
 
@@ -252,15 +295,52 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
     const donutSlices = useMemo(() => donutData.filter((d) => d.value > 0), [donutData]);
 
     // -- Movement -------------------------------------------------------------
-    // Labels for the two movement series. Read from the analytics dictionary
-    // rather than from `t.action`: those are the names of transaction types on a
-    // badge, whereas these label a series in a legend and are read as quantities.
-    const movementLabel: Record<ActionType, string> = {
+    // Series labels. Read from the analytics dictionary rather than from
+    // `t.action`: those are the names of transaction types on a badge, whereas
+    // these label a series in a legend and are read as quantities.
+    //
+    // `acquisition` borrows `dashboard.legendAcquisition` ("รับพาเลทเข้าใหม่"),
+    // which already existed for the chart this section replaced -- it is the
+    // same quantity under the same name, so a new key would be a second Thai
+    // rendering of a phrase the app already has.
+    const seriesLabel: Record<TrendSeriesKey, string> = {
         check_out: t.dashboard.analytics.movement.checkOut,
         check_in: t.dashboard.analytics.movement.checkIn,
+        acquisition: t.dashboard.legendAcquisition,
         report_damage: t.dashboard.analytics.qualityTrend.damage,
         repair: t.dashboard.analytics.qualityTrend.repair,
         scrap: t.dashboard.analytics.qualityTrend.scrap,
+    };
+
+    // Which series are switched OFF. Stored as the hidden set rather than the
+    // visible one so "nothing hidden" is the empty set -- a new series added to
+    // TREND_SERIES then shows up by default instead of silently staying dark.
+    //
+    // Not persisted. The card opens showing everything it can show, which is
+    // what the reader asked for by opening it; a preference that survived the
+    // session would leave a series switched off with no memory of why.
+    const [hiddenSeries, setHiddenSeries] = useState<ReadonlySet<TrendSeriesKey>>(
+        () => new Set<TrendSeriesKey>(),
+    );
+
+    const visibleSeries = useMemo(
+        () => TREND_SERIES.filter((key) => !hiddenSeries.has(key)),
+        [hiddenSeries],
+    );
+
+    const toggleSeries = (key: TrendSeriesKey) => {
+        setHiddenSeries((prev) => {
+            const willHide = !prev.has(key);
+            // Refuse to empty the plot. An axis with no series renders a blank
+            // grid, and the empty state beneath it would say "no data in this
+            // range" -- which would be a lie about the data rather than the
+            // truth about the switches. The legend marks this one aria-disabled.
+            if (willHide && prev.size === TREND_SERIES.length - 1) return prev;
+            const next = new Set(prev);
+            if (willHide) next.add(key);
+            else next.delete(key);
+            return next;
+        });
     };
 
     // -- Stock by location ----------------------------------------------------
@@ -313,7 +393,13 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
 
     const tableSummary = t.dashboard.analytics.chart.showTable;
     const hasFleet = !!fleet && fleet.total > 0;
-    const hasTrend = trend.length > 0 && trend.some((p) => p.check_out > 0 || p.check_in > 0);
+    // Emptiness is judged against the VISIBLE series only. Otherwise a reader
+    // who has switched everything except `scrap` off, in a range with no scrap
+    // events, would get a blank plot with no explanation -- and conversely a
+    // range full of check-outs would suppress the empty state for a chart that
+    // is genuinely showing nothing.
+    const hasTrend =
+        trend.length > 0 && trend.some((p) => visibleSeries.some((key) => p[key] > 0));
     const hasLocations = locationData.length > 0;
 
     return (
@@ -551,40 +637,135 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
             {/* ---------------------------------------------------------------
                 MOVEMENT TREND
                 --------------------------------------------------------------- */}
+            {/* ---------------------------------------------------------------
+                MOVEMENT TREND -- five aligned strips, not five lines on one axis
+
+                ===========================================================
+                WHY THE SHAPE CHANGED, AND WHAT IT FIXES
+
+                This card drew MOVEMENT_SERIES as two lines, then briefly all
+                five as dashed lines on a single axis. Both versions were
+                fighting the same fact about the data rather than the drawing:
+                a 22-pallet fleet in daily buckets produces small integers --
+                0-5 check-outs a day, 0-2 damage reports -- so every series
+                lives in the bottom third of a shared axis and they cross each
+                other constantly. Dash patterns made the lines identifiable
+                without making them readable, and area fills made it worse:
+                five translucent regions over the same band of the plot
+                multiply into colours that mean nothing while the tallest one
+                covers the rest.
+
+                One strip per series, each deriving its own y-domain, is what
+                makes "is this going up or down" legible for all five at once
+                -- which is the entire question the card exists to answer. The
+                strips share one x-domain and one plot geometry, so they stay
+                registered in time: a spike on the 12th lines up down the whole
+                column. TrendStrips.tsx carries the geometry notes.
+
+                It also dissolves the colour constraint rather than paying for
+                it. chartTheme.ts records that blue `check_out` and violet
+                `scrap` measure dE 0.6 under deuteranopia -- but two marks can
+                only be confused if they share a plot, and here each series has
+                a strip and a name of its own. That is why the dash patterns
+                are gone.
+
+                `repair` is still absent, and not for a colour reason: the
+                quality section stacks it against damage and scrap, which is
+                the comparison it belongs in.
+
+                A plain Card rather than a ChartFrame: that frame wraps its ONE
+                child in a single ResponsiveContainer, and this card needs five.
+                --------------------------------------------------------------- */}
             <div className="grid md:col-span-1 xl:col-span-4">
-                <ChartFrame
-                    title={t.dashboard.analytics.movement.title}
-                    subtitle={t.dashboard.analytics.movement.subtitle}
-                    icon={TrendingUp}
-                    // The only range-scoped card in this section. With the
-                    // deep-dive panel collapsed it is the only one on the whole
-                    // page, which is precisely why a page-level range bar read
-                    // as a filter that did nothing.
-                    action={<RangeMenu value={range} onChange={onRangeChange} />}
-                    fixedPlotHeight={TREND_PLOT_HEIGHT}
-                    isLoading={isLoading}
-                    isRefreshing={isRefreshing}
-                    isEmpty={!hasTrend}
-                    emptyState={
-                        // This chart IS range-scoped, so here the range-aware
-                        // message is the honest one.
-                        <EmptyState
-                            variant="plot"
+                <Card accent busy={isRefreshing} as="section" className="animate-surface-in flex flex-col">
+                    <div className="flex grow flex-col p-5 sm:p-6">
+                        <SectionHeader
+                            level="h3"
+                            title={t.dashboard.analytics.movement.title}
+                            subtitle={t.dashboard.analytics.movement.subtitle}
                             icon={TrendingUp}
-                            title={t.dashboard.analytics.chart.noDataInRange}
-                            hint={t.dashboard.analytics.chart.widenRange}
+                            // The only range-scoped card in this section. With
+                            // the deep-dive panel collapsed it is the only one
+                            // on the whole page, which is precisely why a
+                            // page-level range bar read as a filter that did
+                            // nothing.
+                            action={<RangeMenu value={range} onChange={onRangeChange} />}
                         />
-                    }
-                    footer={
+
+                        {/* isRefreshing dims what is already drawn and never
+                            swaps in a skeleton: this app refetches on every
+                            realtime row change, so a bulk check-out of 30
+                            pallets would rebuild these five charts 30 times and
+                            the card would strobe. */}
+                        <div
+                            className={`mt-4 ${
+                                isRefreshing ? 'opacity-60 transition-opacity' : 'transition-opacity'
+                            }`}
+                        >
+                            {isLoading ? (
+                                // Shaped like what lands -- same gutter track,
+                                // same strip height, same extra 24px on the last
+                                // one for the shared date axis -- so the card
+                                // does not resize when the data arrives.
+                                <div className="flex flex-col" role="status" aria-label={t.common.loading}>
+                                    {TREND_SERIES.map((key, index) => (
+                                        <div
+                                            key={key}
+                                            className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2"
+                                            style={{
+                                                height:
+                                                    index === TREND_SERIES.length - 1
+                                                        ? STRIP_HEIGHT + STRIP_AXIS_HEIGHT
+                                                        : STRIP_HEIGHT,
+                                            }}
+                                        >
+                                            <Skeleton className="h-8 w-20" />
+                                            <Skeleton className="h-9 w-full rounded-lg" />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : !hasTrend ? (
+                                // Range-aware, and honest here: every strip on
+                                // this card IS bounded by the selected window.
+                                <EmptyState
+                                    variant="plot"
+                                    icon={TrendingUp}
+                                    title={t.dashboard.analytics.chart.noDataInRange}
+                                    hint={t.dashboard.analytics.chart.widenRange}
+                                />
+                            ) : (
+                                <TrendStrips
+                                    data={trend}
+                                    series={visibleSeries.map((key) => ({
+                                        key,
+                                        label: seriesLabel[key],
+                                        color: TREND_COLORS[key],
+                                    }))}
+                                    reducedMotion={reducedMotion}
+                                />
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-3 sm:px-6">
                         <div className="space-y-3">
-                            <ChartLegend
-                                items={MOVEMENT_SERIES.map((series) => ({
+                            <SeriesToggleLegend
+                                items={TREND_SERIES.map((series) => ({
                                     key: series,
-                                    label: movementLabel[series],
-                                    color: SERIES_COLORS[series],
-                                    shape: 'line' as const,
+                                    label: seriesLabel[series],
+                                    color: TREND_COLORS[series],
+                                    visible: !hiddenSeries.has(series),
                                 }))}
+                                onToggle={(key) => toggleSeries(key as TrendSeriesKey)}
+                                isLastVisible={() => visibleSeries.length === 1}
                             />
+                            {/* ALL FIVE columns, whatever the switches say. The
+                                table is the guarantee that no value is only
+                                readable from the chart -- if it followed the
+                                toggles it would hide exactly the numbers a
+                                reader switched a strip off to stop looking at,
+                                and a screen-reader user would be navigating a
+                                table whose shape changes under them. */}
                             <DataTableView
                                 caption={t.dashboard.analytics.chart.tableCaption(
                                     t.dashboard.analytics.movement.title,
@@ -592,107 +773,24 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
                                 summaryLabel={tableSummary}
                                 columns={[
                                     { key: 'label', label: t.common.date },
-                                    { key: 'check_out', label: movementLabel.check_out, numeric: true },
-                                    { key: 'check_in', label: movementLabel.check_in, numeric: true },
+                                    ...TREND_SERIES.map((series) => ({
+                                        key: series,
+                                        label: seriesLabel[series],
+                                        numeric: true,
+                                    })),
                                 ]}
                                 rows={trend.map((point) => ({
                                     label: point.label,
                                     check_out: point.check_out,
                                     check_in: point.check_in,
+                                    acquisition: point.acquisition,
+                                    report_damage: point.report_damage,
+                                    scrap: point.scrap,
                                 }))}
                             />
                         </div>
-                    }
-                >
-                    {/* ===========================================================
-                        MOVEMENT_SERIES ONLY -- check_out and check_in. Do NOT add
-                        report_damage, repair or scrap to this chart.
-
-                        Two independent reasons, either one sufficient:
-
-                        (a) SCALE. Check-outs run 10-100x the volume of damage
-                            events in this warehouse. Co-plotting them on one
-                            linear axis pins the damage line to zero and flattens
-                            the movement pair into the top of the plot -- which is
-                            exactly why ActivityTrendChart, the chart this
-                            replaces, reads as three flat lines. The quality
-                            series get their own chart with their own axis.
-
-                        (b) COLOUR. chartTheme.ts records the measurements: slot 1
-                            (blue #2365c7) and slot 4 (violet #6d4bc4) collapse to
-                            dE 0.6 under deuteranopia, and red vs green measures
-                            dE 5.9. Only the check_out/check_in pair passes the
-                            all-pairs test as free-standing lines (CVD dE 17.5).
-                            The quality trio is safe only as an adjacent stack.
-                        =========================================================== */}
-                    <ComposedChart data={trend} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-                        {/* Solid gridlines, horizontal only. Dashes add texture
-                            that competes with the data at this size. */}
-                        <CartesianGrid {...GRID_PROPS} />
-                        <XAxis
-                            {...AXIS_PROPS}
-                            dataKey="label"
-                            // The narrowest this card gets is ~356px at `md`, so
-                            // the ticks have to be allowed to thin out rather
-                            // than overlap. Never rotated -- see the y-axis note
-                            // on the location chart for why.
-                            minTickGap={24}
-                            interval="preserveStartEnd"
-                        />
-                        <YAxis {...AXIS_PROPS} width={40} allowDecimals={false} />
-                        <Tooltip
-                            cursor={{ stroke: CHART_CHROME.axis, strokeWidth: 1 }}
-                            content={(props) => {
-                                const { active, payload } = props;
-                                if (!active || !payload || payload.length === 0) return null;
-                                const point = payload[0].payload as TrendPoint;
-                                return (
-                                    <ChartTooltip
-                                        title={point.label}
-                                        rows={MOVEMENT_SERIES.map((series) => ({
-                                            key: series,
-                                            label: movementLabel[series],
-                                            value: String(point[series]),
-                                            swatch: SERIES_COLORS[series],
-                                        }))}
-                                    />
-                                );
-                            }}
-                        />
-
-                        {/* One Area wash plus one Line per series. The wash sits
-                            at 12% alpha -- enough to give the line a body at a
-                            glance, not enough to read as a filled region or to
-                            hide the other series where the two cross. */}
-                        {MOVEMENT_SERIES.map((series) => (
-                            <Area
-                                key={`area-${series}`}
-                                type="monotone"
-                                dataKey={series}
-                                stroke="none"
-                                fill={SERIES_COLORS[series]}
-                                fillOpacity={0.12}
-                                isAnimationActive={!reducedMotion}
-                                // The Line below carries the legend and the
-                                // tooltip; the wash must not duplicate either.
-                                legendType="none"
-                                tooltipType="none"
-                            />
-                        ))}
-                        {MOVEMENT_SERIES.map((series) => (
-                            <Line
-                                key={`line-${series}`}
-                                type="monotone"
-                                dataKey={series}
-                                stroke={SERIES_COLORS[series]}
-                                strokeWidth={2}
-                                dot={false}
-                                activeDot={{ r: 4, stroke: CHART_CHROME.surface, strokeWidth: 2 }}
-                                isAnimationActive={!reducedMotion}
-                            />
-                        ))}
-                    </ComposedChart>
-                </ChartFrame>
+                    </div>
+                </Card>
             </div>
 
             {/* ---------------------------------------------------------------
