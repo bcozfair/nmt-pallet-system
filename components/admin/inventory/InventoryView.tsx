@@ -54,6 +54,7 @@ export const InventoryView = ({
         itemsPerPage, totalPages,
         processedPallets, paginatedPallets,
         statusCounts,
+        activeFilterCount,
         handleClearFilters
     } = useInventoryFilters(pallets, initialFilter, initialLocation);
 
@@ -141,13 +142,14 @@ export const InventoryView = ({
                     if (onLocationChange) onLocationChange(loc);
                 }}
                 onLocationChange={onLocationChange}
-                statusFilter={statusFilter}
-                setStatusFilter={setStatusFilter}
                 dateRange={dateRange}
                 setDateRange={setDateRange}
                 showOverdueOnly={showOverdueOnly}
                 setShowOverdueOnly={setShowOverdueOnly}
                 departments={departments}
+                activeFilterCount={activeFilterCount}
+                resultCount={processedPallets.length}
+                onClearFilters={handleClearFilters}
             />
 
             <InventoryTable

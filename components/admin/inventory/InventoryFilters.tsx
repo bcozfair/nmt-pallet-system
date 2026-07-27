@@ -1,8 +1,8 @@
 import React from 'react';
-import { Search, MapPin, ChevronRight, Calendar, ChevronDown, X, CheckCircle } from 'lucide-react';
+import { MapPin, AlarmClock } from 'lucide-react';
 import { Department } from '../../../types';
-import { PALLET_STATUS_ORDER } from '../common/AdminHelpers';
 import { useT } from '../../../hooks/useT';
+import { FilterBar, SearchInput, SelectField, DateRangeField, ToggleChip } from '../../ui';
 
 interface InventoryFiltersProps {
     searchTerm: string;
@@ -10,13 +10,20 @@ interface InventoryFiltersProps {
     locationFilter: string;
     setLocationFilter: (loc: string) => void;
     onLocationChange?: (loc: string) => void;
-    statusFilter: string;
-    setStatusFilter: (status: string) => void;
     dateRange: { start: string; end: string };
     setDateRange: (range: { start: string; end: string }) => void;
     showOverdueOnly: boolean;
     setShowOverdueOnly: (show: boolean) => void;
     departments: Department[];
+    // How many of the filters below are not at their default value. Drives
+    // both whether FilterBar shows its result row and whether the status
+    // strip's counts read as "filtered" -- see useInventoryFilters.ts.
+    activeFilterCount: number;
+    // processedPallets.length from the hook: how many rows the current
+    // combination of filters (including the status strip's selection)
+    // produces, for the "N results" line under the card.
+    resultCount: number;
+    onClearFilters: () => void;
 }
 
 export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
@@ -25,146 +32,85 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
     locationFilter,
     setLocationFilter,
     onLocationChange,
-    statusFilter,
-    setStatusFilter,
     dateRange,
     setDateRange,
     showOverdueOnly,
     setShowOverdueOnly,
-    departments
+    departments,
+    activeFilterCount,
+    resultCount,
+    onClearFilters,
 }) => {
     const t = useT();
+
+    const locationOptions = [
+        { value: 'all', label: t.inventory.allLocations },
+        // 'Warehouse' and every department name below are shown verbatim, not
+        // translated: department names are data typed in by users on the
+        // locations screen, not UI copy, so they must read the same in both
+        // languages.
+        { value: 'Warehouse', label: 'Warehouse' },
+        ...departments
+            .filter((d) => d.name !== 'Warehouse')
+            .map((d) => ({ value: d.name, label: d.name })),
+    ];
+
     return (
-        <div className="bg-white p-2.5 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex flex-col xl:flex-row gap-3 items-center">
+        <FilterBar
+            isFiltered={activeFilterCount > 0}
+            resultLabel={t.inventory.resultCount(resultCount)}
+            onClear={onClearFilters}
+            clearLabel={t.common.clearFilters}
+        >
+            <SearchInput
+                id="search-pallet-id"
+                name="search"
+                className="xl:flex-1"
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={t.inventory.searchPlaceholder}
+                ariaLabel={t.inventory.searchPallet}
+                clearLabel={t.inventory.clearSearch}
+            />
 
-                <div className="relative flex-1 w-full xl:w-auto">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                        id="search-pallet-id"
-                        name="search"
-                        aria-label={t.inventory.searchPallet}
-                        type="text"
-                        placeholder={t.inventory.searchPlaceholder}
-                        className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 text-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+                <SelectField
+                    id="filter-location"
+                    name="location"
+                    icon={MapPin}
+                    className="sm:w-48"
+                    value={locationFilter}
+                    onChange={(loc) => {
+                        setLocationFilter(loc);
+                        onLocationChange?.(loc);
+                    }}
+                    options={locationOptions}
+                    ariaLabel={t.inventory.filterByLocation}
+                />
 
-                <div className="flex flex-col sm:flex-row gap-2 w-full xl:w-auto">
-                    <div className="relative flex-1 sm:w-48">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <select
-                            id="filter-location"
-                            name="location"
-                            aria-label={t.inventory.filterByLocation}
-                            className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none text-sm"
-                            value={locationFilter}
-                            onChange={(e) => {
-                                const loc = e.target.value;
-                                setLocationFilter(loc);
-                                if (onLocationChange) onLocationChange(loc);
-                            }}
-                        >
-                            <option value="all">{t.inventory.allLocations}</option>
-                            <option value="Warehouse">Warehouse</option>
-                            {departments.filter(d => d.name !== 'Warehouse').map(d => (
-                                <option key={d.id} value={d.name}>{d.name}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                            <ChevronRight size={14} className="rotate-90" />
-                        </div>
-                    </div>
-
-                    <div className="relative flex-1 sm:w-40">
-                        <select
-                            id="filter-status"
-                            name="status"
-                            aria-label={t.inventory.filterByStatus}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none text-sm"
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                        >
-                            {/* "All" means the working fleet, so the list is not
-                                swamped by written-off pallets. Scrapped is its
-                                own option below, matching the way scrapped is
-                                excluded from every fleet total. */}
-                            <option value="all">{t.inventory.allActive}</option>
-                            {PALLET_STATUS_ORDER.map(status => (
-                                <option key={status} value={status}>{t.status[status]}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                            <ChevronRight size={14} className="rotate-90" />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 w-full sm:w-auto justify-between sm:justify-start">
-                    <Calendar size={16} className="text-gray-400 shrink-0" />
-
-                    <div className="flex items-center gap-1">
-                        <div className="relative w-28 group/date">
-                            <input
-                                type="text"
-                                readOnly
-                                placeholder={t.inventory.startDate}
-                                className="w-full bg-transparent text-sm text-gray-700 outline-none text-left cursor-pointer placeholder:text-gray-400 pr-4"
-                                value={dateRange.start ? dateRange.start.split('-').reverse().join('/') : ''}
-                            />
-                            <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover/date:text-blue-500 transition-colors" />
-                            <input
-                                id="filter-start-date"
-                                name="startDate"
-                                aria-label={t.inventory.startDate}
-                                type="date"
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                                value={dateRange.start}
-                                onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                            />
-                        </div>
-                        <span className="text-gray-300">-</span>
-                        <div className="relative w-28 group/date">
-                            <input
-                                type="text"
-                                readOnly
-                                placeholder={t.inventory.endDate}
-                                className="w-full bg-transparent text-sm text-gray-700 outline-none text-left cursor-pointer placeholder:text-gray-400 pr-4"
-                                value={dateRange.end ? dateRange.end.split('-').reverse().join('/') : ''}
-                            />
-                            <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover/date:text-blue-500 transition-colors" />
-                            <input
-                                id="filter-end-date"
-                                name="endDate"
-                                aria-label={t.inventory.endDate}
-                                type="date"
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                                value={dateRange.end}
-                                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                            />
-                        </div>
-                    </div>
-
-                    {(dateRange.start || dateRange.end) && (
-                        <button onClick={() => setDateRange({ start: '', end: '' })} className="p-1 hover:bg-gray-200 rounded-full text-gray-400 hover:text-red-500 transition">
-                            <X size={14} />
-                        </button>
-                    )}
-                </div>
-
-                <button
-                    onClick={() => setShowOverdueOnly(!showOverdueOnly)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition border w-full sm:w-auto justify-center whitespace-nowrap shrink-0 ${showOverdueOnly
-                        ? 'bg-red-50 text-red-600 border-red-200'
-                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                        }`}
-                >
-                    {showOverdueOnly ? <CheckCircle size={16} /> : <div className="w-4 h-4 rounded-full border-2 border-gray-300" />}
-                    {t.inventory.overdueOnly}
-                </button>
+                {/* The status <select> that used to sit here is gone, not lost:
+                    InventoryStatusStrip's four tiles (rendered above this bar,
+                    in InventoryView) are the status filter now, and 'scrapped'
+                    -- deliberately excluded from those tiles -- is reached
+                    through the "view list" link underneath the strip instead.
+                    See InventoryStatusStrip.tsx. */}
+                <DateRangeField
+                    idPrefix="filter-date"
+                    value={dateRange}
+                    onChange={setDateRange}
+                    startLabel={t.inventory.startDate}
+                    endLabel={t.inventory.endDate}
+                    clearLabel={t.common.clearFilters}
+                />
             </div>
-        </div>
+
+            <ToggleChip
+                tone="critical"
+                icon={AlarmClock}
+                pressed={showOverdueOnly}
+                onChange={setShowOverdueOnly}
+                label={t.inventory.overdueOnly}
+            />
+        </FilterBar>
     );
 };

@@ -34,6 +34,11 @@ export const inventoryEn = {
     startDate: 'Start Date',
     endDate: 'End Date',
     overdueOnly: 'Overdue Only',
+    // Result count line and the search box's own clear button, both introduced
+    // when InventoryFilters was rebuilt on FilterBar/SearchInput -- see
+    // InventoryFilters.tsx.
+    resultCount: (count: number) => `${count} results`,
+    clearSearch: 'Clear search',
 
     // --- Table ---
     selectAllPallets: 'Select all pallets',
@@ -164,6 +169,8 @@ export const inventoryTh: InventoryDict = {
     startDate: 'วันที่เริ่ม',
     endDate: 'วันที่สิ้นสุด',
     overdueOnly: 'เฉพาะเกินกำหนด',
+    resultCount: (count: number) => `พบ ${count} รายการ`,
+    clearSearch: 'ล้างคำค้นหา',
 
     // --- Table ---
     selectAllPallets: 'เลือกพาเลททั้งหมด',
