@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Calendar, ChevronDown, X } from 'lucide-react';
 
 export interface DateRange {
@@ -12,7 +12,12 @@ export interface DateRangeFieldProps {
     startLabel: string;
     endLabel: string;
     clearLabel: string;
+    /** ไม่ระบุแล้วปล่อยให้ `useId()` สร้างให้ -- กันสอง instance บนหน้าเดียวกันชน id กัน */
     idPrefix?: string;
+    // ตัวห่อ control เป็น relative w-full ... sm:w-auto ${className} เสมอ -- className
+    // ที่ส่งเข้ามาแบบไม่มี prefix (เช่น 'w-64') ไม่รับประกันว่าจะชนะ w-full/sm:w-auto ที่
+    // อยู่ก่อนหน้าในสตริง เพราะลำดับคลาสตัดสินที่ CSS ที่ build ออกมา ไม่ใช่ลำดับในสตริง
+    // รันไทม์ ใช้ pattern แบบมี responsive prefix เช่น 'sm:w-48' ที่การันตีว่าชนะได้จริง
     className?: string;
 }
 
@@ -24,13 +29,18 @@ export interface DateRangeFieldProps {
 // input ตัวบนได้ tabIndex={-1} และ aria-hidden: มันคือของตกแต่ง ไม่ใช่ช่องกรอก
 // ของเดิมทั้งใน InventoryFilters และ TransactionFilters ไม่มีสองอย่างนี้ ทำให้แท็บ
 // ไปหยุดที่ช่องที่อ่านออกเสียงแล้วไม่ได้อะไรเลย แล้วต้องแท็บอีกทีถึงจะถึงตัวจริง
+//
+// input จริงที่คีย์บอร์ดโฟกัสได้ (ตัวล่าง) เป็น opacity-0 ทั้งตัว -- วง focus ที่วาด
+// บนตัวมันเองจะโปร่งใสไปด้วย มองไม่เห็น จึงย้ายวง focus ไปไว้ที่ wrapper แทน โดยใช้
+// `has-[:focus-visible]` ของ Tailwind v4 ให้ wrapper ตอบสนองสถานะโฟกัสของ input
+// ที่อยู่ข้างในแทนที่จะพึ่งวงที่วาดบน input ที่มองไม่เห็นอยู่แล้ว
 const DateCell: React.FC<{
     id?: string;
     label: string;
     value: string;
     onChange: (next: string) => void;
 }> = ({ id, label, value, onChange }) => (
-    <div className="group/date relative w-28">
+    <div className="group/date relative w-28 rounded-md has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-500">
         <input
             type="text"
             readOnly
@@ -62,42 +72,51 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
     startLabel,
     endLabel,
     clearLabel,
-    idPrefix = 'date-range',
+    idPrefix,
     className = '',
-}) => (
-    <div
-        className={
-            'flex min-h-10 w-full items-center justify-between gap-2 rounded-xl border ' +
-            `border-slate-200 bg-slate-50 px-2 py-1.5 sm:w-auto sm:justify-start ${className}`
-        }
-    >
-        <Calendar size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
-        <div className="flex items-center gap-1">
-            <DateCell
-                id={`${idPrefix}-start`}
-                label={startLabel}
-                value={value.start}
-                onChange={(start) => onChange({ ...value, start })}
-            />
-            <span className="text-slate-300" aria-hidden="true">
-                -
-            </span>
-            <DateCell
-                id={`${idPrefix}-end`}
-                label={endLabel}
-                value={value.end}
-                onChange={(end) => onChange({ ...value, end })}
-            />
+}) => {
+    // ค่า default เดิมเป็นค่าคงที่ 'date-range' ธรรมดา ทำให้สอง instance บนหน้าเดียวกัน
+    // ที่ไม่ได้ส่ง idPrefix มาชนกันเป็น id="date-range-start" ซ้ำ -- HTML ไม่ยอมให้ id
+    // ซ้ำและมันทำให้ label/control เชื่อมกันผิดตัว useId() การันตีว่าไม่ชนไม่ว่าจะมีกี่
+    // instance โดยที่ idPrefix ที่ส่งมาจากภายนอกยังชนะเหมือนเดิม
+    const generatedPrefix = useId();
+    const prefix = idPrefix ?? generatedPrefix;
+
+    return (
+        <div
+            className={
+                'flex min-h-10 w-full items-center justify-between gap-2 rounded-xl border ' +
+                `border-slate-200 bg-slate-50 px-2 py-1.5 sm:w-auto sm:justify-start ${className}`
+            }
+        >
+            <Calendar size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
+            <div className="flex items-center gap-1">
+                <DateCell
+                    id={`${prefix}-start`}
+                    label={startLabel}
+                    value={value.start}
+                    onChange={(start) => onChange({ ...value, start })}
+                />
+                <span className="text-slate-300" aria-hidden="true">
+                    -
+                </span>
+                <DateCell
+                    id={`${prefix}-end`}
+                    label={endLabel}
+                    value={value.end}
+                    onChange={(end) => onChange({ ...value, end })}
+                />
+            </div>
+            {(value.start || value.end) && (
+                <button
+                    type="button"
+                    onClick={() => onChange({ start: '', end: '' })}
+                    aria-label={clearLabel}
+                    className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                >
+                    <X size={14} aria-hidden="true" />
+                </button>
+            )}
         </div>
-        {(value.start || value.end) && (
-            <button
-                type="button"
-                onClick={() => onChange({ start: '', end: '' })}
-                aria-label={clearLabel}
-                className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-            >
-                <X size={14} aria-hidden="true" />
-            </button>
-        )}
-    </div>
-);
+    );
+};

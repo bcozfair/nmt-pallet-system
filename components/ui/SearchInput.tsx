@@ -23,6 +23,10 @@ export const SearchInput: React.FC<SearchInputProps> = ({
     name,
     className = '',
 }) => (
+    // ตัวห่อเป็น relative w-full ${className} เสมอ -- className ที่ส่งเข้ามาแบบไม่มี
+    // responsive prefix (เช่น 'w-64') ไม่รับประกันว่าจะชนะ w-full ที่อยู่ก่อนหน้าในสตริง
+    // เพราะลำดับคลาสตัดสินที่ CSS ที่ build ออกมา ไม่ใช่ลำดับในสตริงรันไทม์ ใช้ pattern
+    // แบบมี responsive prefix เช่น 'sm:w-48' ที่การันตีว่าชนะได้จริง
     <div className={`relative w-full ${className}`}>
         <Search
             size={16}
@@ -42,7 +46,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
             className={
                 'min-h-10 w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-9 ' +
                 'text-sm text-slate-900 placeholder:text-slate-400 transition ' +
-                'focus:border-brand-300 focus:outline-2 focus:outline-offset-0 focus:outline-brand-500'
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500'
             }
         />
         {value && (

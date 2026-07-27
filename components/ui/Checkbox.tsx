@@ -16,9 +16,6 @@ export interface CheckboxProps {
 // `appearance-none` ลบเครื่องหมายที่เบราว์เซอร์วาดให้ทิ้งไปด้วย สตริงนั้นเคยถูก
 // คัดลอกไว้สองที่ใน InventoryTable.tsx และตัวหนึ่งตกคุณสมบัติ stroke-linejoin ไป
 // -- ซึ่งไม่มีใครเห็นเพราะมันต่างกันไม่กี่พิกเซล ตอนนี้มีที่เดียว
-const TICK =
-    "bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjIwIDYgOSAxNyA0IDEyIiAvPjwvc3ZnPg==')]";
-
 const BOX =
     'relative h-4 w-4 shrink-0 cursor-pointer appearance-none rounded-md border-2 ' +
     'border-slate-300 bg-white transition ' +
@@ -26,10 +23,17 @@ const BOX =
     'checked:border-brand-600 checked:bg-brand-600 ' +
     'indeterminate:border-brand-600 indeterminate:bg-brand-600';
 
+// คลาสพื้นหลัง SVG ต้องต่อกับ prefix "checked:after:" เป็นสตริงตัวอักษรตัวเดียว
+// ห้ามตัดผ่านตัวแปรกลางแล้วประกอบด้วย template literal เด็ดขาด -- Tailwind สแกนแค่
+// ข้อความดิบในซอร์ส ไม่ประเมิน JS ก่อน ถ้าตัดออกเป็นตัวแปรแยกแล้วเอามาต่อด้วย ${...}
+// (แบบที่เคยเป็น) ชื่อคลาสที่สมบูรณ์จะไม่ปรากฏที่ไหนในไฟล์นี้เลยสักครั้ง และ Tailwind
+// จะไม่สร้าง selector ที่ผูกกับ checked และ after เข้าด้วยกันให้เลย -- พิสูจน์แล้วด้วย
+// การ build แยกไฟล์นี้ทีเดียว: รุ่นเดิมได้กฎพื้นหลังที่ไม่ผูก selector ใด ๆ เลย
 const CHECKED_MARK =
     "checked:after:content-[''] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 " +
     'checked:after:h-3 checked:after:w-3 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 ' +
-    `checked:after:bg-contain checked:after:bg-center checked:after:bg-no-repeat checked:after:${TICK}`;
+    'checked:after:bg-contain checked:after:bg-center checked:after:bg-no-repeat ' +
+    "checked:after:bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjIwIDYgOSAxNyA0IDEyIiAvPjwvc3ZnPg==')]";
 
 // ขีดกลางวาดด้วยกล่องเปล่า ไม่ใช่ SVG อีกอัน -- มันคือสี่เหลี่ยมขาว 2px ไม่คุ้มกับ
 // การฝังไฟล์ที่สอง

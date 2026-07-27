@@ -49,14 +49,14 @@ export const BUTTON_VARIANT: Record<ButtonVariant, string> = {
     danger:
         'border border-red-200 bg-white text-red-600 hover:bg-red-50 ' +
         'active:scale-[0.99] disabled:hover:bg-white',
-    ghost: 'text-slate-600 hover:bg-slate-100 active:scale-[0.99]',
+    ghost: 'text-slate-600 hover:bg-slate-100 active:scale-[0.99] disabled:hover:bg-transparent',
     // สองตัวล่างสำหรับพื้นเข้มเท่านั้น (SelectionBar) -- brand-600 บน brand-900
     // คอนทราสต์ต่ำเกินอ่าน และการส่ง className ไปทับจากข้างนอกใช้ไม่ได้
     // เพราะลำดับคลาส Tailwind ตัดสินที่ CSS ที่ build ออกมา ไม่ใช่ลำดับในสตริง
-    inverse: 'bg-white text-brand-900 hover:bg-slate-100 active:scale-[0.99]',
+    inverse: 'bg-white text-brand-900 hover:bg-slate-100 active:scale-[0.99] disabled:hover:bg-white',
     inverseGhost:
         'border border-white/25 bg-white/10 text-white hover:bg-white/20 active:scale-[0.99] ' +
-        'focus-visible:outline-white',
+        'disabled:hover:bg-white/10 focus-visible:outline-white',
 };
 
 export const Button: React.FC<ButtonProps> = ({

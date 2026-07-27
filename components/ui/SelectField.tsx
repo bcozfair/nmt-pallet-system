@@ -48,7 +48,7 @@ export const SelectField: React.FC<SelectFieldProps> = ({
             className={
                 'min-h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white py-2 ' +
                 `${Icon ? 'pl-9' : 'pl-3'} pr-9 text-sm text-slate-900 transition ` +
-                'focus:border-brand-300 focus:outline-2 focus:outline-offset-0 focus:outline-brand-500'
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500'
             }
         >
             {options.map((opt) => (
