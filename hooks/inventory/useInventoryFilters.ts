@@ -57,17 +57,13 @@ export const useInventoryFilters = (
     }, [searchTerm, statusFilter, locationFilter, dateRange, showOverdueOnly]);
 
     // --- Processing ---
-    const processedPallets = useMemo(() => {
-        let data = pallets.filter(p => {
+    // First layer: everything except status. The status-strip counts read from
+    // this layer so each number means "click this and you get N rows" -- if
+    // counts were taken after the status filter too, every unselected tile
+    // would read 0 and the strip would be pointless.
+    const baseFiltered = useMemo(() => {
+        return pallets.filter(p => {
             const matchesSearch = p.pallet_id.toLowerCase().includes(searchTerm.toLowerCase());
-            // 'all' means the working fleet, not literally everything. Scrapped
-            // pallets are excluded from every fleet total and from utilisation,
-            // so listing them by default would contradict the counts on screen
-            // and fill the list with assets nobody can act on. They are still
-            // reachable through the explicit Scrapped option.
-            const matchesStatus = statusFilter === 'all'
-                ? p.status !== 'scrapped'
-                : p.status === statusFilter;
             const matchesLocation = locationFilter === 'all' || p.current_location === locationFilter;
 
             let matchesDate = true;
@@ -92,7 +88,33 @@ export const useInventoryFilters = (
                 }
             }
 
-            return matchesSearch && matchesStatus && matchesLocation && matchesDate && matchesOverdue;
+            return matchesSearch && matchesLocation && matchesDate && matchesOverdue;
+        });
+    }, [pallets, searchTerm, locationFilter, dateRange, showOverdueOnly, overdueThreshold]);
+
+    const statusCounts = useMemo(() => ({
+        // 'all' is not "literally everything" but the working fleet, matching
+        // what statusFilter === 'all' filters to below, and matching how the
+        // rest of the app excludes scrapped pallets from totals and from the
+        // utilisation denominator.
+        all: baseFiltered.filter(p => p.status !== 'scrapped').length,
+        available: baseFiltered.filter(p => p.status === 'available').length,
+        in_use: baseFiltered.filter(p => p.status === 'in_use').length,
+        damaged: baseFiltered.filter(p => p.status === 'damaged').length,
+        scrapped: baseFiltered.filter(p => p.status === 'scrapped').length,
+    }), [baseFiltered]);
+
+    // Second layer: status filter applied, then sorted.
+    const processedPallets = useMemo(() => {
+        let data = baseFiltered.filter(p => {
+            // 'all' means the working fleet, not literally everything. Scrapped
+            // pallets are excluded from every fleet total and from utilisation,
+            // so listing them by default would contradict the counts on screen
+            // and fill the list with assets nobody can act on. They are still
+            // reachable through the explicit Scrapped option.
+            return statusFilter === 'all'
+                ? p.status !== 'scrapped'
+                : p.status === statusFilter;
         });
 
         if (sortConfig) {
@@ -126,7 +148,14 @@ export const useInventoryFilters = (
         }
 
         return data;
-    }, [pallets, searchTerm, statusFilter, locationFilter, dateRange, showOverdueOnly, overdueThreshold, sortConfig]);
+    }, [baseFiltered, statusFilter, sortConfig]);
+
+    const activeFilterCount =
+        (searchTerm ? 1 : 0) +
+        (statusFilter !== 'all' ? 1 : 0) +
+        (locationFilter !== 'all' ? 1 : 0) +
+        (dateRange.start || dateRange.end ? 1 : 0) +
+        (showOverdueOnly ? 1 : 0);
 
     const totalPages = Math.ceil(processedPallets.length / itemsPerPage);
     const paginatedPallets = processedPallets.slice(
@@ -170,6 +199,8 @@ export const useInventoryFilters = (
         // Data
         processedPallets,
         paginatedPallets,
+        statusCounts,
+        activeFilterCount,
 
         // Handlers
         handleSort,
