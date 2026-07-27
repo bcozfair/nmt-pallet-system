@@ -18,6 +18,27 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [react(), basicSsl()],
 
+    build: {
+      rollupOptions: {
+        output: {
+          // Recharts is only ever reached from the admin dashboard, and it is
+          // heavy: it pulls @reduxjs/toolkit, react-redux, immer, reselect and
+          // victory-vendor (d3-scale/shape/time) behind it. Left in the main
+          // chunk it would be downloaded by everyone who lands on the sign-in
+          // screen, including warehouse staff whose entire app is the mobile
+          // scanner and who never see a chart.
+          //
+          // Splitting it out only helps in combination with the React.lazy()
+          // boundaries around the dashboard sections -- this names the chunk,
+          // the lazy import is what defers fetching it.
+          manualChunks: {
+            charts: ['recharts'],
+            supabase: ['@supabase/supabase-js'],
+          }
+        }
+      }
+    },
+
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

@@ -25,6 +25,14 @@ import { describeAppError } from '../../../services/appError';
 // JSX still uses the hook, which is what re-renders this screen on a switch.
 
 
+// This screen filters, sorts and paginates in the browser, so every row it can
+// possibly show has to be in memory. Unbounded, that was a select of the whole
+// table -- which PostgREST silently trimmed to db.max_rows (1000) anyway, so the
+// screen was already capped, just without saying so or letting anyone choose the
+// number. 2000 is that choice: two years of this fleet's activity fits inside it,
+// and the note below tells the reader when it does not.
+const TX_FETCH_LIMIT = 2000;
+
 export const TransactionView = () => {
     const t = useT();
 
@@ -84,7 +92,12 @@ export const TransactionView = () => {
         setLoading(true);
         try {
             const [txData, userData, deptData] = await Promise.all([
-                fetchTransactions(),
+                // Newest first, because a cap only makes sense from one end and
+                // this is the end an operator opens the screen looking for. The
+                // CSV export further down writes out whatever passed the filters,
+                // so it inherits the same window -- utils/exportHelpers.ts is
+                // still the export that promises the complete history.
+                fetchTransactions({ limit: TX_FETCH_LIMIT, order: 'desc' }),
                 fetchUsers(),
                 fetchDepartments()
             ]);
@@ -345,6 +358,21 @@ export const TransactionView = () => {
 
             {/* Scrollable Content */}
             <div className="flex-1 min-h-0 overflow-y-auto pr-2 flex flex-col gap-6 styled-scrollbar">
+                {/* Shown only when the fetch actually came back full. Below the cap
+                    the list IS the whole history and a note would be a lie; at the
+                    cap the filters and the row count underneath are describing a
+                    window, and nothing else on screen says so.
+
+                    The wording is assembled from history.showing and history.recentOnly
+                    rather than a literal, because a hardcoded string here would be
+                    English on a Thai screen. Neither key was written for this screen
+                    -- see the note in the summary about giving transactions its own. */}
+                {transactions.length >= TX_FETCH_LIMIT && (
+                    <p className="-mb-2 px-1 text-xs text-gray-500">
+                        {t.history.showing(transactions.length)} ({t.history.recentOnly})
+                    </p>
+                )}
+
                 <TransactionFilters
                     searchTerm={searchTerm}
                     setSearchTerm={setSearchTerm}

@@ -1,8 +1,10 @@
 import React from 'react';
-import { CircleCheck, Activity, AlertTriangle, TrendingUp, Ban } from 'lucide-react';
+// TrendingUp went with StatCard: it was the icon on that card's trend chip and
+// nothing else in this file used it.
+import { CircleCheck, Activity, AlertTriangle, Ban } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { PalletStatus } from '../../../types';
-import { dict } from '../../../services/i18n';
+import { dict, getLang } from '../../../services/i18n';
 import { useT } from '../../../hooks/useT';
 
 // --- STATUS PRESENTATION ---
@@ -20,30 +22,42 @@ export const PALLET_STATUS_META: Record<PalletStatus, {
     badge: string;
     chip: string;
     stroke: string;
+    /** The stroke at ~12% alpha, for area washes under a line. */
+    fill: string;
     Icon: LucideIcon;
 }> = {
     available: {
         badge: 'bg-green-100 text-green-700',
         chip: 'bg-green-100 text-green-700',
-        stroke: '#10B981',
+        // Was #10B981, which measures 2.54:1 against white -- under the 3:1
+        // floor a chart mark has to clear to be seen at all, and a 2px line at
+        // that contrast disappears entirely on a projector or a dimmed laptop.
+        // #059669 is 3.77:1 and reads as the same green. The other three
+        // already pass (in_use 3.68, damaged 3.76, scrapped 4.83), so this is
+        // the only value that had to move.
+        stroke: '#059669',
+        fill: 'rgba(5,150,105,0.12)',
         Icon: CircleCheck
     },
     in_use: {
         badge: 'bg-blue-100 text-blue-700',
         chip: 'bg-orange-100 text-orange-700',
         stroke: '#3B82F6',
+        fill: 'rgba(59,130,246,0.12)',
         Icon: Activity
     },
     damaged: {
         badge: 'bg-red-100 text-red-700',
         chip: 'bg-red-100 text-red-700',
         stroke: '#EF4444',
+        fill: 'rgba(239,68,68,0.12)',
         Icon: AlertTriangle
     },
     scrapped: {
         badge: 'bg-gray-200 text-gray-700',
         chip: 'bg-gray-300 text-gray-700',
         stroke: '#6B7280',
+        fill: 'rgba(107,114,128,0.12)',
         Icon: Ban
     }
 };
@@ -87,40 +101,46 @@ export const formatDateTime = (date: Date | string | null) => {
     return `${formatDate(d)} ${time}`;
 };
 
+// Durations DO follow the language, unlike dates above. A date is an index into
+// a shared record -- it has to match the CSV and the database -- but "2.1 days"
+// is prose about a measurement, and leaving it in English beside a Thai label
+// reads as an untranslated string rather than as a deliberate convention.
+//
+// The unit comes from ICU/CLDR via Intl rather than from the dictionary. It is
+// number formatting, not translation: the same reasoning that puts
+// toLocaleDateString above rather than a hand-written month table. Thai's
+// default numbering system is `latn`, so digits stay Arabic either way, which
+// keeps this consistent with every other figure on the dashboard.
+//
+// The analytics reducer reports every duration in hours. Switching to days at
+// the 24-hour mark is what stops a dwell median reading "312 hr" next to a
+// histogram whose bands are labelled in days.
+export const formatDuration = (hours: number, locale: string = getLang()): string => {
+    const asHours = hours < 24;
+    const value = asHours ? hours : hours / 24;
+
+    try {
+        return new Intl.NumberFormat(locale, {
+            style: 'unit',
+            unit: asHours ? 'hour' : 'day',
+            unitDisplay: 'short',
+            maximumFractionDigits: 1,
+        }).format(value);
+    } catch {
+        // Safari < 14.1 has no style:'unit'. A bare number beats a thrown error,
+        // and the surrounding label still says which statistic it is.
+        return String(Math.round(value * 10) / 10);
+    }
+};
+
 // --- COMPONENT DEFINITIONS ---
 
-export const StatCard = ({ title, value, icon, color, trend, subtitle }: { title: string, value: string | number, icon: React.ReactNode, color: string, trend?: string, subtitle?: string }) => (
-    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between group hover:shadow-md transition h-full relative overflow-hidden">
-        <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500`}>
-            {React.cloneElement(icon as React.ReactElement<any>, { size: 60, className: color.replace('bg-', 'text-') })}
-        </div>
-
-        <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-2">
-                <div className={`p-2 rounded-lg text-white shadow-md ${color}`}>
-                    {React.cloneElement(icon as React.ReactElement<any>, { size: 18 })}
-                </div>
-                {/* No `uppercase tracking-wider` here: the title is now translated,
-                    and in Thai uppercase does nothing while wide letter-spacing
-                    pushes the tone marks and vowels off their base characters. */}
-                <p className="text-xs font-bold text-gray-400">{title}</p>
-            </div>
-
-            <h3 className="text-3xl font-black text-gray-800 tracking-tight">{value}</h3>
-
-            {trend && (
-                <div className="mt-2 flex items-center gap-1">
-                    <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <TrendingUp size={10} /> {trend}
-                    </span>
-                </div>
-            )}
-            {subtitle && (
-                <p className="text-xs text-gray-400 mt-1 font-medium">{subtitle}</p>
-            )}
-        </div>
-    </div>
-);
+// `StatCard` used to sit here. components/ui/StatTile.tsx replaces it, and its
+// one importer (DashboardStatsGrid) is gone with the dashboard rewrite. It was
+// not a like-for-like swap: that card sized its label box with `h-full` and set
+// the figure in `font-black`, a weight this app never loads, so the browser
+// synthesised it -- and a synthesised bold smears Thai tone marks into the
+// glyph below them. StatTile uses min-h and caps at font-semibold.
 
 // No `default` branch on purpose: the old one rendered the raw enum value, so a
 // status the UI did not know about shipped as "scrapped" to the user instead of

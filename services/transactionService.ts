@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Pallet, Transaction } from '../types';
+import { ActionType, Pallet, Transaction } from '../types';
 import { fetchPallets } from './palletService';
 import { DAMAGE_BUCKET, IMAGE_DELETED, extractObjectName } from './storageService';
 import { AppError } from './appError';
@@ -17,9 +17,97 @@ export const fetchPalletHistory = async (palletId: string): Promise<Transaction[
     return data || [];
 };
 
-// New function to fetch all transactions (alias for readability in dashboards)
-export const fetchTransactions = async (): Promise<Transaction[]> => {
-    return fetchPalletHistory('');
+export interface TransactionQuery {
+    /** Inclusive lower bound, ISO string. */
+    since?: string;
+    /** Exclusive upper bound, ISO string. */
+    until?: string;
+    actions?: ActionType[];
+    /** Ascending is the default for analytics: every reducer is a forward scan,
+     *  and dwell-time pairing needs chronological order. */
+    order?: 'asc' | 'desc';
+    /** Hard cap. Omit for "everything", which pages. */
+    limit?: number;
+}
+
+// PostgREST's own ceiling. db.max_rows defaults to 1000, and a select that asks
+// for more comes back trimmed to it with NO error and NO indication that
+// anything was left behind -- which is exactly what used to happen here.
+//
+// Must not exceed the server's db.max_rows. If that setting is ever lowered,
+// every page comes back short, the loop reads it as the end of the data and
+// stops -- reintroducing the same silent truncation one layer up. Raising it is
+// harmless; lowering it means lowering this too.
+const PAGE_SIZE = 1000;
+
+// 100 pages = 100k rows. Purely a stop for a loop that is not making progress
+// (a Range header the server ignores, say); the real data set is nowhere near
+// this, and cleanupOldData() trims anything past two years.
+const MAX_PAGES = 100;
+
+/**
+ * Every transaction matching the query, paged past PostgREST's row ceiling.
+ *
+ * The old implementation was `fetchPalletHistory('')`: no filter, no limit, one
+ * request. That is silently capped at db.max_rows, so the dashboard trend chart
+ * and the full history CSV have been quietly truncated at row 1000 -- a
+ * correctness bug wearing a performance bug's clothes, because nothing anywhere
+ * reported a problem. Every caller now says what slice it actually needs, and
+ * whatever it asks for arrives complete.
+ *
+ * Ordering carries `id` as a tiebreaker. It is not decoration: createBulkTransaction
+ * stamps one timestamp across an entire batch, so a 50-pallet check-out writes 50
+ * rows that are exactly equal on the sort key. Ties are ordered arbitrarily, and
+ * arbitrarily is not the same as consistently between two round-trips -- a batch
+ * straddling a page boundary would repeat some rows and drop others. Any stable
+ * second key fixes that; the primary key is the one guaranteed unique.
+ *
+ * One caveat with `order: 'desc'`: offset paging over a table taking inserts can
+ * shift rows between requests, and descending puts the new rows at the front
+ * where they push everything down a slot. Ascending is immune -- inserts land
+ * past the offsets already read -- which is the other reason it is the default.
+ */
+export const fetchTransactions = async (q: TransactionQuery = {}): Promise<Transaction[]> => {
+    const ascending = q.order !== 'desc';
+    const rows: Transaction[] = [];
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+        // The offset is the count already collected rather than page * PAGE_SIZE,
+        // so a final short page (when `limit` narrows the request) cannot leave
+        // the two out of step.
+        const from = rows.length;
+        const want = q.limit === undefined ? PAGE_SIZE : Math.min(PAGE_SIZE, q.limit - rows.length);
+        // `limit` reached exactly. Returns rather than breaks: falling out of the
+        // loop is reserved for the guard below, and a satisfied limit is a normal
+        // ending, not a runaway.
+        if (want <= 0) return rows;
+
+        let query = supabase
+            .from('transactions')
+            .select('*')
+            .order('timestamp', { ascending })
+            .order('id', { ascending })
+            .range(from, from + want - 1);
+
+        if (q.since) query = query.gte('timestamp', q.since);
+        if (q.until) query = query.lt('timestamp', q.until);
+        if (q.actions && q.actions.length > 0) query = query.in('action_type', q.actions);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const batch = data || [];
+        rows.push(...batch);
+
+        // A page shorter than requested is the end of the result set. This is the
+        // only reliable signal: an exact-length page could be the last one, so the
+        // loop costs one extra empty request in that case, which is the price of
+        // never guessing.
+        if (batch.length < want) return rows;
+    }
+
+    console.warn(`[fetchTransactions] Stopped at the ${MAX_PAGES}-page guard with ${rows.length} rows. The result may be incomplete.`);
+    return rows;
 };
 
 export const fetchUserTransactions = async (userId: string, dateStr?: string): Promise<Transaction[]> => {

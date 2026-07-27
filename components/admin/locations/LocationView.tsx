@@ -5,6 +5,7 @@ import { fetchPallets } from '../../../services/palletService';
 import { fetchTransactions } from '../../../services/transactionService';
 import { toast } from '../../../services/toast';
 import { dict } from '../../../services/i18n';
+import { useOverdueThreshold } from '../../../hooks/useOverdueThreshold';
 
 // Components
 import { LocationHeader } from './LocationHeader';
@@ -18,6 +19,11 @@ export const LocationView: React.FC = () => {
     const [departments, setDepartments] = useState<Department[]>([]);
     const [pallets, setPallets] = useState<Pallet[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+    // Shared with the dashboard and the inventory filter. Was a localStorage read
+    // of a key nothing ever wrote, so this table's Overdue column was pinned to 7
+    // regardless of what the settings screen had been told.
+    const { days: overdueLimit } = useOverdueThreshold();
 
     // Filter & Pagination State
     const [searchTerm, setSearchTerm] = useState('');
@@ -51,10 +57,24 @@ export const LocationView: React.FC = () => {
     // Load Data
     const loadData = async () => {
         try {
+            // The only thing this screen takes from the transaction list is the
+            // most recent timestamp per department, so a window is enough and
+            // the unbounded fetch was never justified -- it also came back
+            // truncated at PostgREST's 1000-row ceiling, which for a
+            // newest-wins reduction is the worst possible truncation: it drops
+            // the newest rows first when the fetch is ascending.
+            //
+            // Twelve months is well inside the two-year retention cleanupOldData()
+            // enforces. A department with nothing at all in that window falls
+            // through to the pallet-derived date below, or shows no activity --
+            // which for a location idle for a year is the honest answer.
+            const since = new Date();
+            since.setMonth(since.getMonth() - 12);
+
             const [depts, allPallets, allTransactions] = await Promise.all([
                 fetchDepartments(),
                 fetchPallets(),
-                fetchTransactions()
+                fetchTransactions({ since: since.toISOString() })
             ]);
             setDepartments(depts);
             setPallets(allPallets);
@@ -72,7 +92,6 @@ export const LocationView: React.FC = () => {
     // Calculate Stats
     useEffect(() => {
         const stats: Record<string, LocationStats> = {};
-        const overdueLimit = parseInt(localStorage.getItem('nmt_setting_overdue_days') || '7');
 
         // Initialize all departments with 0
         departments.forEach(d => {
@@ -124,7 +143,10 @@ export const LocationView: React.FC = () => {
         });
 
         setDepartmentStats(stats);
-    }, [departments, pallets, transactions]);
+        // overdueLimit belongs here: it arrives from the database a moment after
+        // the first render, so leaving it out would freeze the Overdue column at
+        // the default this effect happened to see first.
+    }, [departments, pallets, transactions, overdueLimit]);
 
 
     // Reset page on filter change

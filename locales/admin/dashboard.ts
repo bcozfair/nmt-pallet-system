@@ -9,6 +9,8 @@
 // Shared wording (Save, Cancel, Search, Status, Location, ...) belongs in
 // `common` in locales/en.ts -- do not restate it here.
 
+import { analyticsEn, analyticsTh } from './dashboardAnalytics';
+
 export const dashboardEn = {
     // --- Header ---
     title: 'Dashboard Overview',
@@ -96,6 +98,15 @@ export const dashboardEn = {
     locationUsage: 'Location Usage',
     locationUsageSub: 'Current Stock per Location',
     noLocationData: 'No active location data available (outside Warehouse)',
+
+    // --- Analytics section (locales/admin/dashboardAnalytics.ts) ---
+    // Nested under its own key rather than spread in. A spread would silently
+    // resolve a collision -- `overdue` and `totalFleet` already exist above and
+    // also exist inside the analytics dictionary, meaning whichever came last
+    // would win and one of the two screens would quietly show the other's
+    // wording. Nesting makes such a clash impossible, and it keeps this file's
+    // one flat namespace readable. Read as `t.dashboard.analytics.dwell.title`.
+    analytics: analyticsEn,
 };
 
 export type DashboardDict = typeof dashboardEn;
@@ -173,4 +184,7 @@ export const dashboardTh: DashboardDict = {
     locationUsage: 'การใช้งานตามสถานที่',
     locationUsageSub: 'จำนวนพาเลทคงเหลือแต่ละสถานที่',
     noLocationData: 'ยังไม่มีข้อมูลพาเลทที่อยู่นอกคลังสินค้า',
+
+    // --- Analytics section ---
+    analytics: analyticsTh,
 };

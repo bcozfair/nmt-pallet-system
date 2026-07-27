@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Pallet, Department } from '../../types';
 import { fetchDepartments } from '../../services/departmentService';
 import { SortConfig } from '../../components/admin/inventory/InventoryTable';
+import { useOverdueThreshold } from '../useOverdueThreshold';
 
 export const useInventoryFilters = (
     pallets: Pallet[],
@@ -23,7 +24,14 @@ export const useInventoryFilters = (
 
     // Data & Config
     const [departments, setDepartments] = useState<Department[]>([]);
-    const [overdueThreshold, setOverdueThreshold] = useState(7);
+
+    // Was read from localStorage under a key nothing in the app ever wrote, and
+    // parsed with a bare parseInt on top of that: a corrupt value gave NaN, and
+    // `days > NaN` is false for every pallet, so "Overdue only" quietly matched
+    // nothing and read as an empty result rather than a broken filter. This is
+    // the configured value from system_settings, shared with the dashboard and
+    // the location table so the three cannot disagree.
+    const { days: overdueThreshold } = useOverdueThreshold();
 
     // --- Effects ---
     useEffect(() => {
@@ -32,8 +40,6 @@ export const useInventoryFilters = (
             setDepartments(depts);
         };
         load();
-        const setting = localStorage.getItem('nmt_setting_overdue_days');
-        if (setting) setOverdueThreshold(parseInt(setting));
 
         if (initialFilter === 'overdue') {
             setShowOverdueOnly(true);

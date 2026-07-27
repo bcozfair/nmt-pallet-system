@@ -2,14 +2,79 @@ import React, { useMemo } from 'react';
 import { Pallet } from '../../../types';
 import { CircleCheck, ClockAlert, Hammer } from 'lucide-react';
 import { useT } from '../../../hooks/useT';
+import type { LocationRow } from '../../../services/analytics/dashboardAnalytics';
 
-export const LocationRiskMatrix = ({ pallets, threshold, onLocationSelect }: { pallets: Pallet[], threshold: number, onLocationSelect: (loc: string) => void }) => {
+/**
+ * Locations ranked by how much trouble they are in. A LIST, not a chart -- the
+ * rows are drill-down targets, and the value of the thing is that you can click
+ * one and land on the filtered inventory.
+ *
+ * The risk maths below is unchanged, deliberately and to the character:
+ * `riskScore = overdue + damaged * 2`, sorted by ratio, and anything scoring
+ * zero dropped. Damage is weighted double because a damaged pallet is a pallet
+ * that has to be dealt with, whereas an overdue one may simply be in use; the
+ * SORT is on the ratio rather than the score so a small department with two
+ * problems out of three pallets outranks a large one with three out of ninety.
+ *
+ * TWO INPUTS, ONE CALCULATION. `rows` is the preferred path: pre-aggregated
+ * LocationRow[] out of services/analytics/dashboardAnalytics.ts, which already
+ * applies both of this component's exclusions ('Warehouse' is skipped at
+ * dashboardAnalytics.ts:709, scrapped pallets at :667) and derives `overdue`
+ * against an injected clock rather than an ambient `new Date()`. `pallets` is
+ * the original path, kept working for the callers that have not moved yet.
+ * Both converge on rankByRisk() below, so the ranking exists exactly once and
+ * the two callers cannot drift into disagreeing about which zone is worst.
+ */
+
+interface RiskInput {
+    name: string;
+    total: number;
+    overdue: number;
+    damaged: number;
+}
+
+/** 'Warehouse' means "not out anywhere"; it is not a location. */
+const WAREHOUSE = 'Warehouse';
+
+const rankByRisk = (input: RiskInput[]) =>
+    input
+        .map((stats) => {
+            const riskScore = stats.overdue + stats.damaged * 2;
+            const riskRatio = stats.total > 0 ? (stats.overdue + stats.damaged) / stats.total : 0;
+            return { ...stats, riskScore, riskRatio };
+        })
+        .sort((a, b) => b.riskRatio - a.riskRatio)
+        .filter((l) => l.riskScore > 0);
+
+export interface LocationRiskMatrixProps {
+    /** Raw pallets, aggregated here. Supply this OR `rows`. */
+    pallets?: Pallet[];
+    /** Pre-aggregated holdings from dashboardAnalytics. Supply this OR `pallets`. */
+    rows?: LocationRow[];
+    /** The configured overdue threshold, in days. Used by the `pallets` path. */
+    threshold: number;
+    onLocationSelect: (loc: string) => void;
+}
+
+export const LocationRiskMatrix: React.FC<LocationRiskMatrixProps> = ({
+    pallets,
+    rows,
+    threshold,
+    onLocationSelect,
+}) => {
     const t = useT();
-    const locationData = useMemo(() => {
-        const locs: Record<string, { total: number, overdue: number, damaged: number }> = {};
 
-        pallets.forEach(p => {
-            if (p.current_location === 'Warehouse') return;
+    const locationData = useMemo(() => {
+        if (rows) {
+            return rankByRisk(
+                rows.map((r) => ({ name: r.name, total: r.count, overdue: r.overdue, damaged: r.damaged })),
+            );
+        }
+
+        const locs: Record<string, { total: number; overdue: number; damaged: number }> = {};
+
+        (pallets ?? []).forEach((p) => {
+            if (p.current_location === WAREHOUSE) return;
             // Scrapped pallets are out of the fleet and are not "at" a location
             // in any operational sense. Counting them would pad `total` and so
             // quietly dilute every risk ratio computed from it below.
@@ -20,82 +85,127 @@ export const LocationRiskMatrix = ({ pallets, threshold, onLocationSelect }: { p
             if (p.status === 'damaged') locs[p.current_location].damaged++;
 
             if (p.status === 'in_use' && p.last_checkout_date) {
-                const days = (new Date().getTime() - new Date(p.last_checkout_date).getTime()) / (1000 * 3600 * 24);
+                const days =
+                    (new Date().getTime() - new Date(p.last_checkout_date).getTime()) / (1000 * 3600 * 24);
                 if (days > threshold) locs[p.current_location].overdue++;
             }
         });
 
-        return Object.entries(locs)
-            .map(([name, stats]) => {
-                const riskScore = stats.overdue + (stats.damaged * 2);
-                const riskRatio = stats.total > 0 ? (stats.overdue + stats.damaged) / stats.total : 0;
-                return { name, ...stats, riskScore, riskRatio };
-            })
-            .sort((a, b) => b.riskRatio - a.riskRatio)
-            .filter(l => l.riskScore > 0);
-    }, [pallets, threshold]);
+        return rankByRisk(Object.entries(locs).map(([name, stats]) => ({ name, ...stats })));
+    }, [pallets, rows, threshold]);
 
     return (
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex min-h-0 flex-1 flex-col">
             {locationData.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-gray-400 italic bg-gray-50 rounded-xl border border-dashed border-gray-200 py-8">
-                    <CircleCheck size={32} className="text-green-500 mb-2 opacity-50" />
-                    <span className="text-sm">{t.dashboard.allSystemsNormal}</span>
+                // The original empty state, kept: a dashed slate outline around a
+                // green check. Dashed rather than solid because a solid border
+                // reads as a container that failed to fill, a dashed one as a
+                // space reserved for something legitimately absent.
+                //
+                // Two things changed. `gray-*` became `slate-*` -- the repo runs
+                // two neutral ramps and they are visibly different temperatures
+                // side by side. And `text-gray-400 italic` became
+                // `text-slate-600`: slate-400 measures 2.56:1 on white, below the
+                // 4.5:1 floor for body text, and there is no italic face loaded
+                // for Noto Sans Thai, so `italic` had the browser synthesise a
+                // slant that smears the tone marks.
+                <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 py-8">
+                    <CircleCheck size={32} className="mb-2 text-green-500 opacity-50" aria-hidden="true" />
+                    <span className="text-sm font-medium text-slate-600">{t.dashboard.allSystemsNormal}</span>
                 </div>
             ) : (
-                <div className="space-y-2 overflow-y-auto pr-2 -mr-2 styled-scrollbar h-full pt-2">
-                    {locationData.map((loc, idx) => (
-                        <div
-                            key={loc.name}
-                            onClick={() => onLocationSelect(loc.name)}
-                            className="group p-3 rounded-lg border border-transparent hover:border-gray-200 hover:bg-blue-50/50 hover:shadow-sm transition-all duration-200 cursor-pointer relative overflow-hidden bg-gray-50/40"
-                        >
-                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                <ul className="styled-scrollbar -mr-2 h-full space-y-2 overflow-y-auto pr-2 pt-2">
+                    {locationData.map((loc) => (
+                        <li key={loc.name}>
+                            {/* A real <button>, not a div with an onClick. The row
+                                navigates, so it has to be reachable by keyboard,
+                                announce itself as a control, and take the app's
+                                focus ring. `text-left` because a button centres
+                                its content by default. */}
+                            <button
+                                type="button"
+                                onClick={() => onLocationSelect(loc.name)}
+                                className="group relative w-full overflow-hidden rounded-lg border border-transparent bg-slate-50/40 p-3 text-left transition-all duration-200 hover:border-slate-200 hover:bg-brand-50/60 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                            >
+                                <span
+                                    className="absolute top-0 bottom-0 left-0 w-1 bg-brand-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                                    aria-hidden="true"
+                                />
 
-                            <div className="flex items-center justify-between gap-3 relative z-10">
-                                {/* Left: Name, Total, Bar */}
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-sm font-bold text-gray-800 truncate group-hover:text-blue-700 transition-colors">
-                                            {loc.name}
+                                <span className="relative z-10 flex items-center justify-between gap-3">
+                                    {/* Left: name, holdings, and the issue bar */}
+                                    <span className="min-w-0 flex-1">
+                                        <span className="flex items-baseline gap-2">
+                                            <span className="truncate text-sm font-bold text-slate-800 transition-colors group-hover:text-brand-700">
+                                                {loc.name}
+                                            </span>
+                                            <span className="text-[10px] whitespace-nowrap text-slate-500">
+                                                ({t.dashboard.unitsCount(loc.total)})
+                                            </span>
                                         </span>
-                                        <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                                            ({t.dashboard.unitsCount(loc.total)})
+
+                                        {/* Compact bar. Orange and red stay: they
+                                            are status semantics, not neutrals. */}
+                                        <span className="mt-1.5 flex h-1 w-full overflow-hidden rounded-full bg-slate-200 opacity-60 transition-opacity group-hover:opacity-100">
+                                            <span
+                                                className="h-full bg-orange-400"
+                                                style={{ width: `${(loc.overdue / loc.total) * 100}%` }}
+                                            />
+                                            <span
+                                                className="h-full bg-red-500"
+                                                style={{ width: `${(loc.damaged / loc.total) * 100}%` }}
+                                            />
                                         </span>
-                                    </div>
+                                    </span>
 
-                                    {/* Compact Bar */}
-                                    <div className="w-full h-1 bg-gray-200 rounded-full mt-1.5 overflow-hidden flex opacity-60 group-hover:opacity-100 transition-opacity">
-                                        <div className="bg-orange-400 h-full" style={{ width: `${(loc.overdue / loc.total) * 100}%` }}></div>
-                                        <div className="bg-red-500 h-full" style={{ width: `${(loc.damaged / loc.total) * 100}%` }}></div>
-                                    </div>
-                                </div>
-
-                                {/* Right: Stats Row */}
-                                <div className="flex items-center gap-3">
-                                    {/* Overdue Stat */}
-                                    <div className={`flex items-center gap-1 ${loc.overdue > 0 ? 'opacity-100' : 'opacity-30'}`} title={t.dashboard.overdue}>
-                                        <ClockAlert size={14} className="text-orange-500" />
-                                        <span className={`text-xs font-bold ${loc.overdue > 0 ? 'text-gray-700' : 'text-gray-400'}`}>{loc.overdue}</span>
-                                    </div>
-
-                                    {/* Damaged Stat */}
-                                    <div className={`flex items-center gap-1 ${loc.damaged > 0 ? 'opacity-100' : 'opacity-30'}`} title={t.status.damaged}>
-                                        <Hammer size={14} className="text-red-500" />
-                                        <span className={`text-xs font-bold ${loc.damaged > 0 ? 'text-gray-700' : 'text-gray-400'}`}>{loc.damaged}</span>
-                                    </div>
-
-                                    {/* Total Badge */}
-                                    <div className="pl-2 border-l border-gray-200">
-                                        <span className={`font-bold text-xs px-2 py-1 rounded-md ${loc.overdue + loc.damaged > 0 ? 'text-red-700 bg-red-100' : 'text-gray-500 bg-gray-100'}`}>
-                                            {loc.overdue + loc.damaged} <span className="text-[9px] opacity-70 ml-0.5">{t.dashboard.issues}</span>
+                                    {/* Right: the two counts and their total */}
+                                    <span className="flex items-center gap-3">
+                                        <span
+                                            className={`flex items-center gap-1 ${loc.overdue > 0 ? 'opacity-100' : 'opacity-40'}`}
+                                            title={t.dashboard.overdue}
+                                        >
+                                            <ClockAlert size={14} className="text-orange-500" aria-hidden="true" />
+                                            <span
+                                                className={`text-xs font-bold tabular-nums ${loc.overdue > 0 ? 'text-slate-700' : 'text-slate-500'}`}
+                                            >
+                                                {loc.overdue}
+                                            </span>
                                         </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+
+                                        <span
+                                            className={`flex items-center gap-1 ${loc.damaged > 0 ? 'opacity-100' : 'opacity-40'}`}
+                                            title={t.status.damaged}
+                                        >
+                                            <Hammer size={14} className="text-red-500" aria-hidden="true" />
+                                            <span
+                                                className={`text-xs font-bold tabular-nums ${loc.damaged > 0 ? 'text-slate-700' : 'text-slate-500'}`}
+                                            >
+                                                {loc.damaged}
+                                            </span>
+                                        </span>
+
+                                        <span className="border-l border-slate-200 pl-2">
+                                            {/* No `uppercase` and no positive
+                                                tracking on this chip: both are
+                                                silent one-language regressions --
+                                                uppercase is a no-op on Thai, and
+                                                letter-spacing lifts Thai tone
+                                                marks off their base consonant. */}
+                                            <span
+                                                className={`rounded-md px-2 py-1 text-xs font-bold whitespace-nowrap ${loc.overdue + loc.damaged > 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}
+                                            >
+                                                {loc.overdue + loc.damaged}{' '}
+                                                <span className="ml-0.5 text-[9px] opacity-80">
+                                                    {t.dashboard.issues}
+                                                </span>
+                                            </span>
+                                        </span>
+                                    </span>
+                                </span>
+                            </button>
+                        </li>
                     ))}
-                </div>
+                </ul>
             )}
         </div>
     );

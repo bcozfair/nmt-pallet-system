@@ -8,6 +8,7 @@ import { CoreSettings } from './CoreSettings';
 
 import { toast } from '../../../services/toast';
 import { fetchAllSystemSettings, updateSystemSetting, SystemSettings } from '../../../services/settingsService';
+import { invalidateSettings } from '../../../services/settingsCache';
 import { useT } from '../../../hooks/useT';
 import { dict } from '../../../services/i18n';
 import { describeAppError } from '../../../services/appError';
@@ -93,6 +94,16 @@ const SettingsView: React.FC = () => {
             await updateSystemSetting('report_scheduled_days', JSON.stringify(settings.report_scheduled_days));
             await updateSystemSetting('report_time_morning', settings.report_time_morning);
             await updateSystemSetting('report_time_evening', settings.report_time_evening);
+
+            // overdue_days is cached in a module singleton so that non-component
+            // callers can read it too, which means the save above is invisible
+            // until something tells that cache to forget. Without this line the
+            // dashboard, the location table and the inventory filter keep using
+            // the pre-save threshold for the rest of the session while the LINE
+            // report -- which reads the database directly -- already uses the new
+            // one. Inside the try, after the writes succeeded: invalidating on a
+            // failed save would only throw away a value that is still correct.
+            invalidateSettings();
 
             toast.success(t.settings.saved);
         } catch (error: any) {
