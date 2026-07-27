@@ -1,7 +1,7 @@
 import React from 'react';
 import { Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { CARD_SHELL } from './Card';
+import { CARD_SHELL, CARD_SHELL_SHAPE, CARD_SURFACE } from './Card';
 
 export type StatTone = 'brand' | 'accent' | 'critical' | 'warning' | 'neutral';
 
@@ -19,12 +19,20 @@ export interface StatTileProps {
      *  already spell the percentage out, so the bar carries no ARIA. */
     meterPct?: number;
     onClick?: () => void;
-    /** Only meaningful alongside `onClick` -- a tile that does not act as a
-     *  toggle has nothing to be selected. Adds the focus-style ring and
-     *  `aria-pressed` so a click-to-filter tile shows which filter is active
-     *  without a second element saying so. The dashboard's KpiRow does not
-     *  pass this: its tiles navigate away rather than toggle a filter, so
-     *  none of them is ever the "current" one. */
+    /** Only meaningful alongside `onClick`. Paints the selected surface and
+     *  sets `aria-pressed`, so a click-to-filter tile shows which filter is
+     *  active without a second element saying so.
+     *
+     *  OMITTING IT IS WHAT MARKS A TILE AS "NOT A TOGGLE", and that is the
+     *  whole contract -- do not give this a default. With `selected = false`
+     *  the prop was never `undefined`, so `aria-pressed="false"` was stamped on
+     *  every clickable tile, including the dashboard's Overdue and Damaged
+     *  tiles (KpiRow.tsx), which navigate to another screen and never toggle
+     *  anything. A screen reader announced them as "toggle button, not
+     *  pressed" and the state never changed however often they were pressed --
+     *  the control lying about its own role (WCAG 4.1.2). Left `undefined`,
+     *  React omits the attribute entirely, and the falsy check below still
+     *  reads `undefined` as "not selected" for the styling. */
     selected?: boolean;
     loading?: boolean;
 }
@@ -46,7 +54,29 @@ export interface StatTileProps {
 // removed a 36px line plus its 12px top margin from every tile. The floor and
 // the padding came down with it -- a 120px floor under a ~96px tile is not a
 // floor, it is 24px of white nobody asked for.
-export const STAT_TILE_BOX = `${CARD_SHELL} flex min-h-[5.5rem] w-full flex-col p-4 text-left`;
+const STAT_TILE_LAYOUT = 'flex min-h-[5.5rem] w-full flex-col p-4 text-left';
+
+export const STAT_TILE_BOX = `${CARD_SHELL} ${STAT_TILE_LAYOUT}`;
+
+// The two surfaces a clickable tile can wear. Full sets of the same three
+// properties (border colour, fill, hover border colour), picked between by ONE
+// ternary -- not a base string with an override appended after it. An appended
+// `border-brand-500` does not beat the `border-slate-200/80` already in the
+// base: both are single-class selectors, so the winner is whichever Tailwind
+// happens to emit later in the built stylesheet, not whichever the caller wrote
+// last. Button.tsx:53-59 records the same trap on the same property.
+//
+// Selected is a border and a tint, not a ring, and that is the fix for a real
+// collision rather than a taste call. `ring-2 ring-brand-500 ring-offset-2`
+// painted brand at 2-4px out from the edge; the focus indicator
+// (`focus-visible:outline-2 outline-offset-2 outline-brand-500`) paints brand at
+// exactly 2-4px too. Same band, same colour -- so tabbing onto the tile that was
+// already selected changed nothing on screen and a keyboard user could not tell
+// where focus had landed. A tile is a large card, so it can carry its selected
+// state on its own surface and leave the ring to focus alone: the two are then
+// independently visible, and selected+focused differs from selected.
+const TILE_SURFACE_SELECTED = 'border-brand-500 bg-brand-50 hover:border-brand-600';
+const TILE_SURFACE_IDLE = `${CARD_SURFACE} hover:border-brand-200`;
 
 // Tints the chip behind the icon and nothing else. The value itself is always
 // slate-900: a number that changes colour with its own tone is unreadable to
@@ -95,7 +125,7 @@ export const StatTile: React.FC<StatTileProps> = ({
     size = 'md',
     meterPct,
     onClick,
-    selected = false,
+    selected,
     loading = false,
 }) => {
     if (loading) {
@@ -237,10 +267,13 @@ export const StatTile: React.FC<StatTileProps> = ({
             <button
                 type="button"
                 onClick={onClick}
+                // Passed straight through, undefined and all: React omits the
+                // attribute for `undefined`, which is how a tile that only
+                // navigates avoids claiming to be a toggle. See the prop's doc.
                 aria-pressed={selected}
-                className={`${STAT_TILE_BOX} group block transition duration-200 hover:border-brand-200 hover:shadow-[0_28px_70px_-34px_rgba(15,42,82,0.55)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 active:scale-[0.99] ${
-                    selected ? 'ring-2 ring-brand-500 ring-offset-2' : ''
-                }`}
+                className={`${CARD_SHELL_SHAPE} ${STAT_TILE_LAYOUT} ${
+                    selected ? TILE_SURFACE_SELECTED : TILE_SURFACE_IDLE
+                } group block transition duration-200 hover:shadow-[0_28px_70px_-34px_rgba(15,42,82,0.55)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 active:scale-[0.99]`}
             >
                 {body}
             </button>

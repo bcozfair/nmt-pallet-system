@@ -107,10 +107,31 @@ export const InventoryView = ({
         // scrollbar it produces belongs to an inner box instead of the page,
         // so the wheel stops dead at that box's edge instead of continuing
         // down the document; and a box clamped to 100vh has nothing below the
-        // fold to hand to the printer. `pb-24` reserves floor space for the
-        // selection bar, which floats fixed over the bottom of the viewport
-        // and would otherwise sit on top of the last table rows.
-        <div className={`flex flex-col gap-6 ${selectedIds.size > 0 ? 'pb-24' : ''}`}>
+        // fold to hand to the printer.
+        //
+        // The bottom padding reserves floor space for the selection bar, which
+        // floats fixed over the bottom of the viewport and would otherwise sit
+        // on top of the last table rows. It reads the bar's MEASURED height
+        // from the `--selection-bar-h` custom property the bar publishes on
+        // <html> rather than naming a number: the flat `pb-24` (96px) that used
+        // to be here was sized for the bar alone, and the moment the user
+        // opened "Show IDs" from the bar's menu the panel above it took the
+        // floating stack past 200px and covered the pagination control -- with
+        // no way for this file to know, because `showIds` is local state inside
+        // InventorySelectionBar. `+ 1.5rem` is this page's own gap between the
+        // last card and the bar, matching the `gap-6` above.
+        //
+        // Inline style, not a Tailwind arbitrary value: the number is produced
+        // at runtime, and Tailwind only ever compiles classes it can read as
+        // literal text in the source.
+        <div
+            className="flex flex-col gap-6"
+            style={
+                selectedIds.size > 0
+                    ? { paddingBottom: 'calc(var(--selection-bar-h, 0px) + 1.5rem)' }
+                    : undefined
+            }
+        >
             <InventoryHeader
                 onPrintQrAll={onPrintQrAll}
                 onExport={() => handleExportFiltered(processedPallets)}

@@ -133,8 +133,18 @@ export const useInventoryActions = (
         remark: string,
         timestamp: string
     ) => {
+        // Nothing selected means there is nothing to write. The route that used
+        // to produce this -- Escape over the open bulk modal clearing the
+        // selection behind it while the confirm button stayed enabled -- is
+        // closed at the source now (SelectionBar no longer claims Escape while
+        // a dialog is open), but a handler that issues writes should not take
+        // its caller's word for the list being non-empty. Without this it fired
+        // an empty batch and then reported "successfully processed 0 items",
+        // which reads as a completed job.
+        const ids = Array.from(selectedIds) as string[];
+        if (ids.length === 0) return;
+
         try {
-            const ids = Array.from(selectedIds) as string[];
             const result = await createBulkTransaction(
                 ids,
                 action,

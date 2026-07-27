@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, CheckCircle, X, Save, FileText, PackagePlus } from 'lucide-react';
 import { createPallet } from '../../../services/palletService';
@@ -17,6 +17,11 @@ interface AddPalletModalProps {
 
 export const AddPalletModal: React.FC<AddPalletModalProps> = ({ isOpen, onClose, onSuccess, departments }) => {
     const t = useT();
+    // Names the dialog for a screen reader, which announces the labelled
+    // element on entry instead of an anonymous group. It is also what makes
+    // this modal findable by SelectionBar's Escape guard -- see the panel
+    // element below and the note there.
+    const titleId = useId();
     const [newId, setNewId] = useState('');
     const [newLocation, setNewLocation] = useState('Warehouse');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,9 +48,23 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({ isOpen, onClose,
 
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 overflow-hidden">
+            {/* role/aria-modal go on the PANEL, not the overlay: the overlay is
+                the dimmed backdrop and includes everything behind the card, so
+                naming it the dialog would tell a screen reader the dialog is
+                the whole screen. Beyond being correct on its own, this is what
+                SelectionBar's Escape guard looks for -- an open modal has to be
+                findable in the document for the floating selection bar to know
+                it is no longer the innermost dismissible thing and to stop
+                claiming Escape. Without it, Escape over this modal wiped the
+                row selection sitting behind it. */}
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 overflow-hidden"
+            >
                 <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                    <h3 id={titleId} className="font-bold text-gray-800 text-lg flex items-center gap-2">
                         <PackagePlus className="text-blue-600" size={20} />{t.inventory.addPalletTitle}
                     </h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
@@ -113,6 +132,8 @@ interface ConfirmModalProps {
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({ action, onClose }) => {
     const t = useT();
+    // Before the early return: hooks cannot sit behind a conditional.
+    const titleId = useId();
     const [isConfirming, setIsConfirming] = useState(false);
 
     if (!action) return null;
@@ -136,12 +157,18 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ action, onClose }) =
 
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 overflow-hidden transform">
+            {/* On the panel, not the overlay -- see AddPalletModal above. */}
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 overflow-hidden transform"
+            >
                 <div className="p-6">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${action.isDestructive ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
                         {action.isDestructive ? <AlertTriangle size={24} /> : <CheckCircle size={24} />}
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">{action.title}</h3>
+                    <h3 id={titleId} className="text-lg font-bold text-gray-900 mb-2">{action.title}</h3>
                     <p className="text-sm text-gray-500 leading-relaxed">
                         {action.message}
                     </p>
@@ -177,6 +204,7 @@ interface EditPalletModalProps {
 
 export const EditPalletModal: React.FC<EditPalletModalProps> = ({ isOpen, pallet, onClose, onSave }) => {
     const t = useT();
+    const titleId = useId();
     const [id, setId] = useState(pallet.id);
     const [remark, setRemark] = useState(pallet.remark);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -207,9 +235,15 @@ export const EditPalletModal: React.FC<EditPalletModalProps> = ({ isOpen, pallet
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* On the panel, not the overlay -- see AddPalletModal above. */}
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+            >
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                    <h3 className="font-bold text-gray-800 text-lg">{t.inventory.editTitle}</h3>
+                    <h3 id={titleId} className="font-bold text-gray-800 text-lg">{t.inventory.editTitle}</h3>
                     <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition text-gray-500 hover:text-gray-700">
                         <X size={20} />
                     </button>

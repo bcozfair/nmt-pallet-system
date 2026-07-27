@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { X, CheckCircle, ArrowRightLeft } from 'lucide-react';
 import { Department } from '../../../types';
 import { useT } from '../../../hooks/useT';
@@ -26,6 +26,7 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
     departments
 }) => {
     const t = useT();
+    const titleId = useId();
     const [action, setAction] = useState<'check_out' | 'check_in'>('check_out');
     const [destination, setDestination] = useState('');
     const [remark, setRemark] = useState('');
@@ -71,10 +72,22 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* role/aria-modal belong on the panel, not on the dimmed overlay:
+                the overlay covers the whole screen, so naming it the dialog
+                would announce every element behind it as part of the dialog.
+                It is also what SelectionBar's Escape guard looks for -- with no
+                dialog findable in the document, Escape pressed over this modal
+                cleared the row selection behind it, leaving this modal showing
+                "0 selected" with its confirm button still enabled. */}
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[90vh]"
+            >
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
                     <div>
-                        <h3 className="text-xl font-black text-gray-800 flex items-center gap-2">
+                        <h3 id={titleId} className="text-xl font-black text-gray-800 flex items-center gap-2">
                             <ArrowRightLeft className="text-blue-600" size={24} />
                             {t.inventory.bulkTitle}
                         </h3>

@@ -18,8 +18,21 @@ export interface CardProps {
 // without also needing the hairline or the element-type switch. Sharing the
 // string is what guarantees a skeleton occupies the same pixels as the thing it
 // stands in for -- if this ever changes, every consumer changes with it.
-export const CARD_SHELL =
-    'rounded-3xl border border-slate-200/80 bg-white shadow-[0_24px_60px_-32px_rgba(15,42,82,0.45)]';
+//
+// Split into geometry and paint, then recombined, so the one consumer whose
+// surface changes with state (StatTile's selected tile) can take the geometry
+// without also taking the idle colours. Appending `border-brand-500` to a
+// string that already contains `border-slate-200/80` puts two border-colour
+// classes on one element, and the winner is decided by the order of the built
+// stylesheet, not the order of the string -- see the note at Button.tsx:53-59
+// for the case that established this. Composing here keeps one source of truth
+// for the box while letting that caller swap the paint from a single ternary.
+export const CARD_SHELL_SHAPE = 'rounded-3xl border shadow-[0_24px_60px_-32px_rgba(15,42,82,0.45)]';
+
+/** The idle paint: border colour and fill. Swap it wholesale, never append to it. */
+export const CARD_SURFACE = 'border-slate-200/80 bg-white';
+
+export const CARD_SHELL = `${CARD_SHELL_SHAPE} ${CARD_SURFACE}`;
 
 export const Card: React.FC<CardProps> = ({
     children,

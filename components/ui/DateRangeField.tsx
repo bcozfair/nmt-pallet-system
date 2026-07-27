@@ -14,6 +14,17 @@ export interface DateRangeFieldProps {
     clearLabel: string;
     /** ไม่ระบุแล้วปล่อยให้ `useId()` สร้างให้ -- กันสอง instance บนหน้าเดียวกันชน id กัน */
     idPrefix?: string;
+    // ชื่อฟิลด์ของ input วันที่ทั้งสองช่อง ตรงกับที่ SearchInput และ SelectField รับ
+    // `name` เหมือนกัน ของเดิมใน InventoryFilters เคยใส่ name="startDate" /
+    // name="endDate" ไว้ แล้วหล่นหายตอนย้ายมาเป็น primitive -- วันนี้ยังไม่มีผลกับ
+    // ผู้ใช้เพราะไม่มีการ submit form แต่เป็นความไม่สม่ำเสมอของ API ในชุดเดียวกัน
+    // และอีกสี่หน้ากำลังจะมาใช้ primitive ตัวนี้
+    //
+    // ลงที่ input type="date" ตัวจริงเท่านั้น ไม่ลงที่ input type="text" ที่วางทับอยู่
+    // ข้างบน -- ตัวนั้นเป็นของตกแต่ง (aria-hidden, tabIndex -1) การให้ name ไปด้วย
+    // จะทำให้ค่าที่ซ้ำกันสองชุดถูกส่งไปในฟอร์มเดียว
+    startName?: string;
+    endName?: string;
     // ตัวห่อ control เป็น relative w-full ... sm:w-auto ${className} เสมอ -- className
     // ที่ส่งเข้ามาแบบไม่มี prefix (เช่น 'w-64') ไม่รับประกันว่าจะชนะ w-full/sm:w-auto ที่
     // อยู่ก่อนหน้าในสตริง เพราะลำดับคลาสตัดสินที่ CSS ที่ build ออกมา ไม่ใช่ลำดับในสตริง
@@ -36,10 +47,11 @@ export interface DateRangeFieldProps {
 // ที่อยู่ข้างในแทนที่จะพึ่งวงที่วาดบน input ที่มองไม่เห็นอยู่แล้ว
 const DateCell: React.FC<{
     id?: string;
+    name?: string;
     label: string;
     value: string;
     onChange: (next: string) => void;
-}> = ({ id, label, value, onChange }) => (
+}> = ({ id, name, label, value, onChange }) => (
     <div className="group/date relative w-28 rounded-md has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-500">
         <input
             type="text"
@@ -57,6 +69,7 @@ const DateCell: React.FC<{
         />
         <input
             id={id}
+            name={name}
             type="date"
             aria-label={label}
             value={value}
@@ -73,6 +86,8 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
     endLabel,
     clearLabel,
     idPrefix,
+    startName,
+    endName,
     className = '',
 }) => {
     // ค่า default เดิมเป็นค่าคงที่ 'date-range' ธรรมดา ทำให้สอง instance บนหน้าเดียวกัน
@@ -93,6 +108,7 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
             <div className="flex items-center gap-1">
                 <DateCell
                     id={`${prefix}-start`}
+                    name={startName}
                     label={startLabel}
                     value={value.start}
                     onChange={(start) => onChange({ ...value, start })}
@@ -102,6 +118,7 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
                 </span>
                 <DateCell
                     id={`${prefix}-end`}
+                    name={endName}
                     label={endLabel}
                     value={value.end}
                     onChange={(end) => onChange({ ...value, end })}

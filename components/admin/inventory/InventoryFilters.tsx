@@ -96,6 +96,12 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                     See InventoryStatusStrip.tsx. */}
                 <DateRangeField
                     idPrefix="filter-date"
+                    // The two names the pre-primitive InventoryFilters set on
+                    // these inputs, restored: nothing submits this bar today,
+                    // but the field names are part of what the move was meant
+                    // to carry over intact.
+                    startName="startDate"
+                    endName="endDate"
                     value={dateRange}
                     onChange={setDateRange}
                     startLabel={t.inventory.startDate}
