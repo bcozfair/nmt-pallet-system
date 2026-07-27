@@ -19,6 +19,13 @@ export interface StatTileProps {
      *  already spell the percentage out, so the bar carries no ARIA. */
     meterPct?: number;
     onClick?: () => void;
+    /** Only meaningful alongside `onClick` -- a tile that does not act as a
+     *  toggle has nothing to be selected. Adds the focus-style ring and
+     *  `aria-pressed` so a click-to-filter tile shows which filter is active
+     *  without a second element saying so. The dashboard's KpiRow does not
+     *  pass this: its tiles navigate away rather than toggle a filter, so
+     *  none of them is ever the "current" one. */
+    selected?: boolean;
     loading?: boolean;
 }
 
@@ -88,6 +95,7 @@ export const StatTile: React.FC<StatTileProps> = ({
     size = 'md',
     meterPct,
     onClick,
+    selected = false,
     loading = false,
 }) => {
     if (loading) {
@@ -229,7 +237,10 @@ export const StatTile: React.FC<StatTileProps> = ({
             <button
                 type="button"
                 onClick={onClick}
-                className={`${STAT_TILE_BOX} group block transition duration-200 hover:border-brand-200 hover:shadow-[0_28px_70px_-34px_rgba(15,42,82,0.55)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 active:scale-[0.99]`}
+                aria-pressed={selected}
+                className={`${STAT_TILE_BOX} group block transition duration-200 hover:border-brand-200 hover:shadow-[0_28px_70px_-34px_rgba(15,42,82,0.55)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 active:scale-[0.99] ${
+                    selected ? 'ring-2 ring-brand-500 ring-offset-2' : ''
+                }`}
             >
                 {body}
             </button>

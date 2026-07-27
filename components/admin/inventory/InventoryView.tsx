@@ -5,6 +5,7 @@ import { Pallet } from '../../../types';
 // Sub-components
 import { InventoryFilters } from './InventoryFilters';
 import { InventoryHeader } from './InventoryHeader';
+import { InventoryStatusStrip } from './InventoryStatusStrip';
 import { InventoryTable } from './InventoryTable';
 import { AddPalletModal, ConfirmModal, EditPalletModal } from './InventoryModals';
 import { BulkTransactionModal } from './BulkTransactionModal';
@@ -21,7 +22,8 @@ export const InventoryView = ({
     onPrintQr,
     initialFilter = 'all',
     initialLocation = 'all',
-    onLocationChange
+    onLocationChange,
+    isLoading
 }: {
     pallets: Pallet[],
     onRefresh: () => void,
@@ -29,7 +31,13 @@ export const InventoryView = ({
     onPrintQr: (pallets: Pallet[]) => void,
     initialFilter?: string,
     initialLocation?: string,
-    onLocationChange?: (location: string) => void
+    onLocationChange?: (location: string) => void,
+    // Before this prop existed, the strip and the table had nothing to tell
+    // them a fetch was still in flight, so a fresh page load rendered zero
+    // counts and "No pallets found" for a moment before the real data landed
+    // -- indistinguishable from an empty warehouse. See AdminDashboard.tsx's
+    // `case 'inventory':` for what it is wired to.
+    isLoading: boolean
 }) => {
 
     // 1. Filtering & Data Logic
@@ -45,6 +53,7 @@ export const InventoryView = ({
         currentPage, setCurrentPage,
         itemsPerPage, totalPages,
         processedPallets, paginatedPallets,
+        statusCounts,
         handleClearFilters
     } = useInventoryFilters(pallets, initialFilter, initialLocation);
 
@@ -87,66 +96,81 @@ export const InventoryView = ({
     });
 
     return (
-        <div className="h-[calc(100vh-110px)] flex flex-col gap-6 overflow-hidden">
-            <div className="shrink-0">
-                <InventoryHeader
-                    selectedCount={selectedIds.size}
-                    selectedIds={Array.from(selectedIds)}
-                    onClearSelection={() => setSelectedIds(new Set())}
-                    onBulkRepair={() => handleBulkRepair(selectedIds)}
-                    onBulkScrap={() => handleBulkScrap(selectedIds)}
-                    onBulkDelete={() => handleBulkDelete(selectedIds)}
-                    onPrintQrSelected={onPrintQrSelected}
-                    onPrintQrAll={onPrintQrAll}
-                    onExport={() => handleExportFiltered(processedPallets)}
-                    onAddPallet={() => setIsAddModalOpen(true)}
-                    onBulkTransaction={() => setIsBulkTransModalOpen(true)}
-                    showRepairButton={selectedIds.size > 0 && selectedIdList.every(id => statusOf(id) === 'damaged')}
-                    showTransactionButton={!hasUnusableInSelection}
-                />
-            </div>
+        // No height and no overflow here, on purpose. This used to be a box
+        // clamped to h-[calc(100vh-110px)] wrapping an inner overflow-y-auto
+        // scroller wrapping the table -- the same nested-scroll-container
+        // pattern AdminDashboard.tsx (around its shell div, see the comment
+        // there) and index.css's print section both record as abandoned
+        // everywhere else in this app, for the same two reasons: the
+        // scrollbar it produces belongs to an inner box instead of the page,
+        // so the wheel stops dead at that box's edge instead of continuing
+        // down the document; and a box clamped to 100vh has nothing below the
+        // fold to hand to the printer. `pb-24` reserves floor space for the
+        // selection bar, which floats fixed over the bottom of the viewport
+        // and would otherwise sit on top of the last table rows.
+        <div className={`flex flex-col gap-6 ${selectedIds.size > 0 ? 'pb-24' : ''}`}>
+            <InventoryHeader
+                selectedCount={selectedIds.size}
+                selectedIds={Array.from(selectedIds)}
+                onClearSelection={() => setSelectedIds(new Set())}
+                onBulkRepair={() => handleBulkRepair(selectedIds)}
+                onBulkScrap={() => handleBulkScrap(selectedIds)}
+                onBulkDelete={() => handleBulkDelete(selectedIds)}
+                onPrintQrSelected={onPrintQrSelected}
+                onPrintQrAll={onPrintQrAll}
+                onExport={() => handleExportFiltered(processedPallets)}
+                onAddPallet={() => setIsAddModalOpen(true)}
+                onBulkTransaction={() => setIsBulkTransModalOpen(true)}
+                showRepairButton={selectedIds.size > 0 && selectedIdList.every(id => statusOf(id) === 'damaged')}
+                showTransactionButton={!hasUnusableInSelection}
+            />
 
-            <div className="flex-1 min-h-0 overflow-y-auto pr-2 flex flex-col gap-6 styled-scrollbar">
-                <InventoryFilters
-                    searchTerm={searchTerm}
-                    setSearchTerm={setSearchTerm}
-                    locationFilter={locationFilter}
-                    setLocationFilter={(loc) => {
-                        setLocationFilter(loc);
-                        if (onLocationChange) onLocationChange(loc);
-                    }}
-                    onLocationChange={onLocationChange}
-                    statusFilter={statusFilter}
-                    setStatusFilter={setStatusFilter}
-                    dateRange={dateRange}
-                    setDateRange={setDateRange}
-                    showOverdueOnly={showOverdueOnly}
-                    setShowOverdueOnly={setShowOverdueOnly}
-                    departments={departments}
-                />
+            <InventoryStatusStrip
+                counts={statusCounts}
+                statusFilter={statusFilter}
+                onSelect={setStatusFilter}
+                isLoading={isLoading}
+            />
 
-                <InventoryTable
-                    paginatedPallets={paginatedPallets}
-                    totalProcessedCount={processedPallets.length}
-                    selectedIds={selectedIds}
-                    onSelectAll={handleSelectAll}
-                    onSelectRow={handleSelectRow}
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    onSelectPallet={onSelectPallet}
-                    onRepairRow={handleRepairRow}
-                    onScrapRow={handleScrapRow}
-                    onPrintQr={onPrintQr}
-                    onDeleteClick={handleDeleteClick}
-                    onEditRow={(p) => setEditPallet({ id: p.pallet_id, remark: p.pallet_remark || '' })}
-                    overdueThreshold={overdueThreshold}
-                    currentPage={currentPage}
-                    itemsPerPage={itemsPerPage}
-                    totalPages={totalPages}
-                    setCurrentPage={setCurrentPage}
-                    onClearFilters={handleClearFilters}
-                />
-            </div>
+            <InventoryFilters
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                locationFilter={locationFilter}
+                setLocationFilter={(loc) => {
+                    setLocationFilter(loc);
+                    if (onLocationChange) onLocationChange(loc);
+                }}
+                onLocationChange={onLocationChange}
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+                dateRange={dateRange}
+                setDateRange={setDateRange}
+                showOverdueOnly={showOverdueOnly}
+                setShowOverdueOnly={setShowOverdueOnly}
+                departments={departments}
+            />
+
+            <InventoryTable
+                paginatedPallets={paginatedPallets}
+                totalProcessedCount={processedPallets.length}
+                selectedIds={selectedIds}
+                onSelectAll={handleSelectAll}
+                onSelectRow={handleSelectRow}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onSelectPallet={onSelectPallet}
+                onRepairRow={handleRepairRow}
+                onScrapRow={handleScrapRow}
+                onPrintQr={onPrintQr}
+                onDeleteClick={handleDeleteClick}
+                onEditRow={(p) => setEditPallet({ id: p.pallet_id, remark: p.pallet_remark || '' })}
+                overdueThreshold={overdueThreshold}
+                currentPage={currentPage}
+                itemsPerPage={itemsPerPage}
+                totalPages={totalPages}
+                setCurrentPage={setCurrentPage}
+                onClearFilters={handleClearFilters}
+            />
 
             <BulkTransactionModal
                 isOpen={isBulkTransModalOpen}

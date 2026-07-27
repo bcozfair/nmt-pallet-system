@@ -130,6 +130,12 @@ export const inventoryEn = {
     // locales/en.ts, which the transactions export shares. Only this one has no
     // counterpart there.
     exportFailed: 'Export failed. Please try again.',
+
+    // --- Status strip (InventoryStatusStrip.tsx) ---
+    // Scrapped's footnote line under the four status tiles -- see the comment
+    // in that file for why it is a line and not a fifth tile.
+    scrappedNote: (count: number) => `${count} pallets scrapped`,
+    viewScrapped: 'View list',
 };
 
 export type InventoryDict = typeof inventoryEn;
@@ -248,4 +254,8 @@ export const inventoryTh: InventoryDict = {
     updateFailed: 'บันทึกข้อมูลพาเลทไม่สำเร็จ',
 
     exportFailed: 'ส่งออกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+
+    // --- Status strip (InventoryStatusStrip.tsx) ---
+    scrappedNote: (count: number) => `ตัดออกจากระบบแล้ว ${count} รายการ`,
+    viewScrapped: 'ดูรายการ',
 };

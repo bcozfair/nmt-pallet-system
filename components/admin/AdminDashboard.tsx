@@ -184,6 +184,10 @@ const AdminDashboard = () => {
                     initialFilter={inventoryFilter}
                     initialLocation={inventoryLocation}
                     onLocationChange={(loc) => setInventoryLocation(loc)}
+                    // Previously unwired, so the status strip and table had no
+                    // way to know a fetch was in flight and read "No pallets
+                    // found" for a moment on every first load.
+                    isLoading={palletsLoading}
                 />;
             case 'transactions':
                 return <TransactionView />;
