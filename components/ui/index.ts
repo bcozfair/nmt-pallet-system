@@ -60,3 +60,25 @@ export type { SelectFieldOption, SelectFieldProps } from './SelectField';
 
 export { DateRangeField } from './DateRangeField';
 export type { DateRange, DateRangeFieldProps } from './DateRangeField';
+
+export { Menu } from './Menu';
+export type { MenuItem, MenuProps, MenuTone } from './Menu';
+
+// `DataTable` is the shell -- card, scroll behaviour, sticky header, loading and
+// empty states, a slot for pagination. It deliberately does NOT take columns and
+// rows: the four tables it is meant for render badges, evidence thumbnails and
+// different action sets per row, so a config-driven API would be harder to read
+// than the JSX it replaced. Callers write their own <tbody>.
+// Not to be confused with `DataTableView` above, which is the collapsed text
+// alternative that sits under a chart.
+export { DataTable, SortableTh } from './DataTable';
+export type { DataTableProps, SortableThProps, SortState } from './DataTable';
+
+export { FilterBar } from './FilterBar';
+export type { FilterBarProps } from './FilterBar';
+
+export { PageHeader } from './PageHeader';
+export type { PageHeaderProps } from './PageHeader';
+
+export { SelectionBar } from './SelectionBar';
+export type { SelectionBarProps } from './SelectionBar';
