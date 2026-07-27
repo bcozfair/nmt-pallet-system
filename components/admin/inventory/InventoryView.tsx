@@ -5,6 +5,7 @@ import { Pallet } from '../../../types';
 // Sub-components
 import { InventoryFilters } from './InventoryFilters';
 import { InventoryHeader } from './InventoryHeader';
+import { InventorySelectionBar } from './InventorySelectionBar';
 import { InventoryStatusStrip } from './InventoryStatusStrip';
 import { InventoryTable } from './InventoryTable';
 import { AddPalletModal, ConfirmModal, EditPalletModal } from './InventoryModals';
@@ -111,19 +112,9 @@ export const InventoryView = ({
         // and would otherwise sit on top of the last table rows.
         <div className={`flex flex-col gap-6 ${selectedIds.size > 0 ? 'pb-24' : ''}`}>
             <InventoryHeader
-                selectedCount={selectedIds.size}
-                selectedIds={Array.from(selectedIds)}
-                onClearSelection={() => setSelectedIds(new Set())}
-                onBulkRepair={() => handleBulkRepair(selectedIds)}
-                onBulkScrap={() => handleBulkScrap(selectedIds)}
-                onBulkDelete={() => handleBulkDelete(selectedIds)}
-                onPrintQrSelected={onPrintQrSelected}
                 onPrintQrAll={onPrintQrAll}
                 onExport={() => handleExportFiltered(processedPallets)}
                 onAddPallet={() => setIsAddModalOpen(true)}
-                onBulkTransaction={() => setIsBulkTransModalOpen(true)}
-                showRepairButton={selectedIds.size > 0 && selectedIdList.every(id => statusOf(id) === 'damaged')}
-                showTransactionButton={!hasUnusableInSelection}
             />
 
             <InventoryStatusStrip
@@ -172,6 +163,20 @@ export const InventoryView = ({
                 totalPages={totalPages}
                 setCurrentPage={setCurrentPage}
                 onClearFilters={handleClearFilters}
+                isLoading={isLoading}
+            />
+
+            <InventorySelectionBar
+                selectedCount={selectedIds.size}
+                selectedIds={Array.from(selectedIds)}
+                onClearSelection={() => setSelectedIds(new Set())}
+                onBulkRepair={() => handleBulkRepair(selectedIds)}
+                onBulkScrap={() => handleBulkScrap(selectedIds)}
+                onBulkDelete={() => handleBulkDelete(selectedIds)}
+                onPrintQrSelected={onPrintQrSelected}
+                onBulkTransaction={() => setIsBulkTransModalOpen(true)}
+                showRepairButton={selectedIds.size > 0 && selectedIdList.every(id => statusOf(id) === 'damaged')}
+                showTransactionButton={!hasUnusableInSelection}
             />
 
             <BulkTransactionModal

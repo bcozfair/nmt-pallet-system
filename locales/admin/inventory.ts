@@ -21,6 +21,11 @@ export const inventoryEn = {
     hideIds: 'Hide IDs',
     transaction: 'Transaction',
     printQr: 'Print QR',
+    // Trigger label for the "..." menu on InventorySelectionBar -- everything
+    // that does not fit on the floating bar itself (show/hide IDs, repair,
+    // scrap, delete). Not read aloud since the button is icon-only; it is the
+    // menu's own aria-label instead (see Menu.tsx's `iconOnly` prop).
+    moreActions: 'More actions',
 
     // --- Filters ---
     // Two variants of the same idea: the placeholder trails off, the aria-label
@@ -157,6 +162,7 @@ export const inventoryTh: InventoryDict = {
     hideIds: 'ซ่อนรหัส',
     transaction: 'ทำรายการ',
     printQr: 'พิมพ์ QR',
+    moreActions: 'การทำงานอื่น',
 
     // --- Filters ---
     searchPallet: 'ค้นหารหัสพาเลท',

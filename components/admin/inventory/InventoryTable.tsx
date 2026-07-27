@@ -1,14 +1,20 @@
 import React from 'react';
 import {
-    ArrowUpDown, ArrowUp, ArrowDown, CircleCheckBig, QrCode, Trash2,
-    MapPin, AlertCircle, Clock, Search, Edit2, FileText, Ban
+    CircleCheckBig, QrCode, Trash2, MapPin, AlertCircle, Clock, Edit2, FileText, Ban, PackageSearch
 } from 'lucide-react';
 import { Pallet } from '../../../types';
 import { formatDateTime, StatusBadge } from '../common/AdminHelpers';
 import { Pagination } from '../common/Pagination';
 import { useT } from '../../../hooks/useT';
+import { DataTable, SortableTh, Checkbox, EmptyState, Button } from '../../ui';
 
 export type SortConfig = { key: keyof Pallet | 'days_overdue', direction: 'asc' | 'desc' } | null;
+
+// The generic parameter SortableTh needs. Kept as a local alias rather than
+// exported: `SortConfig` above is the one other modules (useInventoryFilters)
+// already import, and duplicating the union under a second exported name
+// would just be two names for the same type.
+type SortKey = keyof Pallet | 'days_overdue';
 
 interface InventoryTableProps {
     paginatedPallets: Pallet[];
@@ -41,6 +47,11 @@ interface InventoryTableProps {
 
     // Clear filters callback for "No results" empty state
     onClearFilters: () => void;
+
+    // Before this existed, a fresh page load rendered zero rows and "No
+    // pallets found" for a moment before the first fetch landed --
+    // indistinguishable from an empty warehouse. See InventoryView.tsx.
+    isLoading: boolean;
 }
 
 export const InventoryTable: React.FC<InventoryTableProps> = ({
@@ -62,182 +73,32 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
     totalPages,
     setCurrentPage,
     onClearFilters,
-    onEditRow
+    onEditRow,
+    isLoading,
 }) => {
     const t = useT();
 
-    const SortIcon = ({ column }: { column: string }) => {
-        if (sortConfig?.key !== column) return <ArrowUpDown size={14} className="text-gray-300" />;
-        return sortConfig.direction === 'asc'
-            ? <ArrowUp size={14} className="text-blue-500" />
-            : <ArrowDown size={14} className="text-blue-500" />;
-    };
-
-    const Th = ({ label, sortKey, align = 'left' }: { label: string, sortKey?: keyof Pallet | 'days_overdue', align?: string }) => (
-        <th
-            className={`p-3 border-b cursor-pointer hover:bg-gray-100 transition select-none text-${align}`}
-            onClick={() => sortKey && onSort(sortKey)}
-        >
-            <div className={`flex items-center gap-2 ${align === 'right' ? 'justify-end' : ''}`}>
-                {label}
-                {sortKey && <SortIcon column={sortKey} />}
-            </div>
-        </th>
-    );
-
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[600px] lg:h-[calc(100vh-240px)] overflow-hidden">
-            <div className="flex-1 overflow-auto relative styled-scrollbar">
-                <table className="w-full text-left border-collapse min-w-[800px]">
-                    {/* No `uppercase tracking-wide` here any more: uppercase does
-                        nothing to Thai, and the extra letter-spacing pushes tone
-                        marks and vowels away from the consonant they belong to. */}
-                    <thead className="bg-gray-50 text-gray-500 text-sm font-semibold sticky top-0 z-10 shadow-sm">
-                        <tr>
-                            <th className="p-2 border-b w-5 text-center bg-gray-100/50">
-                                <input
-                                    id="select-all-pallets"
-                                    aria-label={t.inventory.selectAllPallets}
-                                    type="checkbox"
-                                    onChange={onSelectAll}
-                                    checked={selectedIds.size === totalProcessedCount && totalProcessedCount > 0}
-                                    className="appearance-none w-4 h-4 rounded-full border-2 border-gray-300 bg-white checked:bg-blue-600 checked:border-blue-600 cursor-pointer transition-all relative checked:after:content-[''] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:w-3 checked:after:h-3 checked:after:bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjIwIDYgOSAxNyA0IDEyIiAvPjwvc3ZnPg==')] checked:after:bg-center checked:after:bg-no-repeat checked:after:bg-contain"
-                                />
-                            </th>
-                            {/* "ID" stays as it is -- staff say it in English and
-                                it reads the same in both languages. */}
-                            <Th label="ID" sortKey="pallet_id" />
-                            <Th label={t.common.status} sortKey="status" />
-                            <Th label={t.inventory.lastUpdated} sortKey="last_transaction_date" />
-                            <Th label={t.common.location} sortKey="current_location" />
-                            <Th label={t.inventory.lastCheckout} sortKey="last_checkout_date" />
-                            <Th label={t.inventory.overdue} sortKey="days_overdue" />
-                            <Th label={t.common.remark} sortKey="pallet_remark" />
-                            <Th label={t.common.actions} align="right" />
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {paginatedPallets.map(p => {
-                            let isOverdue = false;
-                            let days = 0;
-                            if (p.status === 'in_use' && p.last_checkout_date) {
-                                days = Math.floor((new Date().getTime() - new Date(p.last_checkout_date).getTime()) / (1000 * 3600 * 24));
-                                isOverdue = days > overdueThreshold;
-                            }
-
-                            return (
-                                <tr
-                                    key={p.pallet_id}
-                                    onClick={() => onSelectPallet(p.pallet_id)}
-                                    className={`hover:bg-blue-50 cursor-pointer transition group ${isOverdue ? 'bg-yellow-200/30' : ''} ${selectedIds.has(p.pallet_id) ? 'bg-blue-50/80' : ''}`}
-                                >
-                                    <td className="p-2 w-5 text-center bg-gray-50/50" onClick={(e) => e.stopPropagation()}>
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedIds.has(p.pallet_id)}
-                                            onChange={() => onSelectRow(p.pallet_id)}
-                                            className="appearance-none w-4 h-4 rounded-full border-2 border-gray-300 bg-white checked:bg-blue-600 checked:border-blue-600 cursor-pointer transition-all relative checked:after:content-[''] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:w-3 checked:after:h-3 checked:after:bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjIwIDYgOSAxNyA0IDEyIiAvPjwvc3ZnPg==')] checked:after:bg-center checked:after:bg-no-repeat checked:after:bg-contain"
-                                        />
-                                    </td>
-                                    <td className="p-3 font-mono font-bold text-gray-700">{p.pallet_id}</td>
-
-                                    <td className="p-3">
-                                        <StatusBadge status={p.status} />
-                                    </td>
-                                    <td className="p-3 w-40 text-sm text-gray-600">
-                                        {p.last_transaction_date ? formatDateTime(p.last_transaction_date) : '-'}
-                                    </td>
-                                    <td className="p-3 text-gray-600 flex items-center gap-2">
-                                        <MapPin size={14} className="text-gray-400" />
-                                        {p.current_location}
-                                    </td>
-
-                                    <td className="p-3 text-sm text-gray-500">
-                                        {formatDateTime(p.last_checkout_date)}
-                                    </td>
-                                    <td className="p-3 w-40">
-                                        {/* Overdue logic */}
-                                        {p.status === 'in_use' && p.last_checkout_date ? (
-                                            <div className={`flex items-center gap-1 font-bold ${isOverdue ? 'text-red-600' : 'text-gray-500'}`}>
-                                                <Clock size={14} />
-                                                {t.inventory.daysCount(days)}
-                                                {isOverdue && <AlertCircle size={14} className="ml-1 fill-red-600 text-white" />}
-                                            </div>
-                                        ) : (
-                                            <span className="text-gray-300">-</span>
-                                        )}
-                                    </td>
-                                    <td className="p-3 text-sm text-gray-500 max-w-[200px] truncate" title={p.pallet_remark || ''}>
-                                        {p.pallet_remark ? (
-                                            <div className="flex items-center gap-1.5">
-                                                <FileText size={14} className="text-gray-400 shrink-0" />
-                                                <span className="truncate">{p.pallet_remark}</span>
-                                            </div>
-                                        ) : (
-                                            <span className="text-gray-300">-</span>
-                                        )}
-                                    </td>
-                                    <td className="p-3 text-right">
-                                        <div className="flex justify-end gap-1">
-                                            {/* Both resolutions for a damaged pallet, side by side:
-                                                repair it, or write it off. Scrapping is reachable
-                                                only from 'damaged', so a written-off pallet always
-                                                has a damage report explaining why. */}
-                                            {p.status === 'damaged' && (
-                                                <>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); onRepairRow(p.pallet_id); }}
-                                                        className="p-2 text-green-600 hover:bg-green-100 rounded-full transition"
-                                                        title={t.inventory.markRepairedTitle}
-                                                    >
-                                                        <CircleCheckBig size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); onScrapRow(p.pallet_id); }}
-                                                        className="p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-full transition"
-                                                        title={t.inventory.markScrappedTitle}
-                                                    >
-                                                        <Ban size={16} />
-                                                    </button>
-                                                </>
-                                            )}
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); onPrintQr([p]); }}
-                                                className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-full transition"
-                                                title={t.inventory.printQrTitle}
-                                            >
-                                                <QrCode size={16} />
-                                            </button>
-                                            {/* Tooltip used to read "Edit Transaction"; the
-                                                button opens the pallet editor, not a
-                                                transaction, so the label now says so. */}
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); onEditRow(p); }}
-                                                className="p-2 text-blue-400 hover:bg-blue-100 hover:text-blue-600 rounded-full transition"
-                                                title={t.inventory.editPalletTitle}
-                                            >
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); onDeleteClick(p.pallet_id, e); }}
-                                                className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-full transition"
-                                                title={t.inventory.deletePalletTitle}
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
-
-
-
-            {
-                totalProcessedCount > 0 && (
+        <DataTable
+            minWidth={720}
+            isLoading={isLoading}
+            loadingRows={10}
+            loadingCols={7}
+            loadingLabel={t.common.loading}
+            isEmpty={totalProcessedCount === 0}
+            empty={
+                <EmptyState
+                    icon={PackageSearch}
+                    title={t.inventory.noResults}
+                    action={
+                        <Button variant="secondary" onClick={onClearFilters}>
+                            {t.common.clearFilters}
+                        </Button>
+                    }
+                />
+            }
+            footer={
+                totalProcessedCount > 0 ? (
                     <Pagination
                         currentPage={currentPage}
                         totalPages={totalPages}
@@ -245,18 +106,198 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                         totalItems={totalProcessedCount}
                         itemsPerPage={itemsPerPage}
                     />
-                )
+                ) : undefined
             }
+            head={
+                <tr>
+                    <th scope="col" className="w-10 border-b border-slate-200 px-3 py-2.5">
+                        <Checkbox
+                            id="select-all-pallets"
+                            ariaLabel={t.inventory.selectAllPallets}
+                            checked={selectedIds.size === totalProcessedCount && totalProcessedCount > 0}
+                            indeterminate={selectedIds.size > 0 && selectedIds.size < totalProcessedCount}
+                            onChange={onSelectAll}
+                        />
+                    </th>
+                    {/* "ID" stays as it is -- staff say it in English and it reads
+                        the same in both languages. */}
+                    <SortableTh<SortKey> label="ID" sortKey="pallet_id" sortConfig={sortConfig} onSort={onSort} />
+                    <SortableTh<SortKey> label={t.common.status} sortKey="status" sortConfig={sortConfig} onSort={onSort} />
+                    <SortableTh<SortKey>
+                        label={t.inventory.lastUpdated}
+                        sortKey="last_transaction_date"
+                        sortConfig={sortConfig}
+                        onSort={onSort}
+                    />
+                    <SortableTh<SortKey>
+                        label={t.common.location}
+                        sortKey="current_location"
+                        sortConfig={sortConfig}
+                        onSort={onSort}
+                    />
+                    <SortableTh<SortKey>
+                        label={t.inventory.lastCheckout}
+                        sortKey="last_checkout_date"
+                        sortConfig={sortConfig}
+                        onSort={onSort}
+                        className="hidden xl:table-cell"
+                    />
+                    <SortableTh<SortKey>
+                        label={t.inventory.overdue}
+                        sortKey="days_overdue"
+                        sortConfig={sortConfig}
+                        onSort={onSort}
+                    />
+                    <SortableTh<SortKey>
+                        label={t.common.remark}
+                        sortKey="pallet_remark"
+                        sortConfig={sortConfig}
+                        onSort={onSort}
+                        className="hidden xl:table-cell"
+                    />
+                    <SortableTh<SortKey> label={t.common.actions} sortConfig={sortConfig} align="right" />
+                </tr>
+            }
+        >
+            <tbody className="divide-y divide-slate-100">
+                {paginatedPallets.map((p) => {
+                    let isOverdue = false;
+                    let days = 0;
+                    if (p.status === 'in_use' && p.last_checkout_date) {
+                        days = Math.floor(
+                            (new Date().getTime() - new Date(p.last_checkout_date).getTime()) / (1000 * 3600 * 24)
+                        );
+                        isOverdue = days > overdueThreshold;
+                    }
+                    const isSelected = selectedIds.has(p.pallet_id);
 
-            {
-                totalProcessedCount === 0 && (
-                    <div className="p-12 text-center flex flex-col items-center text-gray-400 gap-2 flex-1 justify-center">
-                        <Search size={48} className="opacity-20" />
-                        <p>{t.inventory.noResults}</p>
-                        <button onClick={onClearFilters} className="text-blue-600 font-bold hover:underline">{t.common.clearFilters}</button>
-                    </div>
-                )
-            }
-        </div >
+                    return (
+                        <tr
+                            key={p.pallet_id}
+                            onClick={() => onSelectPallet(p.pallet_id)}
+                            className={
+                                'cursor-pointer transition ' +
+                                (isSelected ? 'bg-brand-50' : 'hover:bg-slate-50') +
+                                ' ' +
+                                // A left border, not a full-row wash: `bg-yellow-200/30`
+                                // fought the blue of a selected row into a muddy colour,
+                                // and at 30% opacity on plain white it barely showed up
+                                // in the first place.
+                                (isOverdue ? 'border-l-2 border-amber-400' : '')
+                            }
+                        >
+                            <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                    ariaLabel={`${t.common.palletId}: ${p.pallet_id}`}
+                                    checked={isSelected}
+                                    onChange={() => onSelectRow(p.pallet_id)}
+                                />
+                            </td>
+                            <td className="px-3 py-2.5 font-mono font-semibold text-slate-700">{p.pallet_id}</td>
+
+                            <td className="px-3 py-2.5">
+                                <StatusBadge status={p.status} />
+                            </td>
+                            <td className="px-3 py-2.5 text-sm text-slate-600">
+                                {p.last_transaction_date ? formatDateTime(p.last_transaction_date) : '-'}
+                            </td>
+                            <td className="px-3 py-2.5 text-slate-600">
+                                <div className="flex items-center gap-2">
+                                    <MapPin size={14} className="shrink-0 text-slate-400" />
+                                    {p.current_location}
+                                </div>
+                            </td>
+
+                            <td className="hidden px-3 py-2.5 text-sm text-slate-500 xl:table-cell">
+                                {formatDateTime(p.last_checkout_date)}
+                            </td>
+                            <td className="px-3 py-2.5">
+                                {p.status === 'in_use' && p.last_checkout_date ? (
+                                    <div
+                                        className={`flex items-center gap-1 font-semibold ${
+                                            isOverdue ? 'text-red-600' : 'text-slate-500'
+                                        }`}
+                                    >
+                                        <Clock size={14} />
+                                        {t.inventory.daysCount(days)}
+                                        {isOverdue && <AlertCircle size={14} className="ml-1 fill-red-600 text-white" />}
+                                    </div>
+                                ) : (
+                                    <span className="text-slate-300">-</span>
+                                )}
+                            </td>
+                            <td
+                                className="hidden max-w-[200px] truncate px-3 py-2.5 text-sm text-slate-500 xl:table-cell"
+                                title={p.pallet_remark || ''}
+                            >
+                                {p.pallet_remark ? (
+                                    <div className="flex items-center gap-1.5">
+                                        <FileText size={14} className="shrink-0 text-slate-400" />
+                                        <span className="truncate">{p.pallet_remark}</span>
+                                    </div>
+                                ) : (
+                                    <span className="text-slate-300">-</span>
+                                )}
+                            </td>
+                            <td className="px-3 py-2.5 text-right">
+                                <div className="flex justify-end gap-1">
+                                    {/* Both resolutions for a damaged pallet, side by side:
+                                        repair it, or write it off. Scrapping is reachable
+                                        only from 'damaged', so a written-off pallet always
+                                        has a damage report explaining why. */}
+                                    {p.status === 'damaged' && (
+                                        <>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onRepairRow(p.pallet_id); }}
+                                                className="rounded-full p-2 text-green-600 transition hover:bg-green-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                                title={t.inventory.markRepairedTitle}
+                                                aria-label={t.inventory.markRepairedTitle}
+                                            >
+                                                <CircleCheckBig size={16} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onScrapRow(p.pallet_id); }}
+                                                className="rounded-full p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                                title={t.inventory.markScrappedTitle}
+                                                aria-label={t.inventory.markScrappedTitle}
+                                            >
+                                                <Ban size={16} />
+                                            </button>
+                                        </>
+                                    )}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onPrintQr([p]); }}
+                                        className="rounded-full p-2 text-indigo-600 transition hover:bg-indigo-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                        title={t.inventory.printQrTitle}
+                                        aria-label={t.inventory.printQrTitle}
+                                    >
+                                        <QrCode size={16} />
+                                    </button>
+                                    {/* Tooltip used to read "Edit Transaction"; the button
+                                        opens the pallet editor, not a transaction, so the
+                                        label now says so. */}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onEditRow(p); }}
+                                        className="rounded-full p-2 text-brand-400 transition hover:bg-brand-50 hover:text-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                        title={t.inventory.editPalletTitle}
+                                        aria-label={t.inventory.editPalletTitle}
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onDeleteClick(p.pallet_id, e); }}
+                                        className="rounded-full p-2 text-red-400 transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                        title={t.inventory.deletePalletTitle}
+                                        aria-label={t.inventory.deletePalletTitle}
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    );
+                })}
+            </tbody>
+        </DataTable>
     );
 };
