@@ -36,3 +36,27 @@ export type { EmptyStateProps } from './EmptyState';
 
 export { DataTableView } from './DataTableView';
 export type { DataTableViewProps } from './DataTableView';
+
+// --- Shared admin-screen primitives -------------------------------------
+// Everything below is used by more than one screen. The inventory rework is
+// the first consumer; transactions, users, locations and settings migrate onto
+// them next, which is why their APIs take every string as a prop rather than
+// reaching for the dictionary.
+
+export { Button, BUTTON_BASE, BUTTON_SIZE, BUTTON_VARIANT } from './Button';
+export type { ButtonProps, ButtonVariant } from './Button';
+
+export { Checkbox } from './Checkbox';
+export type { CheckboxProps } from './Checkbox';
+
+export { ToggleChip } from './ToggleChip';
+export type { ToggleChipProps } from './ToggleChip';
+
+export { SearchInput } from './SearchInput';
+export type { SearchInputProps } from './SearchInput';
+
+export { SelectField } from './SelectField';
+export type { SelectFieldOption, SelectFieldProps } from './SelectField';
+
+export { DateRangeField } from './DateRangeField';
+export type { DateRange, DateRangeFieldProps } from './DateRangeField';

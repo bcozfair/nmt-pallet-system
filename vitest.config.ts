@@ -24,7 +24,14 @@ export default defineConfig({
         // Explicit imports (`import { describe, it, expect } from 'vitest'`)
         // rather than globals, for the same reason as above: globals would need
         // "vitest/globals" added to tsconfig's `types`.
+        //
+        // This has one consequence that is not obvious and bites silently:
+        // @testing-library/react only self-registers its between-test cleanup
+        // when a global `afterEach` exists at import time. With globals off it
+        // does not, so renders leak across tests. vitest.setup.ts below
+        // registers it explicitly -- do not remove that file.
         globals: false,
+        setupFiles: ['./vitest.setup.ts'],
         include: ['**/*.test.{ts,tsx}'],
         exclude: ['node_modules/**', 'dist/**', 'supabase/**'],
         restoreMocks: true,
