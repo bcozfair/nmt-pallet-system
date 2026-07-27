@@ -144,16 +144,48 @@ export const LocationRiskMatrix: React.FC<LocationRiskMatrixProps> = ({
                                             </span>
                                         </span>
 
-                                        {/* Compact bar. Orange and red stay: they
-                                            are status semantics, not neutrals. */}
-                                        <span className="mt-1.5 flex h-1 w-full overflow-hidden rounded-full bg-slate-200 opacity-60 transition-opacity group-hover:opacity-100">
+                                        {/* The issue bar. Orange and red stay: they
+                                            are status semantics, not neutrals.
+
+                                            h-2 (8px), not h-1. This card used to
+                                            run the full 1120px content width, and
+                                            a 4px rule that long still read as a
+                                            bar; at half width -- it now shares a
+                                            row with the location chart -- the
+                                            track is ~330px and 4px of it is a
+                                            hairline. Height is also the only axis
+                                            left to spend: the LENGTH of each
+                                            segment is the data and cannot be
+                                            touched.
+
+                                            opacity-80 at rest rather than 60. The
+                                            dim-until-hover was written for a bar
+                                            that was decoration beside the counts
+                                            on the right; it is the only part of
+                                            the row that shows the MIX, so it has
+                                            to be legible without a pointer -- and
+                                            orange-400 at 60% on white is close to
+                                            the slate track behind it. */}
+                                        <span className="mt-1.5 flex h-2 w-full overflow-hidden rounded-full bg-slate-200 opacity-80 transition-opacity group-hover:opacity-100">
                                             <span
                                                 className="h-full bg-orange-400"
-                                                style={{ width: `${(loc.overdue / loc.total) * 100}%` }}
+                                                style={{
+                                                    width: `${(loc.overdue / loc.total) * 100}%`,
+                                                    // A floor, so one overdue pallet out of
+                                                    // ninety draws a sliver rather than a
+                                                    // sub-pixel nothing. Same guard, same
+                                                    // 3px, as the damage funnel's segments.
+                                                    // Only applied when the count is real:
+                                                    // a floor on zero would invent an issue.
+                                                    minWidth: loc.overdue > 0 ? 3 : undefined,
+                                                }}
                                             />
                                             <span
                                                 className="h-full bg-red-500"
-                                                style={{ width: `${(loc.damaged / loc.total) * 100}%` }}
+                                                style={{
+                                                    width: `${(loc.damaged / loc.total) * 100}%`,
+                                                    minWidth: loc.damaged > 0 ? 3 : undefined,
+                                                }}
                                             />
                                         </span>
                                     </span>

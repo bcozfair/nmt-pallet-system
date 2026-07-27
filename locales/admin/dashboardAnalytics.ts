@@ -195,6 +195,15 @@ export const analyticsEn = {
         // by the caller, which is also what feeds the bar widths. Formatting it
         // twice is how the label and the chart end up disagreeing by a point.
         resolutionRate: (pct: string) => `${pct} resolved`,
+        // The same word as a bare noun, for the centre of the gauge -- where the
+        // percentage is already the largest thing on the card and a full
+        // sentence would have to be set at 10px to fit inside the arc. Kept
+        // separate from `resolutionRate` rather than derived from it: a sentence
+        // is not a label with the number cut out of it, and in Thai the two sit
+        // in different word orders ("จัดการแล้ว 75%" vs a stacked "75%" over
+        // "จัดการแล้ว"). resolutionRate stays -- it is the accessible name the
+        // gauge announces to a screen reader.
+        resolved: 'Resolved',
     },
 
     // --- Time to resolve ---
@@ -405,6 +414,7 @@ export const analyticsTh: AnalyticsDict = {
         scrapped: 'ตัดออกจากระบบ',
         stillOpen: 'ยังไม่ได้จัดการ',
         resolutionRate: (pct: string) => `จัดการแล้ว ${pct}`,
+        resolved: 'จัดการแล้ว',
     },
 
     // --- Time to resolve ---

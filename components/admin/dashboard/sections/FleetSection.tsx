@@ -104,7 +104,14 @@ export interface FleetSectionProps {
 // sitting in the top of it and slack underneath -- no layout shift, but no extra
 // plot either. The widest any of these cards gets is 1120px and the narrowest is
 // 328px, so an aspect that is legible at one end is a strip at the other.
-const DONUT_PLOT_HEIGHT = 240;
+// The donut's plot box. Recharts derives a pie's radius from
+// min(plotWidth, plotHeight), and this plot is now the full width of the card
+// (309px at xl, 288px on a phone) -- so the HEIGHT is what binds, and this
+// number is the donut's diameter budget: 220 * 0.92 (outerRadius) = ~202px
+// across. It was 240 while the legend sat beside the plot, but the legend took
+// ~174px of the width and left 111px, so min() picked the width and the donut
+// drew at ~102px inside a 240px box. Ten pixels shorter, twice as big.
+const DONUT_PLOT_HEIGHT = 220;
 const TREND_PLOT_HEIGHT = 260;
 // Row-count driven: one 20px bar plus breathing room, floored so a single
 // location does not produce a 68px-tall card.
@@ -310,7 +317,21 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
     const hasLocations = locationData.length > 0;
 
     return (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
+        // SIX columns at xl, not three, and the reason is arithmetic: this
+        // section needs a 1:2 row (donut | movement) and a 1:1 row (locations |
+        // risk), and 3 is not divisible by 2. Six is the lowest common multiple,
+        // so both splits are exact and neither row needs a nested grid.
+        //
+        // The top row is pixel-identical to the three-column version it
+        // replaces: at a 1120px content width, 6 tracks with 5 x 24px gaps give
+        // (1120 - 120) / 6 = 166.67px each, so a 2-span plus its internal gap is
+        // 357px -- the same as one third of a 3-column grid. Only the second row
+        // moved.
+        //
+        // Columns step at md and xl and skip lg entirely: the sidebar claims
+        // 256px from lg up, which is why the measured content width at 1024px
+        // (704px) is NARROWER than at 768px (736px).
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-6">
             {/* ---------------------------------------------------------------
                 FLEET HEALTH
                 ChartFrame has no className hook, so the span class goes on a
@@ -320,7 +341,7 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
                 resolving a percentage against a parent with no definite height,
                 which is the collapse-to-zero trap ChartFrame documents.
                 --------------------------------------------------------------- */}
-            <div className="grid xl:col-span-1">
+            <div className="grid xl:col-span-2">
                 <ChartFrame
                     title={t.dashboard.fleetHealth}
                     subtitle={t.dashboard.fleetHealthSub}
@@ -371,12 +392,17 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
                             )}
                         </div>
                     }
-                    // The legend, beside the donut rather than under it. Rows,
-                    // not a wrapped strip: a column aligns the counts and the
-                    // percentages so they can be compared down the page, and it
-                    // fills space the donut leaves empty anyway.
-                    aside={
-                        <ul className="flex flex-col gap-1 sm:min-w-[9.5rem]">
+                    // The legend, UNDER the donut and across the full card, in
+                    // three columns -- one per status. It used to sit beside the
+                    // plot; see the DONUT_PLOT_HEIGHT note for what that cost.
+                    //
+                    // Three columns rather than three rows: the figures still
+                    // line up with each other (across, now, instead of down),
+                    // and three short blocks side by side are ~58px tall where
+                    // three full-width rows would be ~98px -- 40px that goes
+                    // back into the donut instead.
+                    plotFooter={
+                        <ul className="grid grid-cols-3 gap-1">
                             {donutData.map((d) => {
                                 const sliceIndex = donutSlices.findIndex((x) => x.status === d.status);
                                 const isActive = sliceIndex !== -1 && sliceIndex === activeSlice;
@@ -395,22 +421,41 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
                                             onFocus={() => setActiveSlice(sliceIndex === -1 ? null : sliceIndex)}
                                             onBlur={() => setActiveSlice(null)}
                                             className={
-                                                'flex w-full items-baseline gap-2 rounded-lg px-2 py-1.5 text-left transition ' +
+                                                'flex w-full flex-col gap-1 rounded-lg px-2 py-1.5 text-left transition ' +
                                                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ' +
                                                 (isActive ? 'bg-slate-100' : 'hover:bg-slate-50')
                                             }
                                         >
-                                            <span
-                                                className="h-2.5 w-2.5 shrink-0 self-center rounded-full"
-                                                style={{ backgroundColor: d.color }}
-                                                aria-hidden="true"
-                                            />
-                                            <span className="min-w-0 flex-1 truncate text-sm text-slate-600">
-                                                {d.label}
+                                            {/* `items-start` and no truncation:
+                                                a column here is ~88px wide on a
+                                                phone and "พร้อมใช้งาน" is ~77px
+                                                at this size, so the label has to
+                                                be free to take a second line.
+                                                Thai has no inter-word spaces, so
+                                                truncating it instead would cut a
+                                                syllable in half. */}
+                                            <span className="flex items-start gap-1.5">
+                                                <span
+                                                    className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
+                                                    style={{ backgroundColor: d.color }}
+                                                    aria-hidden="true"
+                                                />
+                                                <span className="min-w-0 text-xs leading-snug text-slate-600">
+                                                    {d.label}
+                                                </span>
                                             </span>
-                                            <span className="text-sm font-semibold text-slate-900">{d.value}</span>
-                                            <span className="w-11 shrink-0 text-right text-xs text-slate-400">
-                                                {d.percent.toFixed(1)}%
+                                            <span className="flex items-baseline gap-1.5">
+                                                <span className="text-lg font-semibold text-slate-900">
+                                                    {d.value}
+                                                </span>
+                                                {/* slate-500, not slate-400.
+                                                    slate-400 measures 2.56:1 on
+                                                    white -- legal as decoration,
+                                                    illegal as text, and this is
+                                                    a figure someone reads. */}
+                                                <span className="text-xs text-slate-500">
+                                                    {d.percent.toFixed(1)}%
+                                                </span>
                                             </span>
                                         </button>
                                     </li>
@@ -506,7 +551,7 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
             {/* ---------------------------------------------------------------
                 MOVEMENT TREND
                 --------------------------------------------------------------- */}
-            <div className="grid md:col-span-1 xl:col-span-2">
+            <div className="grid md:col-span-1 xl:col-span-4">
                 <ChartFrame
                     title={t.dashboard.analytics.movement.title}
                     subtitle={t.dashboard.analytics.movement.subtitle}
@@ -652,6 +697,17 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
 
             {/* ---------------------------------------------------------------
                 STOCK BY LOCATION
+                Half the row from xl up, sharing it with the risk list below --
+                3 of 6 columns, 548px at a 1120px content width. The two belong
+                side by side: they are the same `fleet.byLocation` rows read two
+                ways, "how much is where" and "where is it going wrong", and
+                stacked full-width they made the reader scroll between a bar and
+                the list that explains it.
+
+                Still full width at md. Half of 736px is a 356px card, and this
+                chart spends 128px of its inner width on the y-axis gutter that
+                holds the Thai department names -- which would leave ~156px of
+                actual plot.
                 --------------------------------------------------------------- */}
             <div className="grid md:col-span-2 xl:col-span-3">
                 <ChartFrame
@@ -790,6 +846,11 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
                 ChartFrame. ChartFrame wraps its children in a
                 ResponsiveContainer, which expects a Recharts element and would
                 measure a <ul> as a plot.
+
+                The other half of the second row (3 of 6 columns). Nothing about
+                the rows needs the full width: the name truncates, and the two
+                counters plus the issue chip on the right take ~150px whatever
+                the card measures.
                 --------------------------------------------------------------- */}
             <Card
                 accent
@@ -797,7 +858,11 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
                 as="section"
                 className="animate-surface-in flex flex-col md:col-span-2 xl:col-span-3"
             >
-                <div className="flex flex-col p-5 sm:p-6">
+                {/* `grow` for the same reason ChartFrame carries it: this card
+                    now shares a stretched grid row with the location chart, and
+                    the "view all overdue" strip belongs on the card floor
+                    whichever of the two happens to be taller. */}
+                <div className="flex grow flex-col p-5 sm:p-6">
                     <SectionHeader
                         level="h3"
                         title={t.dashboard.highRiskZones}

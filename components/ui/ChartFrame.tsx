@@ -24,14 +24,24 @@ export interface ChartFrameProps {
     /** Legend + the <details> table view. See the note on <details> below. */
     footer?: React.ReactNode;
     /**
-     * Rendered beside the plot from `sm` up, stacked under it below that.
+     * Rendered inside the white card body, directly under the plot box.
      *
-     * For a legend that reads better as a column of rows than as a wrapped strip
-     * under the chart: a donut plus three labelled figures is mostly empty space
-     * on either side, and putting the figures in that space makes the card about
-     * 30% shorter without shrinking anything.
+     * This is NOT `footer`, which is the grey strip below the card's own rule.
+     * It exists for content that has to sit ON the plot's surface and share its
+     * full width -- a donut's legend, which is read together with the arcs
+     * rather than after them.
+     *
+     * It replaced an `aside` slot that put the same legend BESIDE the plot. The
+     * measurement is why: a legend column with Thai status labels measures
+     * ~174px, and taking that out of a 309px card left the plot 111px wide.
+     * Recharts derives a pie's radius from min(width, height), so the donut
+     * collapsed to ~102px across inside a 240px-tall box and floated in a field
+     * of white. Full width, legend underneath, doubles the donut.
+     *
+     * Suppressed while loading or empty for the same reason as `plotOverlay`:
+     * a legend of real figures must not appear beside a skeleton.
      */
-    aside?: React.ReactNode;
+    plotFooter?: React.ReactNode;
     /**
      * Centred over the plot, pointer-events-none. For a donut's hole.
      *
@@ -100,7 +110,7 @@ export const ChartFrame: React.FC<ChartFrameProps> = ({
     isEmpty = false,
     emptyState,
     footer,
-    aside,
+    plotFooter,
     plotOverlay,
     children,
 }) => {
@@ -144,41 +154,33 @@ export const ChartFrame: React.FC<ChartFrameProps> = ({
 
     return (
         <Card accent busy={isRefreshing} as="section" className="animate-surface-in flex flex-col">
-            <div className="flex flex-col p-5 sm:p-6">
+            {/* `grow` so the footer sits on the card FLOOR rather than directly
+                under the plot. Grid rows stretch their items to the tallest
+                card, and without this the shorter card's footer strip floated
+                mid-card with a band of empty white beneath it -- which reads as
+                a rendering fault rather than as slack. `grow` and not `flex-1`:
+                grow leaves `flex-basis: auto`, so the card's natural height is
+                still its content height and only the surplus is distributed. */}
+            <div className="flex grow flex-col p-5 sm:p-6">
                 <SectionHeader level="h3" title={title} subtitle={subtitle} icon={icon} action={action} />
 
                 {/* The plot wrapper: full width, a min-height floor, and no
                     height of its own. `flex` so an empty state can stretch to
                     the floor without needing h-full. */}
                 <div className="mt-4 flex w-full flex-col" style={plotBox}>
-                    {aside ? (
-                        // `minmax(0,1fr)` and not `1fr`: a grid track's minimum
-                        // is auto, so without it the plot column refuses to
-                        // shrink below the chart's intrinsic width and pushes
-                        // the aside off the card -- the same default that
-                        // overflowed the whole admin shell.
-                        <div className="grid w-full flex-1 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-6">
-                            <div className="relative min-w-0">
-                                {renderPlot()}
-                                {plotOverlay && !isLoading && !isEmpty && (
-                                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                        {plotOverlay}
-                                    </div>
-                                )}
+                    <div className="relative flex w-full flex-1 flex-col">
+                        {renderPlot()}
+                        {plotOverlay && !isLoading && !isEmpty && (
+                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                {plotOverlay}
                             </div>
-                            <div className="min-w-0">{aside}</div>
-                        </div>
-                    ) : (
-                        <div className="relative flex w-full flex-1 flex-col">
-                            {renderPlot()}
-                            {plotOverlay && !isLoading && !isEmpty && (
-                                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                    {plotOverlay}
-                                </div>
-                            )}
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
+
+                {/* Outside the box that carries `plotBox`, so it does not eat
+                    into the height the plot was given. */}
+                {plotFooter && !isLoading && !isEmpty && <div className="mt-4">{plotFooter}</div>}
             </div>
 
             {footer && (

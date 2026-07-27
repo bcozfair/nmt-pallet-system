@@ -24,6 +24,7 @@ import {
 } from '../../charts/chartTheme';
 import { PALLET_STATUS_META, formatDate, formatDuration } from '../../common/AdminHelpers';
 import { RangeMenu } from '../RangeMenu';
+import { ResolutionGauge } from '../ResolutionGauge';
 import type { DashboardRange } from '../../../../hooks/dashboard/useDashboardData';
 import { useT } from '../../../../hooks/useT';
 import { useReducedMotion } from '../../../../hooks/useReducedMotion';
@@ -513,7 +514,17 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
                     It is also not in a ChartFrame: that frame wraps its child in
                     a ResponsiveContainer, which exists to size an SVG. */}
                 <Card accent busy={isRefreshing} as="section" className="animate-surface-in flex flex-col">
-                    <div className="flex flex-col p-5 sm:p-6">
+                    {/* `grow` for the same reason ChartFrame carries it: a grid
+                        row stretches every card to the tallest one, and this
+                        card's content -- a number, a split bar and three labels
+                        -- is much shorter than the 260px histogram beside it.
+                        Without this the "show table" strip stopped wherever the
+                        content happened to end and left a band of white below
+                        it, while the identical strip on the card next door sat
+                        on the floor. `grow` and not `flex-1`: grow leaves
+                        `flex-basis: auto`, so the card's natural height is still
+                        its content height and only the surplus is distributed. */}
+                    <div className="flex grow flex-col p-5 sm:p-6">
                         <SectionHeader
                             level="h3"
                             title={a.funnel.title}
@@ -536,16 +547,22 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
                                 // every realtime row change, and swapping in a
                                 // skeleton each time would make the page strobe.
                                 <div className="space-y-4" role="status" aria-label={t.common.loading}>
+                                    {/* Shaped like what lands: the cohort
+                                        figure, then the gauge's own box (13rem
+                                        wide, 102/200 of that tall, flat-bottomed
+                                        semicircle), then the legend. Matching
+                                        the real geometry is what stops the card
+                                        resizing when the data arrives. */}
                                     <Skeleton className="h-8 w-24" />
-                                    <Skeleton className="h-10 w-full rounded-lg" />
+                                    <Skeleton className="mx-auto h-[6.4rem] w-full max-w-[13rem] rounded-t-full" />
                                     <SkeletonText lines={2} />
                                 </div>
                             ) : funnelEmpty || !damage ? (
                                 emptyState('card')
                             ) : (
                                 <>
-                                    {/* The cohort size. The bar below is 100% of
-                                        this number, split three ways. */}
+                                    {/* The cohort size -- the gauge's
+                                        denominator, so it goes above it. */}
                                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                                         <span className="text-sm text-slate-500">{a.funnel.reported}</span>
                                         {/* Proportional figures, not tabular:
@@ -557,42 +574,50 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
                                         </span>
                                     </div>
 
-                                    {/* min-h rather than h: the rule holds even
-                                        where the box currently has no text in
-                                        it. gap-0.5 is the same 2px separation
-                                        SEGMENT_GAP draws inside an SVG, done
-                                        with a real gap so the card shows
-                                        through. Segments are laid out with
-                                        flex-grow from the raw counts, so the
-                                        widths are exact and cannot drift from a
-                                        rounded percentage. */}
-                                    <div
-                                        className="mt-3 flex min-h-10 w-full gap-0.5 overflow-hidden rounded-lg"
-                                        aria-hidden="true"
-                                    >
-                                        {funnelStages
-                                            .filter((s) => s.value > 0)
-                                            .map((s) => (
-                                                <div
-                                                    key={s.key}
-                                                    style={{
-                                                        flexGrow: s.value,
-                                                        flexBasis: 0,
-                                                        // So a stage of 1 in 400
-                                                        // is still visible as a
-                                                        // sliver rather than
-                                                        // reading as absent.
-                                                        minWidth: 3,
-                                                        backgroundColor: s.color,
-                                                    }}
-                                                />
-                                            ))}
+                                    {/* The gauge REPLACED the horizontal split
+                                        bar that used to sit here, rather than
+                                        joining it: both encode the same three
+                                        counts, and two pictures of one set of
+                                        numbers only makes the reader check that
+                                        they agree.
+
+                                        What it adds over the bar is the middle.
+                                        The resolution rate used to be a text
+                                        line at the bottom of the card -- the one
+                                        figure an admin actually acts on, set at
+                                        14px under two other elements. In the
+                                        hole it is the largest thing on the card,
+                                        and the arc gives it the 0-100 frame that
+                                        a bare percentage does not have.
+
+                                        `funnelStages` is passed straight through
+                                        in ramp order (repaired -> scrapped ->
+                                        still open), so the filled part of the
+                                        gauge is exactly the resolved part and
+                                        the pale remainder is exactly what is
+                                        still open. The gauge computes its own
+                                        angles from the raw counts; `resolvedPct`
+                                        is only ever the printed label. */}
+                                    <div className="mt-4">
+                                        <ResolutionGauge
+                                            segments={funnelStages}
+                                            percentLabel={`${resolvedPct}%`}
+                                            caption={a.funnel.resolved}
+                                            // The full sentence, not the bare
+                                            // number: "75%" alone announces
+                                            // nothing about what it measures.
+                                            ariaLabel={a.funnel.resolutionRate(`${resolvedPct}%`)}
+                                            reducedMotion={reducedMotion}
+                                        />
                                     </div>
 
                                     {/* The stage labels: the highest-risk text
                                         on this card. They wrap and are never
-                                        truncated. */}
-                                    <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                                        truncated. This is also the gauge's
+                                        legend now -- same colours, same order --
+                                        and the only place the three raw counts
+                                        appear outside the data table. */}
+                                    <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm">
                                         {funnelStages.map((s) => (
                                             <li key={s.key} className="flex items-center gap-1.5">
                                                 <span
@@ -605,10 +630,6 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
                                             </li>
                                         ))}
                                     </ul>
-
-                                    <p className="mt-3 text-sm font-medium text-slate-700">
-                                        {a.funnel.resolutionRate(`${resolvedPct}%`)}
-                                    </p>
                                 </>
                             )}
                         </div>
