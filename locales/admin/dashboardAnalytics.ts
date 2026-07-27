@@ -52,11 +52,20 @@ export const analyticsEn = {
         d90: '90 days',
         m12: '12 months',
         label: 'Range',
-        // The KPI row is deliberately NOT filtered by the selector: "how many
-        // pallets do we own, and how many are out right now" is a question about
-        // this instant, and answering it for a window that ended 90 days ago
-        // would be actively misleading. This note is what tells the reader the
-        // inconsistency is intentional rather than a bug.
+        // The counterpart chip, worn by every card that is NOT scoped by the
+        // range: fleet counts, stock by location, days overdue, dormant pallets.
+        // Those read the pallet table as of this instant, and answering "how
+        // many do we own" for a window that ended 90 days ago would be actively
+        // misleading -- so the two kinds of card have to be distinguishable at a
+        // glance. A range card carries the picker; an as-of-now card carries
+        // this. Keep it SHORT: it sits in a card header beside a title that is
+        // already ~1.5x wider in Thai.
+        asOfNow: 'As of now',
+        // The same caveat as a sentence, for the summary CSV -- which has no
+        // card headers to put chips in, so it needs it spelled out. Only
+        // utils/exportHelpers.ts reads this; on screen the two chips above say
+        // it structurally. "The range above" is literal there: the CSV writes
+        // the selected range on the line directly before this one.
         currentStateNote:
             'Fleet size, utilisation and overdue are counted as of right now. The range above applies to the charts only.',
     },
@@ -299,6 +308,10 @@ export const analyticsTh: AnalyticsDict = {
         d90: '90 วัน',
         m12: '12 เดือน',
         label: 'ช่วงเวลา',
+        // "As of now". Four syllables, no space to break at, and it has to sit
+        // beside a card title -- the shortest phrasing that is still a complete
+        // statement of when the figure was counted.
+        asOfNow: 'ณ ตอนนี้',
         currentStateNote:
             'จำนวนพาเลททั้งหมด อัตราการใช้งาน และรายการเกินกำหนด เป็นค่า ณ ปัจจุบัน ช่วงเวลาด้านบนมีผลกับกราฟเท่านั้น',
     },

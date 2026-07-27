@@ -14,11 +14,15 @@ import {
     exportInventoryCSV,
 } from '../../../utils/exportHelpers';
 
-import { FilterBar } from './sections/FilterBar';
 import { KpiRow } from './sections/KpiRow';
+import { PageHeader } from './sections/PageHeader';
 
 /**
- * The analytics dashboard: a filter bar, a KPI row and five chart sections.
+ * The analytics dashboard: a page header, a KPI row and five chart sections.
+ *
+ * The range selector is deliberately NOT here. It sits in the header of each
+ * card it scopes, and its static counterpart on each card it does not -- see
+ * the note at the top of RangeMenu.tsx for the measurements behind that.
  *
  * Three things about this file are load-bearing and easy to undo by accident.
  *
@@ -183,9 +187,10 @@ const DeferredSection: React.FC<DeferredSectionProps> = ({
         <section
             id={id}
             ref={ref}
-            // scroll-mt-20 pays for the sticky FilterBar: without it, any
-            // in-page jump parks the section heading directly under the bar,
-            // so the reader lands on a chart with no title.
+            // scroll-mt-20 pays for the sticky mobile top bar in
+            // AdminDashboard: without it, an in-page jump below `lg` parks the
+            // section heading underneath it and the reader lands on a chart
+            // with no title.
             className="scroll-mt-20 print-avoid-break"
         >
             {isMounted ? <Suspense fallback={placeholder}>{children}</Suspense> : placeholder}
@@ -311,8 +316,10 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
         // index.css:317 documents -- it never rendered a frame.
         <div id="dashboard-printable-area" ref={printRef} className="flex flex-col gap-6">
             {/* On paper only. The screen already has the sidebar, the tab and
-                the filter bar to say what this is; the printed sheet has none of
-                them and would otherwise start with an unlabelled KPI row. */}
+                the page header to say what this is; the printed sheet has none
+                of them and would otherwise start with an unlabelled KPI row.
+                Each chart still carries its own range chip onto the page, so a
+                printed report says which window every figure covers. */}
             <div className="hidden print:block border-b border-slate-200 pb-4">
                 <h1 className="text-2xl font-semibold text-slate-900">{t.dashboard.reportTitle}</h1>
                 <p className="mt-1 text-sm text-slate-500">
@@ -320,9 +327,12 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                 </p>
             </div>
 
-            <FilterBar
-                range={range}
-                onRangeChange={setRange}
+            {/* No range control here any more -- it lives on each card the
+                range actually scopes, and its static twin (AsOfNowChip) on each
+                card it does not. See the note at the top of RangeMenu.tsx: a
+                page-level picker governed one of the five blocks on screen and
+                needed a printed disclaimer to admit it. */}
+            <PageHeader
                 onPrint={handlePrint}
                 onExportSummary={handleExportSummary}
                 onExportInventory={handleExportInventory}
@@ -384,6 +394,8 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                     isLoading={isLoading}
                     isRefreshing={isRefreshing}
                     overdueDays={overdueDays}
+                    range={range}
+                    onRangeChange={setRange}
                     onNavigate={onNavigateToInventory}
                 />
             </DeferredSection>
@@ -439,6 +451,8 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                             isLoading={isLoading}
                             isRefreshing={isRefreshing}
                             overdueDays={overdueDays}
+                            range={range}
+                            onRangeChange={setRange}
                             onSelectPallet={onSelectPallet}
                         />
                     </DeferredSection>
@@ -452,6 +466,8 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                             analytics={analytics}
                             isLoading={isLoading}
                             isRefreshing={isRefreshing}
+                            range={range}
+                            onRangeChange={setRange}
                             onSelectPallet={onSelectPallet}
                         />
                     </DeferredSection>
@@ -465,6 +481,8 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                             analytics={analytics}
                             isLoading={isLoading}
                             isRefreshing={isRefreshing}
+                            range={range}
+                            onRangeChange={setRange}
                         />
                     </DeferredSection>
 
@@ -477,6 +495,8 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                             analytics={analytics}
                             isLoading={isLoading}
                             isRefreshing={isRefreshing}
+                            range={range}
+                            onRangeChange={setRange}
                         />
                     </DeferredSection>
                 </div>

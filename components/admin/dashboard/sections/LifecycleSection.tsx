@@ -22,6 +22,8 @@ import {
     GRID_PROPS,
 } from '../../charts/chartTheme';
 import { StatusBadge, formatDuration } from '../../common/AdminHelpers';
+import { AsOfNowChip, RangeMenu } from '../RangeMenu';
+import type { DashboardRange } from '../../../../hooks/dashboard/useDashboardData';
 import { useReducedMotion } from '../../../../hooks/useReducedMotion';
 import { useLang, useT } from '../../../../hooks/useT';
 import type {
@@ -155,6 +157,17 @@ export interface LifecycleSectionProps {
     isLoading: boolean;
     isRefreshing?: boolean;
     overdueDays: number;
+    /**
+     * One of the three cards here is range-scoped and two are not, which makes
+     * this section the clearest case for per-card chips.
+     *
+     * The dwell histogram counts trips whose CLOSING event fell inside the
+     * window. The overdue histogram and the dormant table are both measured
+     * from `now` across the whole fleet -- their empty states already refuse to
+     * offer "try a wider range" for exactly that reason.
+     */
+    range: DashboardRange;
+    onRangeChange: (range: DashboardRange) => void;
     onSelectPallet?: (palletId: string) => void;
 }
 
@@ -335,9 +348,17 @@ interface DwellCardProps {
     dwell: DwellStats | null;
     isLoading: boolean;
     isRefreshing: boolean;
+    range: DashboardRange;
+    onRangeChange: (range: DashboardRange) => void;
 }
 
-const DwellCard: React.FC<DwellCardProps> = ({ dwell, isLoading, isRefreshing }) => {
+const DwellCard: React.FC<DwellCardProps> = ({
+    dwell,
+    isLoading,
+    isRefreshing,
+    range,
+    onRangeChange,
+}) => {
     const t = useT();
     const lang = useLang();
     const reduced = useReducedMotion();
@@ -362,6 +383,11 @@ const DwellCard: React.FC<DwellCardProps> = ({ dwell, isLoading, isRefreshing })
             title={copy.dwell.title}
             subtitle={copy.dwell.subtitle}
             icon={Hourglass}
+            // Range-scoped, and the chip says which window. The reducer reads
+            // ~90 extra days of history so it can find the check-out that opens
+            // a trip returned yesterday, but a pair only lands in this histogram
+            // when its CLOSING event falls inside the window shown here.
+            action={<RangeMenu value={range} onChange={onRangeChange} />}
             fixedPlotHeight={PLOT_HEIGHT}
             isLoading={isLoading}
             isRefreshing={isRefreshing}
@@ -493,6 +519,10 @@ const OverdueCard: React.FC<OverdueCardProps> = ({ aging, overdueDays, isLoading
             title={copy.agingOverdue.title}
             subtitle={copy.agingOverdue.subtitle}
             icon={AlarmClock}
+            // Not range-scoped: built from the pallet rows against `now`, which
+            // is the same reason its empty state below withholds the "try a
+            // wider range" hint that the card beside it offers.
+            action={<AsOfNowChip />}
             fixedPlotHeight={PLOT_HEIGHT}
             isLoading={isLoading}
             isRefreshing={isRefreshing}
@@ -690,6 +720,9 @@ const DormantCard: React.FC<DormantCardProps> = ({ rows, isLoading, isRefreshing
                     title={copy.dormant.title}
                     subtitle={copy.dormant.subtitle}
                     icon={Moon}
+                    // Dormancy is measured from `now` across the whole fleet and
+                    // ignores the range entirely.
+                    action={<AsOfNowChip />}
                 />
                 {/* isRefreshing dims what is already there and never swaps in a
                     skeleton: this app refetches on every realtime row change, so
@@ -711,6 +744,8 @@ export const LifecycleSection: React.FC<LifecycleSectionProps> = ({
     isLoading,
     isRefreshing = false,
     overdueDays,
+    range,
+    onRangeChange,
     onSelectPallet,
 }) => (
     // Columns step at md/xl only. `lg` is reserved for the shell: the sidebar
@@ -718,7 +753,13 @@ export const LifecycleSection: React.FC<LifecycleSectionProps> = ({
     // width at 1024px (704px) is NARROWER than at 768px (736px). A second
     // column at `lg` would land in the tightest column on the whole ladder.
     <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2">
-        <DwellCard dwell={analytics?.dwell ?? null} isLoading={isLoading} isRefreshing={isRefreshing} />
+        <DwellCard
+            dwell={analytics?.dwell ?? null}
+            isLoading={isLoading}
+            isRefreshing={isRefreshing}
+            range={range}
+            onRangeChange={onRangeChange}
+        />
         <OverdueCard
             aging={analytics?.aging ?? null}
             overdueDays={overdueDays}

@@ -23,6 +23,8 @@ import {
     SERIES_COLORS,
 } from '../../charts/chartTheme';
 import { PALLET_STATUS_META, formatDate, formatDuration } from '../../common/AdminHelpers';
+import { RangeMenu } from '../RangeMenu';
+import type { DashboardRange } from '../../../../hooks/dashboard/useDashboardData';
 import { useT } from '../../../../hooks/useT';
 import { useReducedMotion } from '../../../../hooks/useReducedMotion';
 import type {
@@ -138,6 +140,15 @@ interface QualitySectionProps {
     analytics: DashboardAnalytics | null;
     isLoading: boolean;
     isRefreshing?: boolean;
+    /**
+     * All four cards here are range-scoped, so all four carry the picker and
+     * none carries AsOfNowChip. That is not repetition for its own sake: a
+     * reader arriving at the repeat-offender table from the deep-dive
+     * disclosure has no other way to see that "2 damage reports" means two
+     * inside the selected window rather than two ever.
+     */
+    range: DashboardRange;
+    onRangeChange: (range: DashboardRange) => void;
     onSelectPallet?: (palletId: string) => void;
 }
 
@@ -280,10 +291,17 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
     analytics,
     isLoading,
     isRefreshing = false,
+    range,
+    onRangeChange,
     onSelectPallet,
 }) => {
     const t = useT();
     const a = t.dashboard.analytics;
+
+    // One element, rendered four times. Each RangeMenu instance keeps its own
+    // open/closed state and its own ids; only the VALUE is shared, through the
+    // single `range` in useDashboardData.
+    const rangeChip = <RangeMenu value={range} onChange={onRangeChange} />;
     // RULE 5: read once, pass the negation to every Bar below.
     const reducedMotion = useReducedMotion();
 
@@ -408,6 +426,7 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
                     title={a.qualityTrend.title}
                     subtitle={a.qualityTrend.subtitle}
                     icon={ShieldAlert}
+                    action={rangeChip}
                     // RULE 4: fixed, not aspect. At aspect this card is 1120px
                     // wide on a desktop and 328px on a phone, so the plot would
                     // swing between 373px and 109px tall for the same data.
@@ -500,6 +519,12 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
                             title={a.funnel.title}
                             subtitle={funnelSubtitle}
                             icon={FunnelIcon}
+                            // RULE 3 on screen, at chip size: `reported` counts
+                            // reports RAISED in this window, and `repaired` /
+                            // `scrapped` count how many of THOSE were later
+                            // closed. The cohort is defined by the window, so
+                            // naming the window is part of naming the cohort.
+                            action={rangeChip}
                         />
 
                         <div
@@ -622,6 +647,7 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
                     title={a.resolve.title}
                     subtitle={a.resolve.subtitle}
                     icon={Timer}
+                    action={rangeChip}
                     // RULE 4: six bands on a 328px column. Fixed height gives
                     // each band ~34px whatever the width; `aspect` would give
                     // the whole plot 164px there and squeeze them to 20px.
@@ -758,6 +784,11 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
                             title={a.offenders.title}
                             subtitle={a.offenders.subtitle}
                             icon={Repeat}
+                            // A pallet is listed after its SECOND damage report
+                            // IN THIS WINDOW -- so "no repeat offenders" at 7
+                            // days and three of them at 12 months are both
+                            // correct, and the chip is what makes that legible.
+                            action={rangeChip}
                         />
 
                         <div

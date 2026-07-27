@@ -11,6 +11,8 @@ import {
     HEAT_SCALE,
     heatColor,
 } from '../../charts/chartTheme';
+import { RangeMenu } from '../RangeMenu';
+import type { DashboardRange } from '../../../../hooks/dashboard/useDashboardData';
 import { useReducedMotion } from '../../../../hooks/useReducedMotion';
 import { useT } from '../../../../hooks/useT';
 import type { DashboardAnalytics } from '../../../../services/analytics/dashboardAnalytics';
@@ -103,6 +105,14 @@ export interface TimeSectionProps {
     analytics: DashboardAnalytics | null;
     isLoading: boolean;
     isRefreshing?: boolean;
+    /**
+     * Both cards here are range-scoped, and the heatmap is the one that needs
+     * saying most: a grid of 168 cells gives no hint of how long it was
+     * accumulated over, so the same shape means something quite different at 7
+     * days and at 12 months.
+     */
+    range: DashboardRange;
+    onRangeChange: (range: DashboardRange) => void;
 }
 
 /**
@@ -419,6 +429,8 @@ export const TimeSection: React.FC<TimeSectionProps> = ({
     analytics,
     isLoading,
     isRefreshing = false,
+    range,
+    onRangeChange,
 }) => {
     const t = useT();
     const reducedMotion = useReducedMotion();
@@ -507,6 +519,7 @@ export const TimeSection: React.FC<TimeSectionProps> = ({
                         title={heatDict.title}
                         subtitle={heatDict.subtitle}
                         icon={CalendarClock}
+                        action={<RangeMenu value={range} onChange={onRangeChange} />}
                     />
 
                     {/* isRefreshing dims what is already on screen and never
@@ -579,6 +592,7 @@ export const TimeSection: React.FC<TimeSectionProps> = ({
             <ChartFrame
                 title={heatDict.weekdayTotals}
                 icon={CalendarDays}
+                action={<RangeMenu value={range} onChange={onRangeChange} />}
                 fixedPlotHeight={WEEKDAY_COUNT * ROW_PITCH_PX + CHART_CHROME_PX}
                 isLoading={isLoading}
                 isRefreshing={isRefreshing}

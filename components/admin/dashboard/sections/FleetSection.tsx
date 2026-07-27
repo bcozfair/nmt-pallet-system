@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     Area,
     Bar,
@@ -32,12 +32,13 @@ import {
     DISTRIBUTION_COLOR,
     GRID_PROPS,
     MOVEMENT_SERIES,
-    SEGMENT_GAP,
     SERIES_COLORS,
     statusColor,
 } from '../../charts/chartTheme';
+import { AsOfNowChip, RangeMenu } from '../RangeMenu';
 import type { DashboardAnalytics, LocationRow, TrendPoint } from '../../../../services/analytics/dashboardAnalytics';
 import { OTHER_LOCATION_KEY } from '../../../../services/analytics/dashboardAnalytics';
+import type { DashboardRange } from '../../../../hooks/dashboard/useDashboardData';
 import { useReducedMotion } from '../../../../hooks/useReducedMotion';
 import { useT } from '../../../../hooks/useT';
 import type { ActionType, PalletStatus } from '../../../../types';
@@ -76,6 +77,15 @@ export interface FleetSectionProps {
     isRefreshing?: boolean;
     /** The configured overdue threshold, from system_settings. */
     overdueDays: number;
+    /**
+     * The selected window, and the setter, for the ONE card here it applies to.
+     *
+     * Only the movement trend reads transactions. The donut, the location bars
+     * and the risk list are all counted from the pallet table as of right now,
+     * which is why they wear AsOfNowChip instead -- see RangeMenu.tsx.
+     */
+    range: DashboardRange;
+    onRangeChange: (range: DashboardRange) => void;
     onNavigate: (filter: string, location?: string) => void;
 }
 
@@ -188,6 +198,8 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
     isLoading,
     isRefreshing = false,
     overdueDays,
+    range,
+    onRangeChange,
     onNavigate,
 }) => {
     const t = useT();
@@ -207,6 +219,12 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
     // pallets (dashboardAnalytics.ts:667), so these three sum to exactly 100%.
     // A scrapped slice would break that identity and, worse, would imply that a
     // written-off pallet is part of the fleet. It is a footnote instead.
+    // Which slice the pointer (or keyboard focus, via the legend rows) is on.
+    // null = nothing hovered, so the hole shows the fleet total. The chart this
+    // replaced had exactly this behaviour hand-rolled in SVG; it was lost in the
+    // move to Recharts and is the one interaction the card genuinely needs.
+    const [activeSlice, setActiveSlice] = useState<number | null>(null);
+
     const donutData = useMemo(() => {
         if (!fleet) return [];
         const statuses: PalletStatus[] = ['available', 'in_use', 'damaged'];
@@ -219,6 +237,12 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
             percent: ((status === 'available' ? fleet.available : status === 'in_use' ? fleet.in_use : fleet.damaged) / denominator) * 100,
         }));
     }, [fleet, t]);
+
+    // A zero-count status draws no arc, but `paddingAngle` still reserves a gap
+    // for it -- so an empty status would appear as a notch cut out of a
+    // neighbour for no reason. Filtered for the CHART only: the legend and the
+    // table still list it, because "damaged: 0" is information.
+    const donutSlices = useMemo(() => donutData.filter((d) => d.value > 0), [donutData]);
 
     // -- Movement -------------------------------------------------------------
     // Labels for the two movement series. Read from the analytics dictionary
@@ -301,15 +325,12 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
                     title={t.dashboard.fleetHealth}
                     subtitle={t.dashboard.fleetHealthSub}
                     icon={PieChartIcon}
-                    action={
-                        // The donut's hole stays empty and the total lives here
-                        // instead. Centre text inside the SVG would have to be
-                        // sized by hand at every breakpoint and cannot be
-                        // selected or copied; this is ordinary HTML.
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold whitespace-nowrap text-slate-700">
-                            {t.dashboard.unitsCount(fleet?.total ?? 0)}
-                        </span>
-                    }
+                    // The TOTAL moved into the donut's hole -- the same number
+                    // twice, 40px apart, only makes the reader check whether the
+                    // two agree. What sits here instead is the scope: these
+                    // three counts come from the pallet table and do not move
+                    // when the range on the card beside this one changes.
+                    action={<AsOfNowChip />}
                     fixedPlotHeight={DONUT_PLOT_HEIGHT}
                     isLoading={isLoading}
                     isRefreshing={isRefreshing}
@@ -322,21 +343,83 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
                         // can never deliver.
                         <EmptyState variant="plot" icon={Inbox} title={t.common.noData} />
                     }
+                    // The hole. Reads as the fleet total until a slice is
+                    // hovered or focused, then as that slice.
+                    plotOverlay={
+                        <div className="text-center leading-tight">
+                            {activeSlice !== null && donutSlices[activeSlice] ? (
+                                <>
+                                    <p className="text-2xl font-semibold tracking-tight text-slate-900">
+                                        {donutSlices[activeSlice].value}
+                                    </p>
+                                    <p className="mt-0.5 text-xs font-medium text-slate-500">
+                                        {donutSlices[activeSlice].label}
+                                    </p>
+                                    <p className="text-xs text-slate-400">
+                                        {donutSlices[activeSlice].percent.toFixed(1)}%
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-3xl font-semibold tracking-tight text-slate-900">
+                                        {fleet?.total ?? 0}
+                                    </p>
+                                    <p className="mt-0.5 text-xs font-medium text-slate-500">
+                                        {t.dashboard.analytics.kpi.totalFleet}
+                                    </p>
+                                </>
+                            )}
+                        </div>
+                    }
+                    // The legend, beside the donut rather than under it. Rows,
+                    // not a wrapped strip: a column aligns the counts and the
+                    // percentages so they can be compared down the page, and it
+                    // fills space the donut leaves empty anyway.
+                    aside={
+                        <ul className="flex flex-col gap-1 sm:min-w-[9.5rem]">
+                            {donutData.map((d) => {
+                                const sliceIndex = donutSlices.findIndex((x) => x.status === d.status);
+                                const isActive = sliceIndex !== -1 && sliceIndex === activeSlice;
+                                return (
+                                    <li key={d.status}>
+                                        {/* A real button, so the hole responds to
+                                            keyboard focus too -- otherwise the
+                                            per-slice figures are reachable only
+                                            with a pointer. The percentages are
+                                            printed here as well, so nothing
+                                            depends on hovering at all. */}
+                                        <button
+                                            type="button"
+                                            onMouseEnter={() => setActiveSlice(sliceIndex === -1 ? null : sliceIndex)}
+                                            onMouseLeave={() => setActiveSlice(null)}
+                                            onFocus={() => setActiveSlice(sliceIndex === -1 ? null : sliceIndex)}
+                                            onBlur={() => setActiveSlice(null)}
+                                            className={
+                                                'flex w-full items-baseline gap-2 rounded-lg px-2 py-1.5 text-left transition ' +
+                                                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ' +
+                                                (isActive ? 'bg-slate-100' : 'hover:bg-slate-50')
+                                            }
+                                        >
+                                            <span
+                                                className="h-2.5 w-2.5 shrink-0 self-center rounded-full"
+                                                style={{ backgroundColor: d.color }}
+                                                aria-hidden="true"
+                                            />
+                                            <span className="min-w-0 flex-1 truncate text-sm text-slate-600">
+                                                {d.label}
+                                            </span>
+                                            <span className="text-sm font-semibold text-slate-900">{d.value}</span>
+                                            <span className="w-11 shrink-0 text-right text-xs text-slate-400">
+                                                {d.percent.toFixed(1)}%
+                                            </span>
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    }
                     footer={
                         <div className="space-y-3">
-                            <ChartLegend
-                                items={donutData.map((d) => ({
-                                    key: d.status,
-                                    // Percent in the legend, not only in the
-                                    // tooltip: a tooltip needs a pointer and a
-                                    // steady hand, and is gone the moment you
-                                    // look away.
-                                    label: `${d.label} · ${d.value} (${d.percent.toFixed(1)}%)`,
-                                    color: d.color,
-                                    shape: 'dot' as const,
-                                }))}
-                            />
-
                             {/* Scrapped: a footnote line, never a fourth slice. */}
                             {!!fleet && fleet.scrapped > 0 && (
                                 <p className="flex items-start gap-1.5 text-xs text-slate-500">
@@ -380,21 +463,40 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
                             }}
                         />
                         <Pie
-                            data={donutData}
+                            data={donutSlices}
                             dataKey="value"
                             nameKey="label"
-                            innerRadius="62%"
-                            outerRadius="88%"
+                            innerRadius="68%"
+                            outerRadius="92%"
+                            // 12 o'clock, clockwise. A pie starting at 3 o'clock
+                            // asks the reader to hunt for the first slice;
+                            // starting at the top makes reading order and draw
+                            // order the same.
+                            startAngle={90}
+                            endAngle={-270}
+                            // paddingAngle IS the gap here, in place of the 2px
+                            // surface-coloured stroke SEGMENT_GAP draws. A real
+                            // gap plus rounded ends already reads as separate
+                            // arcs; a white stroke on top would thicken the same
+                            // seam twice.
+                            paddingAngle={donutSlices.length > 1 ? 3 : 0}
+                            cornerRadius={6}
+                            stroke="none"
+                            onMouseEnter={(_, index) => setActiveSlice(index)}
+                            onMouseLeave={() => setActiveSlice(null)}
                             isAnimationActive={!reducedMotion}
                         >
-                            {donutData.map((d) => (
-                                // SEGMENT_GAP is a 2px stroke in the surface
-                                // colour. That stroke IS the gap between the
-                                // slices -- it is not a border and it is not
-                                // decoration. Drawn this way the segments stay
-                                // geometrically flush and the gap is genuinely
-                                // transparent down to the card beneath.
-                                <Cell key={d.status} fill={d.color} {...SEGMENT_GAP} />
+                            {donutSlices.map((d, index) => (
+                                // Dimming the others rather than exploding the
+                                // active one: an offset slice changes the arc
+                                // lengths the eye is comparing, which is the one
+                                // thing this chart exists to show.
+                                <Cell
+                                    key={d.status}
+                                    fill={d.color}
+                                    opacity={activeSlice === null || activeSlice === index ? 1 : 0.3}
+                                    className="transition-opacity duration-200"
+                                />
                             ))}
                         </Pie>
                     </PieChart>
@@ -409,6 +511,11 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
                     title={t.dashboard.analytics.movement.title}
                     subtitle={t.dashboard.analytics.movement.subtitle}
                     icon={TrendingUp}
+                    // The only range-scoped card in this section. With the
+                    // deep-dive panel collapsed it is the only one on the whole
+                    // page, which is precisely why a page-level range bar read
+                    // as a filter that did nothing.
+                    action={<RangeMenu value={range} onChange={onRangeChange} />}
                     fixedPlotHeight={TREND_PLOT_HEIGHT}
                     isLoading={isLoading}
                     isRefreshing={isRefreshing}
@@ -551,6 +658,11 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
                     title={t.dashboard.locationUsage}
                     subtitle={t.dashboard.locationUsageSub}
                     icon={ChartColumnStacked}
+                    // byLocation is grouped from each pallet's
+                    // `current_location`, not from the transactions in the
+                    // window, so this chart is identical at 7 days and at 12
+                    // months. Saying so is the whole job of the chip.
+                    action={<AsOfNowChip />}
                     fixedPlotHeight={locationPlotHeight}
                     isLoading={isLoading}
                     isRefreshing={isRefreshing}
@@ -695,7 +807,23 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
                             // Surfaces the configured threshold, because every
                             // "overdue" number in the list below is relative to
                             // it and it is an admin-editable setting.
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-slate-700">
+                            //
+                            // This is also why the card carries NO AsOfNowChip,
+                            // even though it is as-of-now like the two above it:
+                            // the header's action slot is `shrink-0`, and this
+                            // chip already runs ~200px in Thai ("ไม่มีความ
+                            // เคลื่อนไหวเกิน 7 วัน") against a 288px content box
+                            // at a 360px viewport. A second chip beside it would
+                            // push the row past the card. The threshold is the
+                            // more specific statement of scope anyway, and the
+                            // chart directly above -- same `fleet.byLocation`
+                            // data -- does carry the chip.
+                            //
+                            // Same box as AsOfNowChip (min-h-8, rounded-lg,
+                            // text-xs): every chip in a card header on this
+                            // dashboard is one shape, so the eye reads the
+                            // difference as meaning rather than as styling.
+                            <span className="inline-flex min-h-8 items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-slate-700">
                                 {t.dashboard.criticalOverdueSub(overdueDays)}
                             </span>
                         }

@@ -23,6 +23,24 @@ export interface ChartFrameProps {
     emptyState?: React.ReactNode;
     /** Legend + the <details> table view. See the note on <details> below. */
     footer?: React.ReactNode;
+    /**
+     * Rendered beside the plot from `sm` up, stacked under it below that.
+     *
+     * For a legend that reads better as a column of rows than as a wrapped strip
+     * under the chart: a donut plus three labelled figures is mostly empty space
+     * on either side, and putting the figures in that space makes the card about
+     * 30% shorter without shrinking anything.
+     */
+    aside?: React.ReactNode;
+    /**
+     * Centred over the plot, pointer-events-none. For a donut's hole.
+     *
+     * HTML rather than an SVG <text>: SVG text would have to be sized by hand at
+     * every breakpoint, cannot be selected or copied, and does not inherit the
+     * Thai font stack the rest of the card uses. Suppressed while loading or
+     * empty, so a total never floats over a skeleton.
+     */
+    plotOverlay?: React.ReactNode;
     children: React.ReactNode;
 }
 
@@ -82,6 +100,8 @@ export const ChartFrame: React.FC<ChartFrameProps> = ({
     isEmpty = false,
     emptyState,
     footer,
+    aside,
+    plotOverlay,
     children,
 }) => {
     // Inline style rather than a `min-h-[...]` class: the value is a runtime
@@ -131,7 +151,33 @@ export const ChartFrame: React.FC<ChartFrameProps> = ({
                     height of its own. `flex` so an empty state can stretch to
                     the floor without needing h-full. */}
                 <div className="mt-4 flex w-full flex-col" style={plotBox}>
-                    {renderPlot()}
+                    {aside ? (
+                        // `minmax(0,1fr)` and not `1fr`: a grid track's minimum
+                        // is auto, so without it the plot column refuses to
+                        // shrink below the chart's intrinsic width and pushes
+                        // the aside off the card -- the same default that
+                        // overflowed the whole admin shell.
+                        <div className="grid w-full flex-1 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-6">
+                            <div className="relative min-w-0">
+                                {renderPlot()}
+                                {plotOverlay && !isLoading && !isEmpty && (
+                                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                        {plotOverlay}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="min-w-0">{aside}</div>
+                        </div>
+                    ) : (
+                        <div className="relative flex w-full flex-1 flex-col">
+                            {renderPlot()}
+                            {plotOverlay && !isLoading && !isEmpty && (
+                                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                    {plotOverlay}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 

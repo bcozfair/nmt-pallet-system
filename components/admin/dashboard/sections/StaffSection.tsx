@@ -12,6 +12,8 @@ import {
     SERIES_ORDER,
 } from '../../charts/chartTheme';
 import { formatDateTime } from '../../common/AdminHelpers';
+import { RangeMenu } from '../RangeMenu';
+import type { DashboardRange } from '../../../../hooks/dashboard/useDashboardData';
 import { useReducedMotion } from '../../../../hooks/useReducedMotion';
 import { useT } from '../../../../hooks/useT';
 import { UNKNOWN_USER_KEY } from '../../../../services/analytics/dashboardAnalytics';
@@ -84,6 +86,14 @@ export interface StaffSectionProps {
     analytics: DashboardAnalytics | null;
     isLoading: boolean;
     isRefreshing?: boolean;
+    /**
+     * The chart and the tile beside it are both range-scoped -- a ranking is
+     * counted from the transactions in the window, and `activeStaffCount` means
+     * "recorded at least one transaction IN IT". The chip goes on the chart:
+     * StatTile has no header slot, and the two sit in one row.
+     */
+    range: DashboardRange;
+    onRangeChange: (range: DashboardRange) => void;
 }
 
 /** Rows beyond this are folded into one "others" bar. */
@@ -165,6 +175,8 @@ export const StaffSection: React.FC<StaffSectionProps> = ({
     analytics,
     isLoading,
     isRefreshing = false,
+    range,
+    onRangeChange,
 }) => {
     const t = useT();
     const reducedMotion = useReducedMotion();
@@ -355,6 +367,7 @@ export const StaffSection: React.FC<StaffSectionProps> = ({
                     title={staffDict.title}
                     subtitle={staffDict.subtitle}
                     icon={Users}
+                    action={<RangeMenu value={range} onChange={onRangeChange} />}
                     fixedPlotHeight={plotHeight}
                     isLoading={isLoading}
                     isRefreshing={isRefreshing}
