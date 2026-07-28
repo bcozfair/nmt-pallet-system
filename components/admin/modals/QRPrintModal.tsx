@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Pallet } from '../../../types';
 import { QrCode, Printer, ImageDown } from 'lucide-react';
 import { useT } from '../../../hooks/useT';
@@ -21,12 +21,19 @@ const escapeHtml = (value: string) =>
 
 export const QRPrintModal = ({ pallets, onClose }: { pallets: Pallet[], onClose: () => void }) => {
     const t = useT();
+    // headerActions ("พิมพ์ PDF") มาก่อนปุ่ม ✕ ใน DOM เสมอ (ดูคอมเมนต์ที่
+    // headerActions ของ Modal.tsx) โฟกัสตัวแรกโดยดีฟอลต์จึงลงบนปุ่มพิมพ์ ผู้ใช้
+    // คีย์บอร์ดที่เปิดกล่องนี้แล้วกด Enter ทันทีจะสั่งพิมพ์โดยไม่ได้ตั้งใจ ชี้
+    // initialFocusRef มาที่กริดเนื้อหา (ไม่ใช่ปุ่มไหนเลย) ตัดปัญหานี้ตรง ๆ
+    const contentRef = useRef<HTMLDivElement>(null);
 
     const handlePrint = () => {
         const printWindow = window.open('', '_blank', 'width=800,height=600');
 
         if (!printWindow) {
-            alert(t.common.popupBlocked);
+            // toast ไม่ใช่ alert: alert() บล็อกเธรดทั้งหน้าจนกว่าจะกดตกลง --
+            // เหตุผลเดียวกับ handleDownloadImage ข้างล่าง
+            toast.error(t.common.popupBlocked);
             return;
         }
 
@@ -158,8 +165,9 @@ export const QRPrintModal = ({ pallets, onClose }: { pallets: Pallet[], onClose:
                     {t.modals.printPdf}
                 </Button>
             }
+            initialFocusRef={contentRef}
         >
-            <div className="-mx-5 -mb-5 bg-slate-100 px-5 py-5">
+            <div ref={contentRef} tabIndex={-1} className="-mx-5 -mb-5 bg-slate-100 px-5 py-5">
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                     {pallets.map(p => (
                         <div
