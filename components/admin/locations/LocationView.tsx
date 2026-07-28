@@ -12,7 +12,8 @@ import { LocationHeader } from './LocationHeader';
 import { LocationFilters } from './LocationFilters';
 import { LocationTable, LocationStats, LocationSortConfig, LocationSortKey } from './LocationTable';
 import { LocationModal } from './LocationModals';
-import { ConfirmModal, ConfirmActionType } from '../inventory/InventoryModals';
+import { ConfirmDialog } from '../../ui';
+import { ConfirmActionType } from '../../../hooks/inventory/useInventoryActions';
 import { describeAppError } from '../../../services/appError';
 
 export const LocationView: React.FC = () => {
@@ -391,10 +392,26 @@ export const LocationView: React.FC = () => {
                 onSave={handleSave}
             />
 
-            <ConfirmModal
-                action={confirmAction}
-                onClose={() => setConfirmAction(null)}
-            />
+            {/* เรนเดอร์เฉพาะตอนมี action จริง เพื่อให้ state ภายใน (กำลังทำงาน)
+                ถูกล้างทุกครั้งที่เปิดกล่องใหม่ -- ของเดิม ConfirmModal ทำแบบเดียวกัน
+                ด้วย `if (!action) return null` ข้างใน. ป้ายกำกับสามป้ายด้านล่างอ่านผ่าน
+                dict() ไม่ใช่ useT() เหมือนข้อความอื่นทั้งหมดในไฟล์นี้ -- ดูคอมเมนต์ที่
+                ต้นคอมโพเนนต์ */}
+            {confirmAction && (
+                <ConfirmDialog
+                    isOpen
+                    title={confirmAction.title}
+                    message={confirmAction.message}
+                    confirmLabel={confirmAction.confirmLabel}
+                    cancelLabel={dict().common.cancel}
+                    closeLabel={dict().common.closeDialog}
+                    workingLabel={dict().common.loading}
+                    isDestructive={confirmAction.isDestructive}
+                    onConfirm={confirmAction.onConfirm}
+                    onCancel={() => setConfirmAction(null)}
+                    onError={(error) => toast.error(describeAppError(error))}
+                />
+            )}
         </div>
     );
 };
