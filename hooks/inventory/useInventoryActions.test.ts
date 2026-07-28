@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { Pallet } from '../../types';
 import { useInventoryActions } from './useInventoryActions';
@@ -51,10 +51,6 @@ vi.mock('../../contexts/AuthContext', () => ({
 }));
 
 describe('useInventoryActions — handleSavePalletEdit', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
-
     it('บันทึกสำเร็จแล้ว resolve ไม่โยน', async () => {
         const { updatePallet } = await import('../../services/palletService');
         vi.mocked(updatePallet).mockResolvedValue(undefined);
@@ -82,6 +78,9 @@ describe('useInventoryActions — handleSavePalletEdit', () => {
         const { updatePallet } = await import('../../services/palletService');
         vi.mocked(updatePallet).mockRejectedValue({ code: '23505', message: 'Duplicate key' });
 
+        // Suppress console.error output for this test
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
         const { result } = renderHook(() => useInventoryActions(() => {}, () => {}));
 
         const testPallet: Pallet = {
@@ -99,11 +98,17 @@ describe('useInventoryActions — handleSavePalletEdit', () => {
                 pallet_remark: 'Test remark',
             })
         ).rejects.toThrow('รหัสพาเลทนี้มีอยู่ในระบบแล้ว');
+
+        // Verify console.error was still called with the original error
+        expect(consoleErrorSpy).toHaveBeenCalledWith({ code: '23505', message: 'Duplicate key' });
     });
 
     it('บันทึกไม่สำเร็จ รหัสอื่น โยน error ข้อความเป็น inventory.updateFailed', async () => {
         const { updatePallet } = await import('../../services/palletService');
         vi.mocked(updatePallet).mockRejectedValue({ code: 'GENERIC_ERROR', message: 'Something went wrong' });
+
+        // Suppress console.error output for this test
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         const { result } = renderHook(() => useInventoryActions(() => {}, () => {}));
 
@@ -122,6 +127,9 @@ describe('useInventoryActions — handleSavePalletEdit', () => {
                 pallet_remark: 'Updated remark',
             })
         ).rejects.toThrow('บันทึกข้อมูลพาเลทไม่สำเร็จ');
+
+        // Verify console.error was still called with the original error
+        expect(consoleErrorSpy).toHaveBeenCalledWith({ code: 'GENERIC_ERROR', message: 'Something went wrong' });
     });
 
 });
