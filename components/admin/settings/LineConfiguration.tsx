@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { MessageSquare } from 'lucide-react';
-import { SettingsCard } from './SettingsCard';
 import { SystemSettings } from '../../../services/settingsService';
 import { useT } from '../../../hooks/useT';
+import { Card, Field, SectionHeader, TextInput } from '../../ui';
 
 interface LineConfigurationProps {
     settings: SystemSettings;
@@ -11,44 +11,80 @@ interface LineConfigurationProps {
 
 export const LineConfiguration: React.FC<LineConfigurationProps> = ({ settings, onChange }) => {
     const t = useT();
+    const fieldId = useId();
+
+    // ป้ายมุมขวาเคยเป็นตัวอักษร "เปิดใช้งาน" ที่เขียนค้างไว้ตายตัว มันขึ้นแบบนี้
+    // เหมือนกันทั้งบนระบบที่ตั้ง token ครบแล้วและระบบที่ยังไม่เคยกรอกอะไรเลย --
+    // ป้ายสถานะที่ไม่ได้อ่านสถานะอะไรคือป้ายที่โกหกได้อย่างเดียว
+    const isConfigured = Boolean(settings.line_channel_token && settings.line_target_id);
 
     return (
-        <SettingsCard
-            title={t.settings.lineTitle}
-            subtitle={t.settings.lineSubtitle}
-            icon={MessageSquare}
-            variant="green"
-            headerAction={<span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">{t.common.active}</span>}
-        >
-            <div className="flex flex-col gap-3">
-                <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">
-                        {t.settings.channelToken} <span className="text-gray-400 font-normal text-[10px] ml-1">{t.settings.channelTokenHint}</span>
-                    </label>
-                    <input
-                        type="password"
-                        className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-green-500 text-xs font-mono"
-                        placeholder={t.settings.channelTokenPlaceholder}
-                        value={settings.line_channel_token}
-                        onChange={(e) => onChange('line_channel_token', e.target.value)}
-                    />
-                </div>
-                <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">
-                        {t.settings.targetId} <span className="text-gray-400 font-normal text-[10px] ml-1">{t.settings.targetIdHint}</span>
-                    </label>
-                    <div className="relative">
-                        <MessageSquare size={16} className="absolute left-3 top-2.5 text-gray-400" />
-                        <input
-                            type="text"
-                            className="w-full pl-9 bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-green-500 font-mono text-xs"
-                            placeholder={t.settings.targetIdPlaceholder}
-                            value={settings.line_target_id}
-                            onChange={(e) => onChange('line_target_id', e.target.value)}
+        <Card className="p-5 sm:p-6">
+            <SectionHeader
+                level="h3"
+                title={t.settings.lineTitle}
+                subtitle={t.settings.lineSubtitle}
+                icon={MessageSquare}
+                action={
+                    <span
+                        className={
+                            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ' +
+                            (isConfigured
+                                ? 'border-green-200 bg-green-50 text-green-700'
+                                : 'border-slate-200 bg-slate-100 text-slate-500')
+                        }
+                    >
+                        <span
+                            className={`h-1.5 w-1.5 rounded-full ${isConfigured ? 'bg-green-600' : 'bg-slate-400'}`}
+                            aria-hidden="true"
                         />
-                    </div>
-                </div>
+                        {isConfigured ? t.settings.lineConfigured : t.settings.lineNotConfigured}
+                    </span>
+                }
+            />
+
+            <div className="mt-5 flex flex-col gap-4">
+                <Field
+                    label={t.settings.channelToken}
+                    htmlFor={`${fieldId}-token`}
+                    hint={t.settings.channelTokenHint}
+                >
+                    {(aria) => (
+                        <TextInput
+                            {...aria}
+                            type="password"
+                            autoComplete="off"
+                            className="font-mono text-xs"
+                            placeholder={t.settings.channelTokenPlaceholder}
+                            value={settings.line_channel_token}
+                            onChange={(e) => onChange('line_channel_token', e.target.value)}
+                        />
+                    )}
+                </Field>
+
+                <Field
+                    label={t.settings.targetId}
+                    htmlFor={`${fieldId}-target`}
+                    hint={t.settings.targetIdHint}
+                >
+                    {(aria) => (
+                        <div className="relative">
+                            <MessageSquare
+                                size={16}
+                                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                aria-hidden="true"
+                            />
+                            <TextInput
+                                {...aria}
+                                className="pl-9 font-mono text-xs"
+                                placeholder={t.settings.targetIdPlaceholder}
+                                value={settings.line_target_id}
+                                onChange={(e) => onChange('line_target_id', e.target.value)}
+                            />
+                        </div>
+                    )}
+                </Field>
             </div>
-        </SettingsCard>
+        </Card>
     );
 };

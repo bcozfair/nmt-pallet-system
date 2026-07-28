@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Database } from 'lucide-react';
-import { ConfirmationModal } from '../common/ConfirmationModal';
 import { GeneralSettings } from './GeneralSettings';
 import { ReportScheduling } from './ReportScheduling';
 import { LineConfiguration } from './LineConfiguration';
 import { CoreSettings } from './CoreSettings';
-import { Button, PageHeader } from '../../ui';
+import { Button, ConfirmDialog, PageHeader, SkeletonCard, StickyHeader } from '../../ui';
 
 import { toast } from '../../../services/toast';
 import { fetchAllSystemSettings, updateSystemSetting, SystemSettings } from '../../../services/settingsService';
@@ -134,17 +133,14 @@ const SettingsView: React.FC = () => {
 
 
 
-    if (isLoading) return <div className="h-full flex items-center justify-center text-gray-500">{t.settings.loading}</div>;
-
     return (
-        <div className="h-[calc(100vh-110px)] flex flex-col gap-4 overflow-hidden">
-            {/* Header with Save Button.
-
-                ห่อด้วย div อีกชั้นเพราะหน้านี้เป็น flex column ที่ overflow-hidden
-                -- `shrink-0` ต้องอยู่บนลูกโดยตรงของคอลัมน์ ไม่งั้นหัวเรื่องจะถูกบีบ
-                ตอนตารางตั้งค่าด้านล่างยาว ส่วน PageHeader เองไม่รับ className
-                เพื่อไม่ให้แต่ละหน้าแอบปรับทรงของมันจนหลุดจากกัน */}
-            <div className="shrink-0 mb-2 px-1">
+        // No height and no overflow here, on purpose -- same reason as every
+        // other screen in this folder (see InventoryView.tsx and
+        // StickyHeader.tsx). Dropping the locked column is also what let the
+        // wrapper around PageHeader go: `shrink-0` only meant something while
+        // this was a flex column that could squeeze its children.
+        <div className="flex flex-col gap-4">
+            <StickyHeader>
                 <PageHeader
                     title={t.settings.title}
                     subtitle={t.settings.subtitle}
@@ -163,41 +159,64 @@ const SettingsView: React.FC = () => {
                         </Button>
                     }
                 />
-            </div>
+            </StickyHeader>
 
-            {/* Main Grid Layout */}
-            <div className="grid grid-cols-12 gap-6 flex-1 min-h-0 overflow-y-auto pr-2 styled-scrollbar">
+            {/* กริดเดิมทุกประการ และ skeleton ใช้กริดตัวเดียวกัน การ์ดจริงจึงมาแทน
+                ที่ placeholder ตรงตำแหน่งเดิม ไม่ใช่ดันเลย์เอาต์ใหม่ทั้งหน้า
 
-                {/* LEFT COLUMN (Span 5) - Rules & Scheduling */}
-                <div className="col-span-12 lg:col-span-5 flex flex-col gap-6">
-                    <GeneralSettings settings={settings} onChange={handleChange} />
-                    <ReportScheduling settings={settings} onChange={handleChange} />
+                ของเดิมคือ `if (isLoading) return <div>กำลังโหลดการตั้งค่า...</div>`
+                ที่กินทั้งหน้า หัวเพจกับปุ่มบันทึกจึงมาถึงจอช้าไปหนึ่งรอบ fetch */}
+            <div className="grid grid-cols-12 gap-6">
+                <div className="col-span-12 flex flex-col gap-6 lg:col-span-5">
+                    {isLoading ? (
+                        <>
+                            {/* ตัวแรกเท่านั้นที่ประกาศตัวเป็น live region -- สี่ตัวจะให้
+                                screen reader พูดว่า "กำลังโหลด" สี่รอบสำหรับหน้าเดียว */}
+                            <SkeletonCard ariaLabel={t.settings.loading} />
+                            <SkeletonCard />
+                        </>
+                    ) : (
+                        <>
+                            <GeneralSettings settings={settings} onChange={handleChange} />
+                            <ReportScheduling settings={settings} onChange={handleChange} />
+                        </>
+                    )}
                 </div>
 
-                {/* RIGHT COLUMN (Span 7) - LINE & System Core */}
-                <div className="col-span-12 lg:col-span-7 flex flex-col gap-6">
-                    <LineConfiguration settings={settings} onChange={handleChange} />
-                    <CoreSettings settings={settings} onChange={handleChange} onUpdateEmail={handleUpdateEmailBase} />
+                <div className="col-span-12 flex flex-col gap-6 lg:col-span-7">
+                    {isLoading ? (
+                        <>
+                            <SkeletonCard />
+                            <SkeletonCard />
+                        </>
+                    ) : (
+                        <>
+                            <LineConfiguration settings={settings} onChange={handleChange} />
+                            <CoreSettings settings={settings} onChange={handleChange} onUpdateEmail={handleUpdateEmailBase} />
+                        </>
+                    )}
                 </div>
-
             </div>
 
-            {/* CONFIRMATION MODAL */}
-            <ConfirmationModal
-                isOpen={!!confirmAction}
-                title={confirmAction?.title || ''}
-                message={confirmAction?.message || ''}
-                confirmLabel={confirmAction?.confirmLabel || ''}
-                isDestructive={confirmAction?.isDestructive}
-                onConfirm={async () => {
-                    if (confirmAction) {
-                        await confirmAction.onConfirm();
-                        setConfirmAction(null);
-                    }
-                }}
-                onCancel={() => setConfirmAction(null)}
-            />
-
+            {/* เรนเดอร์เฉพาะตอนมี action จริง เพื่อให้ state ภายใน (กำลังทำงาน)
+                ถูกล้างทุกครั้งที่เปิดกล่องใหม่ -- เหมือนอีกสี่หน้า เรียก ConfirmDialog
+                ตรง ๆ แล้ว ไม่ผ่าน common/ConfirmationModal ซึ่งเป็นสะพานสำหรับ call
+                site ที่ยังไม่ได้ย้าย และตอนนี้ไม่เหลือแล้ว */}
+            {confirmAction && (
+                <ConfirmDialog
+                    isOpen
+                    title={confirmAction.title}
+                    message={confirmAction.message}
+                    confirmLabel={confirmAction.confirmLabel}
+                    cancelLabel={t.common.cancel}
+                    closeLabel={t.common.closeDialog}
+                    workingLabel={t.common.working}
+                    isDestructive={confirmAction.isDestructive}
+                    onConfirm={confirmAction.onConfirm}
+                    onCancel={() => setConfirmAction(null)}
+                    onError={(error) => toast.error(describeAppError(error))}
+                />
+            )}
         </div>
     );
 };

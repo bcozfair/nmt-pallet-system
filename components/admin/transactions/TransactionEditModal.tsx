@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { X, Save, MapPin, FileText, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useId } from 'react';
+import { Calendar, MapPin, Save, SquarePen } from 'lucide-react';
 import { Transaction, Department } from '../../../types';
 import { formatDateTime } from '../common/AdminHelpers';
 import { useT } from '../../../hooks/useT';
+import { Button, Field, Modal, SelectField, TextArea, TextInput } from '../../ui';
 
 interface TransactionEditModalProps {
     isOpen: boolean;
@@ -21,6 +22,7 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
 }) => {
     // Above the `isOpen` early return: hooks have to run on every render.
     const t = useT();
+    const fieldId = useId();
     const [location, setLocation] = useState('');
     const [remark, setRemark] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,92 +46,114 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
             });
             onClose();
         } catch (error) {
+            // The parent has already reported the reason through a toast. The
+            // modal stays open so the typed remark is not lost.
             console.error("Failed to update transaction", error);
         } finally {
             setIsSubmitting(false);
         }
     };
 
+    const locationOptions = [
+        { value: '', label: t.transactions.noLocation },
+        // Department names are data, not UI text: typed into the locations
+        // screen and stored on every transaction, so they are shown verbatim.
+        { value: 'Warehouse', label: 'Warehouse' },
+        ...departments
+            .filter((d) => d.name !== 'Warehouse')
+            .map((d) => ({ value: d.name, label: d.name })),
+    ];
+
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                    <h3 className="font-bold text-gray-800 text-lg">{t.transactions.editTitle}</h3>
-                    <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition text-gray-500 hover:text-gray-700">
-                        <X size={20} />
-                    </button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    {/* Read-Only Info */}
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            {/* `uppercase` dropped: it is a no-op on Thai. The value below
-                                keeps its font-mono, it is still an ASCII ID. */}
-                            <span className="text-xs text-gray-400 font-bold block mb-1">{t.common.palletId}</span>
-                            <span className="font-mono font-bold text-gray-700">{transaction.pallet_id}</span>
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={t.transactions.editTitle}
+            // The pallet this record belongs to, in the subtitle rather than as
+            // a read-only field: it is what the box is about, not something the
+            // form collects.
+            subtitle={transaction.pallet_id}
+            icon={SquarePen}
+            size="md"
+            busy={isSubmitting}
+            preventDismiss={isSubmitting}
+            closeLabel={t.common.closeDialog}
+            footer={
+                <>
+                    <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+                        {t.common.cancel}
+                    </Button>
+                    {/* form="…" ผูกปุ่มที่อยู่นอก <form> (มันอยู่ในท้ายกล่องซึ่งเป็น
+                        พี่น้องของเนื้อ) เข้ากับฟอร์ม เพื่อให้ Enter ในช่องกรอกยัง
+                        ส่งฟอร์มได้ตามปกติ */}
+                    <Button
+                        type="submit"
+                        form={`${fieldId}-form`}
+                        variant="primary"
+                        icon={Save}
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? t.common.saving : t.transactions.saveChanges}
+                    </Button>
+                </>
+            }
+        >
+            <form id={`${fieldId}-form`} onSubmit={handleSubmit} className="space-y-4">
+                {/* The timestamp is not editable and never has been -- it is the
+                    one fact on a transaction that has to stay as recorded. It is
+                    still shown, as a disabled field rather than as a grey panel,
+                    so it reads as part of the same form as the two below it. */}
+                <Field label={t.transactions.dateReadOnly} htmlFor={`${fieldId}-date`}>
+                    {(aria) => (
+                        <div className="relative">
+                            <Calendar
+                                size={16}
+                                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                aria-hidden="true"
+                            />
+                            <TextInput
+                                {...aria}
+                                disabled
+                                readOnly
+                                className="pl-9"
+                                value={formatDateTime(transaction.timestamp)}
+                            />
                         </div>
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="text-xs text-gray-400 font-bold block mb-1">{t.transactions.dateReadOnly}</span>
-                            <div className="flex items-center gap-1 text-sm font-medium text-gray-600">
-                                <Calendar size={14} />
-                                {formatDateTime(transaction.timestamp)}
-                            </div>
-                        </div>
-                    </div>
+                    )}
+                </Field>
 
-                    {/* Location Edit */}
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <MapPin size={16} className="text-blue-500" /> {t.transactions.locationLabel}
-                        </label>
-                        <select
+                {/* The sync note is the Field's hint rather than a loose <p>: as
+                    a hint it is wired into aria-describedby, so it is read out
+                    when focus lands on the select instead of only being visible. */}
+                <Field
+                    label={t.transactions.locationLabel}
+                    htmlFor={`${fieldId}-location`}
+                    hint={t.transactions.locationSyncNote}
+                >
+                    {(aria) => (
+                        <SelectField
+                            {...aria}
+                            icon={MapPin}
+                            ariaLabel={t.transactions.locationLabel}
                             value={location}
-                            onChange={(e) => setLocation(e.target.value)}
-                            className="w-full p-2.5 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition bg-white"
-                        >
-                            <option value="">{t.transactions.noLocation}</option>
-                            {departments.map(d => (
-                                <option key={d.id} value={d.name}>{d.name}</option>
-                            ))}
-                        </select>
-                        <p className="text-xs text-blue-500/80 mt-1 pl-1">
-                            {t.transactions.locationSyncNote}
-                        </p>
-                    </div>
+                            onChange={setLocation}
+                            options={locationOptions}
+                        />
+                    )}
+                </Field>
 
-                    {/* Remarks Edit */}
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <FileText size={16} className="text-orange-500" /> {t.transactions.remarkLabel}
-                        </label>
-                        <textarea
+                <Field label={t.transactions.remarkLabel} htmlFor={`${fieldId}-remark`}>
+                    {(aria) => (
+                        <TextArea
+                            {...aria}
+                            rows={3}
+                            placeholder={t.transactions.remarkPlaceholder}
                             value={remark}
                             onChange={(e) => setRemark(e.target.value)}
-                            placeholder={t.transactions.remarkPlaceholder}
-                            className="w-full p-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-100 focus:border-orange-400 outline-none transition min-h-[100px] text-sm"
                         />
-                    </div>
-
-                    <div className="pt-4 flex justify-end gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-lg transition"
-                        >
-                            {t.common.cancel}
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition disabled:opacity-70 disabled:cursor-not-allowed"
-                        >
-                            <Save size={18} />
-                            {isSubmitting ? t.common.saving : t.transactions.saveChanges}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                    )}
+                </Field>
+            </form>
+        </Modal>
     );
 };

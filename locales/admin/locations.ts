@@ -14,21 +14,33 @@ export const locationsEn = {
     title: 'Location Management',
     subtitle: 'Manage warehouse locations and tracking zones.',
 
-    // Filter bar
+    // Filter bar. The aria labels are translated too -- a screen reader
+    // announcing English into a Thai form is exactly the kind of
+    // half-translation the typed dictionary exists to prevent.
     searchPlaceholder: 'Search Location Name...',
+    searchAria: 'Search locations',
+    clearSearch: 'Clear search',
     allStatus: 'All Status',
+    filterStatusAria: 'Filter by status',
     allConditions: 'All Conditions',
+    filterConditionAria: 'Filter by condition',
     withPallets: 'With Pallets',
     emptyLocations: 'Empty Locations',
     hasOverdue: '⚠ Has Overdue',
     hasDamaged: '⚠ Has Damaged',
+    // Sits under the filter card, and only while something is actually filtered.
+    resultCount: (count: number) => `${count} results`,
 
     // Table headers. Total / Status / Actions come from `common`, and the
     // damaged column reuses `status.damaged`.
+    // `rowNumber` replaces a literal "#", which a screen reader reads out as
+    // "number sign" -- the column is the row's position in the list.
+    rowNumber: 'No.',
     locationName: 'Location Name',
     overdue: 'Overdue',
     lastUpdated: 'Last Updated',
     noResults: 'No locations found matching your criteria.',
+    loading: 'Loading locations...',
 
     // Row action tooltips
     saveChanges: 'Save Changes',
@@ -80,17 +92,24 @@ export const locationsTh: LocationsDict = {
     subtitle: 'จัดการสถานที่ในคลังและพื้นที่ติดตามพาเลท',
 
     searchPlaceholder: 'ค้นหาชื่อสถานที่...',
+    searchAria: 'ค้นหาสถานที่',
+    clearSearch: 'ล้างคำค้นหา',
     allStatus: 'ทุกสถานะ',
+    filterStatusAria: 'กรองตามสถานะ',
     allConditions: 'ทุกเงื่อนไข',
+    filterConditionAria: 'กรองตามเงื่อนไข',
     withPallets: 'มีพาเลท',
     emptyLocations: 'ไม่มีพาเลท',
     hasOverdue: '⚠ มีพาเลทเกินกำหนด',
     hasDamaged: '⚠ มีพาเลทชำรุด',
+    resultCount: (count: number) => `พบ ${count} รายการ`,
 
+    rowNumber: 'ลำดับ',
     locationName: 'ชื่อสถานที่',
     overdue: 'เกินกำหนด',
     lastUpdated: 'อัปเดตล่าสุด',
     noResults: 'ไม่พบสถานที่ที่ตรงกับเงื่อนไข',
+    loading: 'กำลังโหลดข้อมูลสถานที่...',
 
     saveChanges: 'บันทึกการแก้ไข',
     enterNameFirst: 'กรุณากรอกชื่อสถานที่ก่อน',

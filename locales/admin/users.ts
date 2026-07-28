@@ -27,20 +27,33 @@ export const usersEn = {
     allLocations: 'All Locations',
     filterRoleAria: 'Filter by Role',
     allRoles: 'All Roles',
+    clearSearch: 'Clear search',
+    // Sits under the filter card, and only while something is actually filtered.
+    resultCount: (count: number) => `${count} results`,
 
-    // Table and card list
+    // Table
     employeeId: 'Employee ID',
     fullName: 'Full Name',
     roleLabel: 'Role',
     createdAt: 'Created At',
     lastSignIn: 'Last Sign In',
-    editingUser: 'Editing User',
     noneFound: 'No users found matching your filters.',
+    loading: 'Loading users...',
 
     // Row actions. One key each, reused for the icon tooltip, the confirmation
     // title and its confirm button, so the three can never disagree.
     resetPassword: 'Reset Password',
     deleteUser: 'Delete User',
+    // The four below are icon-only controls in the row. They were unlabelled
+    // entirely before -- `editUser` and the two edit-mode buttons had neither a
+    // title nor an aria-label, so a screen reader announced "button".
+    editUser: 'Edit User',
+    saveEdit: 'Save',
+    cancelEdit: 'Cancel Edit',
+    // Names for the two <select>s that replace the cells while a row is being
+    // edited in place. The column heading is not attached to them.
+    editDepartment: 'Edit department',
+    editRole: 'Edit role',
 
     // Create user modal
     createTitle: 'Create New User',
@@ -93,17 +106,24 @@ export const usersTh: UsersDict = {
     allLocations: 'ทุกสถานที่',
     filterRoleAria: 'กรองตามบทบาท',
     allRoles: 'ทุกบทบาท',
+    clearSearch: 'ล้างคำค้นหา',
+    resultCount: (count: number) => `พบ ${count} รายการ`,
 
     employeeId: 'รหัสพนักงาน',
     fullName: 'ชื่อ-นามสกุล',
     roleLabel: 'บทบาท',
     createdAt: 'วันที่สร้าง',
     lastSignIn: 'เข้าใช้งานล่าสุด',
-    editingUser: 'กำลังแก้ไขผู้ใช้งาน',
     noneFound: 'ไม่พบผู้ใช้งานที่ตรงกับตัวกรอง',
+    loading: 'กำลังโหลดข้อมูลผู้ใช้งาน...',
 
     resetPassword: 'รีเซ็ตรหัสผ่าน',
     deleteUser: 'ลบผู้ใช้งาน',
+    editUser: 'แก้ไขผู้ใช้งาน',
+    saveEdit: 'บันทึก',
+    cancelEdit: 'ยกเลิกการแก้ไข',
+    editDepartment: 'แก้ไขสถานที่',
+    editRole: 'แก้ไขบทบาท',
 
     createTitle: 'เพิ่มผู้ใช้งานใหม่',
     fullNamePlaceholder: 'สมชาย ใจดี',

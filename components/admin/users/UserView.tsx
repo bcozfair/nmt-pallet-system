@@ -10,12 +10,14 @@ import { dict } from '../../../services/i18n';
 
 // Sub-components
 import { UserTable, UserSortConfig } from './UserTable';
-import { UserCardList } from './UserCardList';
 import { UserHeader } from './UserHeader';
 import { UserFilters } from './UserFilters';
-import { CreateUserModal, ResetPasswordModal, ConfirmModal, ConfirmActionType, ResetPasswordState } from './UserModals';
-import { Pagination } from '../common/Pagination';
-import { Search } from 'lucide-react';
+import { CreateUserModal, ResetPasswordModal, ResetPasswordState } from './UserModals';
+import { ConfirmDialog, StickyHeader } from '../../ui';
+// The shape of a pending confirmation, shared with the inventory and locations
+// screens rather than redeclared here. UserModals used to export its own copy
+// alongside the dialog that consumed it; the dialog is `ui/ConfirmDialog` now.
+import { ConfirmActionType } from '../../../hooks/inventory/useInventoryActions';
 import { describeAppError } from '../../../services/appError';
 
 export const UserView: React.FC = () => {
@@ -24,6 +26,11 @@ export const UserView: React.FC = () => {
     // Data State
     const [users, setUsers] = useState<User[]>([]);
     const [departments, setDepartments] = useState<string[]>([]);
+    // Before this existed the first render showed "No users found matching your
+    // filters" while the very first fetch was still in flight -- the same bug
+    // the inventory screen had, and the reason DataTable checks loading before
+    // empty. `true` initially: a screen that has not fetched yet is loading.
+    const [isLoading, setIsLoading] = useState(true);
 
     // Filter State
     const [searchTerm, setSearchTerm] = useState('');
@@ -57,6 +64,11 @@ export const UserView: React.FC = () => {
             // realtime subscription set up in a [] effect, so it outlives this
             // render and a captured `t` would go stale after a language switch.
             toast.error(dict().users.loadFailed);
+        } finally {
+            // In `finally`, not at the end of `try`: a failed fetch has also
+            // stopped loading, and leaving the flag set would pin the screen to
+            // a skeleton that never resolves.
+            setIsLoading(false);
         }
     };
 
@@ -184,6 +196,15 @@ export const UserView: React.FC = () => {
         setRoleFilter('all');
     };
 
+    // How many of the three are off their default. The filter bar shows its
+    // "N results / clear filters" row only when this is above zero -- an
+    // untouched screen has nothing to report and no filters to clear.
+    const activeFilterCount = [
+        searchTerm !== '',
+        locationFilter !== 'all',
+        roleFilter !== 'all',
+    ].filter(Boolean).length;
+
     const handleSort = (key: keyof User) => {
         let direction: 'asc' | 'desc' = 'asc';
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -193,17 +214,25 @@ export const UserView: React.FC = () => {
     };
 
     return (
-        <div className="h-[calc(100vh-110px)] flex flex-col gap-6 overflow-hidden animate-in fade-in duration-500">
-            {/* Header */}
-            <div className="shrink-0">
+        // No height and no overflow here, on purpose -- the reason this app
+        // stopped nesting scroll containers is recorded in InventoryView.tsx,
+        // AdminDashboard.tsx and StickyHeader.tsx: the scrollbar ends up
+        // belonging to an inner box, so the wheel stops dead at that box's edge
+        // instead of continuing down the document, and a box clamped to 100vh
+        // has nothing below the fold to hand to the printer.
+        //
+        // The `animate-in fade-in duration-500` that used to be here came from
+        // the tailwindcss-animate plugin, which is not in package.json -- it
+        // compiled to nothing and never ran.
+        <div className="flex flex-col gap-4">
+            {/* หัวเพจกับแถบกรองเดินทางไปด้วยกันและเกาะยอดจอที่ xl ส่วนที่เลื่อนคือ
+                แถวข้อมูลกับตัวแบ่งหน้าใต้มัน หัวตารางเกาะใต้กองนี้พอดีผ่านความสูง
+                จริงที่ StickyHeader วัดแล้วประกาศไว้ที่ <html> */}
+            <StickyHeader className="flex flex-col gap-4">
                 <UserHeader
                     onAddUser={() => setIsCreateModalOpen(true)}
                 />
-            </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 min-h-0 overflow-y-auto pr-2 flex flex-col gap-6 styled-scrollbar">
-                {/* Filters */}
                 <UserFilters
                     searchTerm={searchTerm}
                     setSearchTerm={setSearchTerm}
@@ -212,55 +241,37 @@ export const UserView: React.FC = () => {
                     roleFilter={roleFilter}
                     setRoleFilter={setRoleFilter}
                     departments={departments}
+                    activeFilterCount={activeFilterCount}
+                    resultCount={processedUsers.length}
+                    onClearFilters={handleClearFilters}
                 />
+            </StickyHeader>
 
-                {/* List Views */}
-                {processedUsers.length > 0 ? (
-                    <>
-                        <UserTable
-                            users={paginatedUsers}
-                            editingId={editingId}
-                            editForm={editForm}
-                            setEditForm={setEditForm}
-                            departments={departments}
-                            onSave={handleSave}
-                            onCancelEdit={cancelEdit}
-                            onStartEdit={startEdit}
-                            onDelete={handleDeleteClick}
-                            onResetPassword={openResetPasswordModal}
-                            sortConfig={sortConfig}
-                            onSort={handleSort}
-                        />
-
-                        <UserCardList
-                            users={paginatedUsers}
-                            editingId={editingId}
-                            editForm={editForm}
-                            setEditForm={setEditForm}
-                            departments={departments}
-                            onSave={handleSave}
-                            onCancelEdit={cancelEdit}
-                            onStartEdit={startEdit}
-                            onDelete={handleDeleteClick}
-                            onResetPassword={openResetPasswordModal}
-                        />
-
-                        <Pagination
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            onPageChange={setCurrentPage}
-                            totalItems={processedUsers.length}
-                            itemsPerPage={itemsPerPage}
-                        />
-                    </>
-                ) : (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center flex flex-col items-center text-gray-400 gap-2">
-                        <Search size={48} className="opacity-20" />
-                        <p>{t.users.noneFound}</p>
-                        <button onClick={handleClearFilters} className="text-blue-600 font-bold hover:underline">{t.common.clearFilters}</button>
-                    </div>
-                )}
-            </div>
+            {/* หนึ่งตาราง ไม่ใช่ตารางคู่กับรายการการ์ด: UserCardList ที่เคยขึ้นแทน
+                ต่ำกว่า md ถูกลบทิ้ง มันเป็นโค้ดชุดที่สองที่ทำงานเดียวกันและต้องแก้
+                ให้ตรงกันเองทุกครั้ง ส่วนจอแคบเลื่อนตารางซ้ายขวาแทน ตามที่ D4 ของ
+                spec รอบแรกตัดสินไว้สำหรับทุกหน้าในโฟลเดอร์นี้ */}
+            <UserTable
+                users={paginatedUsers}
+                editingId={editingId}
+                editForm={editForm}
+                setEditForm={setEditForm}
+                departments={departments}
+                onSave={handleSave}
+                onCancelEdit={cancelEdit}
+                onStartEdit={startEdit}
+                onDelete={handleDeleteClick}
+                onResetPassword={openResetPasswordModal}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                totalProcessedCount={processedUsers.length}
+                currentPage={currentPage}
+                itemsPerPage={itemsPerPage}
+                totalPages={totalPages}
+                setCurrentPage={setCurrentPage}
+                onClearFilters={handleClearFilters}
+                isLoading={isLoading}
+            />
 
             {/* Modals */}
             <CreateUserModal
@@ -275,10 +286,28 @@ export const UserView: React.FC = () => {
                 onClose={() => setResetPasswordState(null)}
             />
 
-            <ConfirmModal
-                action={confirmAction}
-                onClose={() => setConfirmAction(null)}
-            />
+            {/* เรนเดอร์เฉพาะตอนมี action จริง เพื่อให้ state ภายใน (กำลังทำงาน)
+                ถูกล้างทุกครั้งที่เปิดกล่องใหม่ -- เหมือนอีกสามหน้า
+
+                ของเดิมคือ ConfirmModal ในไฟล์ UserModals.tsx ซึ่ง `await
+                action.onConfirm()` เปล่า ๆ ไม่ดัก rejection: คำขอที่ถูกปฏิเสธจึงหลุด
+                เป็น unhandled แล้วกล่องปิดไปเหมือนสำเร็จ ConfirmDialog ดักให้ และ
+                ไม่ปิดกล่องเมื่อล้มเหลว */}
+            {confirmAction && (
+                <ConfirmDialog
+                    isOpen
+                    title={confirmAction.title}
+                    message={confirmAction.message}
+                    confirmLabel={confirmAction.confirmLabel}
+                    cancelLabel={t.common.cancel}
+                    closeLabel={t.common.closeDialog}
+                    workingLabel={t.common.working}
+                    isDestructive={confirmAction.isDestructive}
+                    onConfirm={confirmAction.onConfirm}
+                    onCancel={() => setConfirmAction(null)}
+                    onError={(error) => toast.error(describeAppError(error))}
+                />
+            )}
         </div>
     );
 };

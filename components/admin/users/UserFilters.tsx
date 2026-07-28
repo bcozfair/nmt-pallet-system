@@ -1,6 +1,7 @@
 import React from 'react';
-import { Search, MapPin, ChevronRight, UserCog } from 'lucide-react';
+import { MapPin, UserCog } from 'lucide-react';
 import { useT } from '../../../hooks/useT';
+import { FilterBar, SearchInput, SelectField } from '../../ui';
 
 interface UserFiltersProps {
     searchTerm: string;
@@ -10,6 +11,14 @@ interface UserFiltersProps {
     roleFilter: string;
     setRoleFilter: (role: string) => void;
     departments: string[];
+    // How many of the three filters are off their default value. Drives whether
+    // FilterBar shows its result row -- see UserView.tsx.
+    activeFilterCount: number;
+    // processedUsers.length: how many rows the current combination produces.
+    resultCount: number;
+    // Was reachable only from the table's empty state before, so a filter that
+    // still matched rows could not be cleared in one action.
+    onClearFilters: () => void;
 }
 
 export const UserFilters: React.FC<UserFiltersProps> = ({
@@ -19,69 +28,66 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
     setLocationFilter,
     roleFilter,
     setRoleFilter,
-    departments
+    departments,
+    activeFilterCount,
+    resultCount,
+    onClearFilters,
 }) => {
     const t = useT();
 
+    const locationOptions = [
+        { value: 'all', label: t.users.allLocations },
+        // ชื่อแผนกเป็นข้อมูลที่ผู้ใช้พิมพ์เองในหน้าสถานที่ ไม่ใช่ข้อความ UI จึงไม่แปล
+        ...departments.map((d) => ({ value: d, label: d })),
+    ];
+
+    const roleOptions = [
+        { value: 'all', label: t.users.allRoles },
+        { value: 'admin', label: t.role.admin },
+        { value: 'staff', label: t.role.staff },
+    ];
+
     return (
-        <div className="bg-white p-2.5 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex flex-col xl:flex-row gap-3 items-center">
+        <FilterBar
+            isFiltered={activeFilterCount > 0}
+            resultLabel={t.users.resultCount(resultCount)}
+            onClear={onClearFilters}
+            clearLabel={t.common.clearFilters}
+        >
+            <SearchInput
+                id="search-users"
+                name="search"
+                className="xl:flex-1"
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={t.users.searchPlaceholder}
+                ariaLabel={t.users.searchAria}
+                clearLabel={t.users.clearSearch}
+            />
 
-                <div className="relative flex-1 w-full xl:w-auto">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                        id="search-users"
-                        name="search"
-                        aria-label={t.users.searchAria}
-                        type="text"
-                        placeholder={t.users.searchPlaceholder}
-                        className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 text-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+                <SelectField
+                    id="filter-user-location"
+                    name="location"
+                    icon={MapPin}
+                    className="sm:w-48"
+                    value={locationFilter}
+                    onChange={setLocationFilter}
+                    options={locationOptions}
+                    ariaLabel={t.users.filterLocationAria}
+                />
 
-                <div className="flex flex-col sm:flex-row gap-2 w-full xl:w-auto">
-                    <div className="relative flex-1 sm:w-48">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <select
-                            id="filter-location"
-                            name="location"
-                            aria-label={t.users.filterLocationAria}
-                            className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none text-sm"
-                            value={locationFilter}
-                            onChange={(e) => setLocationFilter(e.target.value)}
-                        >
-                            <option value="all">{t.users.allLocations}</option>
-                            {departments.map(d => (
-                                <option key={d} value={d}>{d}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                            <ChevronRight size={14} className="rotate-90" />
-                        </div>
-                    </div>
-
-                    <div className="relative flex-1 sm:w-40">
-                        <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <select
-                            id="filter-role"
-                            name="role"
-                            aria-label={t.users.filterRoleAria}
-                            className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none text-sm"
-                            value={roleFilter}
-                            onChange={(e) => setRoleFilter(e.target.value)}
-                        >
-                            <option value="all">{t.users.allRoles}</option>
-                            <option value="admin">{t.role.admin}</option>
-                            <option value="staff">{t.role.staff}</option>
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                            <ChevronRight size={14} className="rotate-90" />
-                        </div>
-                    </div>
-                </div>
+                <SelectField
+                    id="filter-user-role"
+                    name="role"
+                    icon={UserCog}
+                    className="sm:w-40"
+                    value={roleFilter}
+                    onChange={setRoleFilter}
+                    options={roleOptions}
+                    ariaLabel={t.users.filterRoleAria}
+                />
             </div>
-        </div>
+        </FilterBar>
     );
 };

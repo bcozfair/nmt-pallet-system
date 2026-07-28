@@ -49,6 +49,11 @@ export const settingsEn = {
     // --- LINE Messaging API card ---
     lineTitle: 'LINE Messaging API',
     lineSubtitle: 'Integration with LINE messaging',
+    // The chip on this card used to read "Active" no matter what was stored --
+    // it was a literal, not a reading of anything. These two are picked between
+    // by whether both secrets below are actually set.
+    lineConfigured: 'Configured',
+    lineNotConfigured: 'Not configured',
     channelToken: 'Channel Access Token',
     channelTokenHint: '(Long-lived)',
     channelTokenPlaceholder: '•••••••••••••••• (Hidden) - Type to Change',
@@ -119,6 +124,8 @@ export const settingsTh: SettingsDict = {
 
     lineTitle: 'LINE Messaging API',
     lineSubtitle: 'การเชื่อมต่อแจ้งเตือนผ่าน LINE',
+    lineConfigured: 'ตั้งค่าแล้ว',
+    lineNotConfigured: 'ยังไม่ได้ตั้งค่า',
     channelToken: 'Channel Access Token',
     channelTokenHint: '(แบบอายุยาว)',
     channelTokenPlaceholder: '•••••••••••••••• (ซ่อนไว้) - พิมพ์เพื่อเปลี่ยน',

@@ -12,7 +12,7 @@ import { LocationHeader } from './LocationHeader';
 import { LocationFilters } from './LocationFilters';
 import { LocationTable, LocationStats, LocationSortConfig, LocationSortKey } from './LocationTable';
 import { LocationModal } from './LocationModals';
-import { ConfirmDialog } from '../../ui';
+import { ConfirmDialog, StickyHeader } from '../../ui';
 import { ConfirmActionType } from '../../../hooks/inventory/useInventoryActions';
 import { describeAppError } from '../../../services/appError';
 
@@ -20,6 +20,11 @@ export const LocationView: React.FC = () => {
     const [departments, setDepartments] = useState<Department[]>([]);
     const [pallets, setPallets] = useState<Pallet[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    // Before this existed the first render showed "No locations found matching
+    // your criteria" while the very first fetch was still in flight -- the same
+    // bug the inventory screen had, and the reason DataTable checks loading
+    // before empty. `true` initially: a screen that has not fetched is loading.
+    const [isLoading, setIsLoading] = useState(true);
 
     // Shared with the dashboard and the inventory filter. Was a localStorage read
     // of a key nothing ever wrote, so this table's Overdue column was pinned to 7
@@ -83,6 +88,11 @@ export const LocationView: React.FC = () => {
         } catch (error) {
             console.error("Failed to load data", error);
             toast.error(dict().locations.refreshFailed);
+        } finally {
+            // In `finally`, not at the end of `try`: a failed fetch has also
+            // stopped loading, and leaving the flag set would pin the screen to
+            // a skeleton that never resolves.
+            setIsLoading(false);
         }
     };
 
@@ -328,6 +338,15 @@ export const LocationView: React.FC = () => {
         setIssueFilter('all');
     };
 
+    // How many of the three are off their default. The filter bar shows its
+    // "N results / clear filters" row only when this is above zero -- an
+    // untouched screen has nothing to report and no filters to clear.
+    const activeFilterCount = [
+        searchTerm !== '',
+        statusFilter !== 'all',
+        issueFilter !== 'all',
+    ].filter(Boolean).length;
+
     const handleSort = (key: LocationSortKey) => {
         let direction: 'asc' | 'desc' = 'asc';
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -337,17 +356,17 @@ export const LocationView: React.FC = () => {
     };
 
     return (
-        <div className="h-[calc(100vh-110px)] flex flex-col gap-6 overflow-hidden">
-            {/* Header */}
-            <div className="shrink-0">
+        // No height and no overflow here, on purpose -- the reason this app
+        // stopped nesting scroll containers is recorded in InventoryView.tsx,
+        // AdminDashboard.tsx and StickyHeader.tsx.
+        <div className="flex flex-col gap-4">
+            {/* หัวเพจกับแถบกรองเดินทางไปด้วยกันและเกาะยอดจอที่ xl หัวตารางเกาะใต้
+                กองนี้พอดีผ่าน --sticky-head-h ที่ StickyHeader วัดแล้วประกาศไว้ */}
+            <StickyHeader className="flex flex-col gap-4">
                 <LocationHeader
                     onAdd={() => setModalState({ isOpen: true, mode: 'add' })}
                 />
-            </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 min-h-0 overflow-y-auto pr-2 flex flex-col gap-6 styled-scrollbar">
-                {/* Filters */}
                 <LocationFilters
                     searchTerm={searchTerm}
                     onSearchChange={setSearchTerm}
@@ -355,33 +374,36 @@ export const LocationView: React.FC = () => {
                     onStatusFilterChange={setStatusFilter}
                     issueFilter={issueFilter}
                     onIssueFilterChange={setIssueFilter}
-                />
-
-                {/* Table View */}
-                <LocationTable
-                    paginatedDepartments={paginatedDepartments}
-                    departmentStats={departmentStats}
-                    totalProcessedCount={processedDepartments.length}
-                    currentPage={currentPage}
-                    itemsPerPage={itemsPerPage}
-                    totalPages={totalPages}
-                    setCurrentPage={setCurrentPage}
-
-                    // Inline Edit Props
-                    editingId={editingId}
-                    editForm={editForm}
-                    setEditForm={setEditForm}
-                    onStartEdit={handleStartEdit}
-                    onSave={handleSaveEdit}
-                    onCancelEdit={handleCancelEdit}
-
-                    onToggleStatus={handleToggleActive}
-                    onDelete={handleDeleteClick}
+                    activeFilterCount={activeFilterCount}
+                    resultCount={processedDepartments.length}
                     onClearFilters={handleClearFilters}
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
                 />
-            </div>
+            </StickyHeader>
+
+            <LocationTable
+                paginatedDepartments={paginatedDepartments}
+                departmentStats={departmentStats}
+                totalProcessedCount={processedDepartments.length}
+                currentPage={currentPage}
+                itemsPerPage={itemsPerPage}
+                totalPages={totalPages}
+                setCurrentPage={setCurrentPage}
+
+                // Inline Edit Props
+                editingId={editingId}
+                editForm={editForm}
+                setEditForm={setEditForm}
+                onStartEdit={handleStartEdit}
+                onSave={handleSaveEdit}
+                onCancelEdit={handleCancelEdit}
+
+                onToggleStatus={handleToggleActive}
+                onDelete={handleDeleteClick}
+                onClearFilters={handleClearFilters}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                isLoading={isLoading}
+            />
 
             {/* Modals */}
             <LocationModal

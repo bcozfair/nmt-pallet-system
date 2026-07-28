@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { X, Save, MapPinPlus } from 'lucide-react';
+import React, { useState, useEffect, useId, useRef } from 'react';
+import { MapPinPlus, Save } from 'lucide-react';
 import { useT } from '../../../hooks/useT';
+import { Button, Field, Modal, TextInput } from '../../ui';
 
-interface ModalProps {
+interface LocationModalProps {
     isOpen: boolean;
     onClose: () => void;
-}
-
-interface LocationModalProps extends ModalProps {
     initialValue?: string;
     onSave: (name: string) => Promise<void>;
     mode: 'add' | 'edit';
@@ -20,17 +18,19 @@ export const LocationModal: React.FC<LocationModalProps> = ({
     onSave,
     mode
 }) => {
-    // Above the `if (!isOpen)` bail-out below: useT subscribes through
-    // useSyncExternalStore, so it has to run on every render like the rest.
+    // Above any early return: useT subscribes through useSyncExternalStore, so
+    // it has to run on every render like the rest.
     const t = useT();
+    const fieldId = useId();
+    // แทน autoFocus เดิม -- Modal ย้ายโฟกัสเข้ากล่องเองตอนเปิด และถ้าไม่บอกว่าจะให้
+    // ลงที่ไหน มันจะลงที่ปุ่ม ✕ ซึ่งเป็นตัวโฟกัสได้ตัวแรกใน DOM เสมอ
+    const nameRef = useRef<HTMLInputElement>(null);
     const [name, setName] = useState(initialValue);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         setName(initialValue);
     }, [initialValue, isOpen]);
-
-    if (!isOpen) return null;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -54,48 +54,54 @@ export const LocationModal: React.FC<LocationModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-                        <MapPinPlus className="text-blue-600" size={20} />
-                        {mode === 'add' ? t.locations.addLocation : t.locations.editLocation}
-                    </h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
-                        <X size={20} />
-                    </button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="p-5 space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1">
-                            {t.locations.locationName} <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            autoFocus
-                            type="text"
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={mode === 'add' ? t.locations.addLocation : t.locations.editLocation}
+            icon={MapPinPlus}
+            size="sm"
+            busy={isSubmitting}
+            preventDismiss={isSubmitting}
+            closeLabel={t.common.closeDialog}
+            initialFocusRef={nameRef}
+            footer={
+                <>
+                    <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+                        {t.common.cancel}
+                    </Button>
+                    {/* form="…" ผูกปุ่มท้ายกล่อง (ซึ่งเป็นพี่น้องของเนื้อ ไม่ได้อยู่ใน
+                        <form>) เข้ากับฟอร์ม เพื่อให้ Enter ในช่องชื่อยังส่งฟอร์มได้ */}
+                    <Button
+                        type="submit"
+                        form={`${fieldId}-form`}
+                        variant="primary"
+                        icon={Save}
+                        disabled={!name.trim() || isSubmitting}
+                    >
+                        {isSubmitting ? t.common.saving : t.locations.saveLocation}
+                    </Button>
+                </>
+            }
+        >
+            <form id={`${fieldId}-form`} onSubmit={handleSubmit}>
+                <Field
+                    label={t.locations.locationName}
+                    htmlFor={`${fieldId}-name`}
+                    required
+                    hint={t.locations.nameHint}
+                >
+                    {(aria) => (
+                        <TextInput
+                            {...aria}
+                            ref={nameRef}
+                            required
                             placeholder={t.locations.namePlaceholder}
-                            className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                             value={name}
                             onChange={e => setName(e.target.value)}
                         />
-                        <p className="text-xs text-gray-500 mt-2">
-                            {t.locations.nameHint}
-                        </p>
-                    </div>
-
-                    <div className="pt-2">
-                        <button
-                            type="submit"
-                            disabled={!name.trim() || isSubmitting}
-                            className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 text-sm"
-                        >
-                            <Save size={18} />
-                            {isSubmitting ? t.common.saving : t.locations.saveLocation}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                    )}
+                </Field>
+            </form>
+        </Modal>
     );
 };

@@ -1,11 +1,61 @@
-import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
-import { UserPlus, X, Hash, User as UserIcon, Briefcase, Shield, Lock, Eye, EyeOff, KeyRound, AlertTriangle, CheckCircle } from 'lucide-react';
+import React, { useId, useRef, useState } from 'react';
+import { Briefcase, Eye, EyeOff, Hash, KeyRound, Shield, User as UserIcon, UserPlus } from 'lucide-react';
 import { createAccountByAdmin, adminResetUserPassword } from '../../../services/authService';
 import { toast } from '../../../services/toast';
 import { useT } from '../../../hooks/useT';
 import { dict } from '../../../services/i18n';
 import { describeAppError, isAppError } from '../../../services/appError';
+import { Button, Field, Modal, SelectField, TextInput } from '../../ui';
+import type { FieldControlProps } from '../../ui';
+
+// ปุ่มตาวางทับช่องกรอก ไม่ใช่ปุ่มแยกข้าง ๆ -- `pr-10` ที่ TextInput จองที่ไว้ให้
+// เท่ากับที่ SearchInput จองไว้ให้ปุ่มล้าง
+//
+// อยู่ในไฟล์นี้ ไม่ใช่ใน components/ui/: มันรับ `showLabel`/`hideLabel` เป็น prop ก็จริง
+// แต่มีผู้ใช้อยู่สองที่ในไฟล์เดียวกัน การยกขึ้นไปเป็น primitive ก่อนมีที่ใช้ที่สาม
+// คือการเดา API จากตัวอย่างเดียว ซึ่งเป็นสิ่งที่ D5 ของ spec รอบแรกสั่งไม่ให้ทำ
+const PasswordInput: React.FC<{
+    aria: FieldControlProps;
+    value: string;
+    onChange: (value: string) => void;
+    showLabel: string;
+    hideLabel: string;
+    required?: boolean;
+    minLength?: number;
+    autoComplete?: string;
+    inputRef?: React.RefObject<HTMLInputElement | null>;
+}> = ({ aria, value, onChange, showLabel, hideLabel, required, minLength, autoComplete, inputRef }) => {
+    const [shown, setShown] = useState(false);
+
+    return (
+        <div className="relative">
+            <TextInput
+                {...aria}
+                ref={inputRef}
+                type={shown ? 'text' : 'password'}
+                required={required}
+                minLength={minLength}
+                autoComplete={autoComplete}
+                placeholder="••••••"
+                className="pr-10"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+            />
+            <button
+                type="button"
+                onClick={() => setShown((s) => !s)}
+                aria-label={shown ? hideLabel : showLabel}
+                className={
+                    'absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-slate-400 ' +
+                    'transition hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-2 ' +
+                    'focus-visible:outline-offset-2 focus-visible:outline-brand-500'
+                }
+            >
+                {shown ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+            </button>
+        </div>
+    );
+};
 
 interface CreateUserModalProps {
     isOpen: boolean;
@@ -16,6 +66,8 @@ interface CreateUserModalProps {
 
 export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, departments, onSuccess }) => {
     const t = useT();
+    const fieldId = useId();
+    const idInputRef = useRef<HTMLInputElement>(null);
     const [createForm, setCreateForm] = useState({
         employee_id: '',
         full_name: '',
@@ -25,7 +77,10 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
         confirmPassword: ''
     });
     const [isCreating, setIsCreating] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
+
+    // ของเดิมเป็น <p> ลอยใต้ตารางช่องรหัสผ่าน ไม่ผูกกับช่องไหนเลย ตอนนี้เป็น
+    // `error` ของ Field ช่องยืนยัน ซึ่งเดิน aria-describedby + aria-invalid ให้เอง
+    const mismatch = createForm.confirmPassword !== '' && createForm.password !== createForm.confirmPassword;
 
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -53,7 +108,6 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
                 password: '',
                 confirmPassword: ''
             });
-            setShowPassword(false);
             onSuccess();
             onClose();
         } catch (error: any) {
@@ -71,145 +125,153 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
         }
     };
 
-    if (!isOpen) return null;
+    const departmentOptions = [
+        { value: '', label: t.users.selectDepartment },
+        // ชื่อแผนกเป็นข้อมูลที่ผู้ใช้พิมพ์เองในหน้าสถานที่ ไม่ใช่ข้อความ UI จึงไม่แปล
+        ...departments.map((d) => ({ value: d, label: d })),
+    ];
 
-    return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-                        <UserPlus className="text-blue-600" size={20} /> {t.users.createTitle}
-                    </h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
-                        <X size={20} />
-                    </button>
-                </div>
+    const roleOptions = [
+        { value: 'staff', label: t.role.staff },
+        { value: 'admin', label: t.role.admin },
+    ];
 
-                <form onSubmit={handleCreateUser} className="p-5 space-y-3">
-
-                    <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1">{t.users.employeeId}</label>
+    return (
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={t.users.createTitle}
+            icon={UserPlus}
+            size="md"
+            busy={isCreating}
+            preventDismiss={isCreating}
+            closeLabel={t.common.closeDialog}
+            initialFocusRef={idInputRef}
+            footer={
+                <>
+                    <Button variant="secondary" onClick={onClose} disabled={isCreating}>
+                        {t.common.cancel}
+                    </Button>
+                    <Button
+                        type="submit"
+                        form={`${fieldId}-form`}
+                        variant="primary"
+                        icon={isCreating ? undefined : UserPlus}
+                        disabled={isCreating}
+                    >
+                        {isCreating ? t.users.creating : t.users.createSubmit}
+                    </Button>
+                </>
+            }
+        >
+            <form id={`${fieldId}-form`} onSubmit={handleCreateUser} className="space-y-4">
+                <Field label={t.users.employeeId} htmlFor={`${fieldId}-employee`} required>
+                    {(aria) => (
                         <div className="relative">
-                            <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                            <input
+                            <Hash
+                                size={16}
+                                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                aria-hidden="true"
+                            />
+                            <TextInput
+                                {...aria}
+                                ref={idInputRef}
                                 required
-                                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                mono
+                                className="pl-9"
                                 placeholder="EMP001"
                                 value={createForm.employee_id}
                                 onChange={e => setCreateForm({ ...createForm, employee_id: e.target.value })}
                             />
                         </div>
-                    </div>
+                    )}
+                </Field>
 
-                    <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1">{t.users.fullName}</label>
+                <Field label={t.users.fullName} htmlFor={`${fieldId}-name`} required>
+                    {(aria) => (
                         <div className="relative">
-                            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                            <input
+                            <UserIcon
+                                size={16}
+                                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                aria-hidden="true"
+                            />
+                            <TextInput
+                                {...aria}
                                 required
-                                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                className="pl-9"
                                 placeholder={t.users.fullNamePlaceholder}
                                 value={createForm.full_name}
                                 onChange={e => setCreateForm({ ...createForm, full_name: e.target.value })}
                             />
                         </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">{t.common.department}</label>
-                            <div className="relative">
-                                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                <select
-                                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white text-sm"
-                                    value={createForm.department}
-                                    onChange={e => setCreateForm({ ...createForm, department: e.target.value })}
-                                    required
-                                >
-                                    <option value="">{t.users.selectDepartment}</option>
-                                    {departments.map(d => <option key={d} value={d}>{d}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">{t.users.roleLabel}</label>
-                            <div className="relative">
-                                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                <select
-                                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white text-sm"
-                                    value={createForm.role}
-                                    onChange={e => setCreateForm({ ...createForm, role: e.target.value as any })}
-                                >
-                                    <option value="staff">{t.role.staff}</option>
-                                    <option value="admin">{t.role.admin}</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">{t.users.password}</label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                <input
-                                    required
-                                    type={showPassword ? "text" : "password"}
-                                    className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                    placeholder="••••••"
-                                    value={createForm.password}
-                                    onChange={e => setCreateForm({ ...createForm, password: e.target.value })}
-                                    minLength={6}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-                                >
-                                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">{t.users.confirmPassword}</label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                <input
-                                    required
-                                    type={showPassword ? "text" : "password"}
-                                    className={`w-full pl-9 pr-8 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm ${createForm.confirmPassword && createForm.password !== createForm.confirmPassword ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
-                                    placeholder="••••••"
-                                    value={createForm.confirmPassword}
-                                    onChange={e => setCreateForm({ ...createForm, confirmPassword: e.target.value })}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-                                >
-                                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    {createForm.confirmPassword && createForm.password !== createForm.confirmPassword && (
-                        <p className="text-xs text-red-500 font-medium ml-1">{t.users.passwordsDoNotMatch}</p>
                     )}
+                </Field>
 
-                    <div className="pt-2">
-                        <button
-                            type="submit"
-                            disabled={isCreating}
-                            className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 text-sm"
-                        >
-                            {isCreating ? t.users.creating : <><UserPlus size={18} /> {t.users.createSubmit}</>}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>,
-        document.body
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label={t.common.department} htmlFor={`${fieldId}-dept`} required>
+                        {(aria) => (
+                            <SelectField
+                                {...aria}
+                                icon={Briefcase}
+                                ariaLabel={t.common.department}
+                                value={createForm.department}
+                                onChange={(department) => setCreateForm({ ...createForm, department })}
+                                options={departmentOptions}
+                            />
+                        )}
+                    </Field>
+
+                    <Field label={t.users.roleLabel} htmlFor={`${fieldId}-role`}>
+                        {(aria) => (
+                            <SelectField
+                                {...aria}
+                                icon={Shield}
+                                ariaLabel={t.users.roleLabel}
+                                value={createForm.role}
+                                onChange={(role) => setCreateForm({ ...createForm, role: role as 'staff' | 'admin' })}
+                                options={roleOptions}
+                            />
+                        )}
+                    </Field>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label={t.users.password} htmlFor={`${fieldId}-password`} required>
+                        {(aria) => (
+                            <PasswordInput
+                                aria={aria}
+                                required
+                                minLength={6}
+                                autoComplete="new-password"
+                                showLabel={t.common.showPassword}
+                                hideLabel={t.common.hidePassword}
+                                value={createForm.password}
+                                onChange={(password) => setCreateForm({ ...createForm, password })}
+                            />
+                        )}
+                    </Field>
+
+                    <Field
+                        label={t.users.confirmPassword}
+                        htmlFor={`${fieldId}-confirm`}
+                        required
+                        error={mismatch ? t.users.passwordsDoNotMatch : undefined}
+                    >
+                        {(aria) => (
+                            <PasswordInput
+                                aria={aria}
+                                required
+                                autoComplete="new-password"
+                                showLabel={t.common.showPassword}
+                                hideLabel={t.common.hidePassword}
+                                value={createForm.confirmPassword}
+                                onChange={(confirmPassword) => setCreateForm({ ...createForm, confirmPassword })}
+                            />
+                        )}
+                    </Field>
+                </div>
+            </form>
+        </Modal>
     );
 };
 
@@ -226,15 +288,17 @@ interface ResetPasswordModalProps {
 
 export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({ state, onClose }) => {
     const t = useT();
+    const fieldId = useId();
+    const passwordRef = useRef<HTMLInputElement>(null);
     const [newPassword, setNewPassword] = useState('');
     const [confirmNewPassword, setConfirmNewPassword] = useState('');
     const [isResetting, setIsResetting] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
 
-    if (!state?.isOpen) return null;
+    const mismatch = confirmNewPassword !== '' && newPassword !== confirmNewPassword;
 
     const handleResetPassword = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!state) return;
 
         if (newPassword !== confirmNewPassword) {
             toast.error(dict().users.passwordsDoNotMatch);
@@ -256,140 +320,81 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({ state, o
         }
     };
 
-    return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 overflow-hidden">
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-                        <KeyRound className="text-yellow-600" size={20} /> {t.users.resetPassword}
-                    </h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
-                        <X size={24} />
-                    </button>
-                </div>
-
-                <div className="px-6 pt-4 pb-2">
-                    <p className="text-sm text-gray-600">
-                        {t.users.resettingFor} <span className="font-bold text-gray-900">{state.fullName}</span>
-                    </p>
-                </div>
-
-                <form onSubmit={handleResetPassword} className="p-6 space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">{t.users.newPassword}</label>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                            <input
-                                required
-                                type={showPassword ? "text" : "password"}
-                                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="••••••••"
-                                value={newPassword}
-                                onChange={e => setNewPassword(e.target.value)}
-                                minLength={6}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-                            >
-                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">{t.users.confirmNewPassword}</label>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                            <input
-                                required
-                                type={showPassword ? "text" : "password"}
-                                className={`w-full pl-10 pr-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 ${confirmNewPassword && newPassword !== confirmNewPassword ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
-                                placeholder="••••••••"
-                                value={confirmNewPassword}
-                                onChange={e => setConfirmNewPassword(e.target.value)}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-                            >
-                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
-                        </div>
-                        {confirmNewPassword && (
-                            <p className={`text-xs mt-1 font-medium ${newPassword === confirmNewPassword ? 'text-green-600' : 'text-red-500'}`}>
-                                {newPassword === confirmNewPassword ? t.users.passwordsMatch : t.users.passwordsDoNotMatch}
-                            </p>
-                        )}
-                    </div>
-
-                    <button
+    return (
+        <Modal
+            // `state` is null when nothing is being reset, and carries its own
+            // `isOpen` when it is. Modal returns null on a closed box, so the
+            // hooks above still run on every render.
+            isOpen={!!state?.isOpen}
+            onClose={onClose}
+            title={t.users.resetPassword}
+            // Who this is for used to be a paragraph in the body. It belongs in
+            // the header: it identifies the dialog rather than being one of the
+            // things it collects.
+            subtitle={`${t.users.resettingFor} ${state?.fullName ?? ''}`}
+            icon={KeyRound}
+            size="sm"
+            busy={isResetting}
+            preventDismiss={isResetting}
+            closeLabel={t.common.closeDialog}
+            initialFocusRef={passwordRef}
+            footer={
+                <>
+                    <Button variant="secondary" onClick={onClose} disabled={isResetting}>
+                        {t.common.cancel}
+                    </Button>
+                    <Button
                         type="submit"
+                        form={`${fieldId}-form`}
+                        variant="primary"
                         disabled={isResetting}
-                        className="w-full py-4 bg-yellow-600 text-white font-bold rounded-xl hover:bg-yellow-700 shadow-lg transition flex items-center justify-center gap-2 mt-4"
                     >
                         {isResetting ? t.users.resetting : t.users.confirmReset}
-                    </button>
-                </form>
-            </div>
-        </div>,
-        document.body
-    );
-};
+                    </Button>
+                </>
+            }
+        >
+            <form id={`${fieldId}-form`} onSubmit={handleResetPassword} className="space-y-4">
+                <Field label={t.users.newPassword} htmlFor={`${fieldId}-new`} required>
+                    {(aria) => (
+                        <PasswordInput
+                            aria={aria}
+                            required
+                            minLength={6}
+                            autoComplete="new-password"
+                            inputRef={passwordRef}
+                            showLabel={t.common.showPassword}
+                            hideLabel={t.common.hidePassword}
+                            value={newPassword}
+                            onChange={setNewPassword}
+                        />
+                    )}
+                </Field>
 
-export type ConfirmActionType = {
-    title: string;
-    message: string;
-    confirmLabel: string;
-    isDestructive?: boolean;
-    onConfirm: () => Promise<void>;
-};
-
-interface ConfirmModalProps {
-    action: ConfirmActionType | null;
-    onClose: () => void;
-}
-
-export const ConfirmModal: React.FC<ConfirmModalProps> = ({ action, onClose }) => {
-    const t = useT();
-
-    // `title`, `message` and `confirmLabel` arrive already translated from the
-    // caller, which is the only place that knows which user is being acted on.
-    if (!action) return null;
-
-    return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 overflow-hidden transform">
-                <div className="p-6">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${action.isDestructive ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                        {action.isDestructive ? <AlertTriangle size={24} /> : <CheckCircle size={24} />}
-                    </div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">{action.title}</h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">
-                        {action.message}
-                    </p>
-                </div>
-                <div className="bg-gray-50 px-6 py-4 flex gap-3 justify-end border-t border-gray-100">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 bg-white text-gray-700 font-bold rounded-lg hover:bg-gray-100 border border-gray-200 transition"
-                    >
-                        {t.common.cancel}
-                    </button>
-                    <button
-                        onClick={async () => {
-                            await action.onConfirm();
-                            onClose();
-                        }}
-                        className={`px-4 py-2 text-white font-bold rounded-lg shadow-sm transition ${action.isDestructive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
-                    >
-                        {action.confirmLabel}
-                    </button>
-                </div>
-            </div>
-        </div>,
-        document.body
+                <Field
+                    label={t.users.confirmNewPassword}
+                    htmlFor={`${fieldId}-confirm`}
+                    required
+                    error={mismatch ? t.users.passwordsDoNotMatch : undefined}
+                    // ของเดิมขึ้น "รหัสผ่านตรงกัน" สีเขียวเมื่อตรง ซึ่ง Field แสดง
+                    // ทีละอย่างอยู่แล้ว (error ทับ hint) จึงยังบอกได้ครบทั้งสองทาง
+                    hint={
+                        confirmNewPassword !== '' && !mismatch ? t.users.passwordsMatch : undefined
+                    }
+                >
+                    {(aria) => (
+                        <PasswordInput
+                            aria={aria}
+                            required
+                            autoComplete="new-password"
+                            showLabel={t.common.showPassword}
+                            hideLabel={t.common.hidePassword}
+                            value={confirmNewPassword}
+                            onChange={setConfirmNewPassword}
+                        />
+                    )}
+                </Field>
+            </form>
+        </Modal>
     );
 };

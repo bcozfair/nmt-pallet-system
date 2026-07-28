@@ -1,9 +1,10 @@
 import React from 'react';
 import { Department } from '../../../types';
-import { Edit2, Trash2, Power, MapPin, Search, Box, AlertTriangle, AlertOctagon, Save, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Edit2, Trash2, Power, MapPin, MapPinned, Box, AlertTriangle, AlertOctagon, Save, X } from 'lucide-react';
 import { Pagination } from '../common/Pagination';
 import { formatDateTime } from '../common/AdminHelpers';
 import { useT } from '../../../hooks/useT';
+import { Button, DataTable, EmptyState, SortableTh, TextInput } from '../../ui';
 
 export interface LocationStats {
     totalPallets: number;
@@ -41,7 +42,26 @@ interface LocationTableProps {
     // Sort
     sortConfig: LocationSortConfig;
     onSort: (key: LocationSortKey) => void;
+
+    // Before this existed the first render showed "No locations found" while
+    // the very first fetch was still in flight. See LocationView.tsx.
+    isLoading: boolean;
 }
+
+// ชิปตัวเลขสามตัวกลางตาราง สีสื่อความหมายจึงเก็บไว้ (แบรนด์ = ปกติ, แดง = เกินกำหนด,
+// ส้ม = ชำรุด) เปลี่ยนแค่ blue -> brand เพราะน้ำเงินของระบบใหม่คือสีแบรนด์
+//
+// `animate-pulse-slow` ที่เคยอยู่บนชิปเกินกำหนดถูกเอาออก: ตัวเลขที่กะพริบตลอดเวลาที่
+// หน้าเปิดอยู่เป็นเสียงรบกวน ไม่ใช่การแจ้งเตือน -- สีแดงกับไอคอนสามเหลี่ยมบอกเรื่อง
+// เดียวกันโดยไม่ต้องขยับ และการเคลื่อนไหวที่ไม่มีวันหยุดเป็นสิ่งที่ผู้ใช้ที่ตั้งค่า
+// prefers-reduced-motion ขอไม่เห็นพอดี
+const CHIP = 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-bold';
+
+// One string for the five icon buttons in the row -- see the same note in
+// UserTable.tsx. Colour is appended per button, never layered.
+const ROW_BUTTON =
+    'rounded-full p-1.5 transition focus-visible:outline-2 focus-visible:outline-offset-2 ' +
+    'focus-visible:outline-brand-500';
 
 export const LocationTable: React.FC<LocationTableProps> = ({
     paginatedDepartments,
@@ -63,203 +83,215 @@ export const LocationTable: React.FC<LocationTableProps> = ({
     onDelete,
     onClearFilters,
     sortConfig,
-    onSort
+    onSort,
+    isLoading,
 }) => {
     const t = useT();
 
-    const SortIcon = ({ column }: { column: LocationSortKey }) => {
-        if (sortConfig?.key !== column) return <ArrowUpDown size={14} className="text-gray-300" />;
-        return sortConfig.direction === 'asc'
-            ? <ArrowUp size={14} className="text-blue-500" />
-            : <ArrowDown size={14} className="text-blue-500" />;
-    };
-
-    const Th = ({ label, sortKey, width, align = 'left', centered = false }: { label: string, sortKey?: LocationSortKey, width?: string, align?: string, centered?: boolean }) => (
-        <th
-            className={`p-3 border-b cursor-pointer hover:bg-gray-100 transition select-none text-${align} ${width || ''}`}
-            onClick={() => sortKey && onSort(sortKey)}
-        >
-            <div className={`flex items-center gap-2 ${centered ? 'justify-center' : (align === 'right' ? 'justify-end' : '')}`}>
-                {label}
-                {sortKey && <SortIcon column={sortKey} />}
-            </div>
-        </th>
-    );
-
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[600px] lg:h-[calc(100vh-280px)] overflow-hidden animate-in fade-in duration-500">
-            <div className="flex-1 overflow-auto relative styled-scrollbar">
-                <table className="w-full text-left border-collapse min-w-[1000px]">
-                    <thead className="bg-gray-50 text-gray-500 text-sm font-semibold sticky top-0 z-10 shadow-sm">
-                        <tr>
-                            <th className="p-3 border-b w-16 text-center">#</th>
-                            <Th label={t.locations.locationName} sortKey="name" />
-                            <Th label={t.common.total} sortKey="totalPallets" width="w-28" centered />
-                            <Th label={t.locations.overdue} sortKey="overduePallets" width="w-28" centered />
-                            <Th label={t.status.damaged} sortKey="damagedPallets" width="w-28" centered />
-                            <Th label={t.locations.lastUpdated} sortKey="lastActivity" width="w-40" />
-                            <Th label={t.common.status} sortKey="is_active" width="w-32" centered />
-                            <th className="p-3 border-b text-right">{t.common.actions}</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {paginatedDepartments.map((dept, index) => {
-                            const stats = departmentStats[dept.name] || { totalPallets: 0, overduePallets: 0, damagedPallets: 0, lastActivity: null };
-
-                            return (
-                                <tr key={dept.id} className="hover:bg-blue-50 transition group">
-                                    <td className="p-3 text-center text-gray-400 text-sm">
-                                        {(currentPage - 1) * itemsPerPage + index + 1}
-                                    </td>
-
-                                    {/* Name */}
-                                    {/* Name */}
-                                    <td className="p-3 font-medium text-gray-800">
-                                        {editingId === dept.id ? (
-                                            <input
-                                                className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
-                                                value={editForm.name}
-                                                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                                autoFocus
-                                            />
-                                        ) : (
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2 rounded-lg ${dept.is_active ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-100 text-gray-400'}`}>
-                                                    <MapPin size={16} />
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold">{dept.name}</div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </td>
-
-                                    {/* Total Pallets */}
-                                    <td className="p-3 text-center">
-                                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-bold text-sm ${stats.totalPallets > 0 ? 'bg-blue-50 text-blue-700' : 'text-gray-400'}`}>
-                                            <Box size={14} />
-                                            {stats.totalPallets}
-                                        </div>
-                                    </td>
-
-                                    {/* Overdue */}
-                                    <td className="p-3 text-center">
-                                        {stats.overduePallets > 0 ? (
-                                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-600 font-bold text-sm animate-pulse-slow">
-                                                <AlertTriangle size={14} />
-                                                {stats.overduePallets}
-                                            </div>
-                                        ) : (
-                                            <span className="text-gray-300">-</span>
-                                        )}
-                                    </td>
-
-                                    {/* Damaged */}
-                                    <td className="p-3 text-center">
-                                        {stats.damagedPallets > 0 ? (
-                                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 text-orange-600 font-bold text-sm">
-                                                <AlertOctagon size={14} />
-                                                {stats.damagedPallets}
-                                            </div>
-                                        ) : (
-                                            <span className="text-gray-300">-</span>
-                                        )}
-                                    </td>
-
-                                    {/* Last Activity */}
-                                    <td className="p-3 text-sm text-gray-600">
-                                        {formatDateTime(stats.lastActivity)}
-                                    </td>
-
-                                    {/* Status */}
-                                    <td className="p-3 text-center">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${dept.is_active
-                                            ? 'bg-green-50 text-green-700 border-green-200'
-                                            : 'bg-gray-100 text-gray-500 border-gray-200'
-                                            }`}>
-                                            <span className={`w-1.5 h-1.5 rounded-full ${dept.is_active ? 'bg-green-600' : 'bg-gray-400'}`} />
-                                            {dept.is_active ? t.common.active : t.common.inactive}
-                                        </span>
-                                    </td>
-
-                                    {/* Actions */}
-                                    <td className="p-3 text-right">
-                                        <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                                            {editingId === dept.id ? (
-                                                <>
-                                                    {/* Blank (or whitespace-only) names were
-                                                        saveable here, unlike in the add/edit
-                                                        modal which has always required one. */}
-                                                    <button
-                                                        onClick={() => onSave(dept.id)}
-                                                        disabled={!editForm.name.trim()}
-                                                        className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-full transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-50"
-                                                        title={editForm.name.trim() ? t.locations.saveChanges : t.locations.enterNameFirst}
-                                                    >
-                                                        <Save size={18} />
-                                                    </button>
-                                                    <button
-                                                        onClick={onCancelEdit}
-                                                        className="p-2 bg-gray-50 text-gray-500 hover:bg-gray-100 rounded-full transition"
-                                                        title={t.locations.cancelEdit}
-                                                    >
-                                                        <X size={18} />
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <button
-                                                        onClick={() => onToggleStatus(dept)}
-                                                        className={`p-2 rounded-full transition ${dept.is_active
-                                                            ? 'text-green-600 hover:bg-green-100'
-                                                            : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
-                                                            }`}
-                                                        title={dept.is_active ? t.locations.deactivate : t.locations.activate}
-                                                    >
-                                                        <Power size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => onStartEdit(dept)}
-                                                        className="p-2 text-blue-400 hover:bg-blue-100 hover:text-blue-600 rounded-full transition"
-                                                        title={t.locations.editName}
-                                                    >
-                                                        <Edit2 size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => onDelete(dept.id)}
-                                                        className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-full transition"
-                                                        title={t.locations.deleteLocation}
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
-
-            {totalProcessedCount > 0 && (
-                <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                    totalItems={totalProcessedCount}
-                    itemsPerPage={itemsPerPage}
+        <DataTable
+            minWidth={880}
+            isLoading={isLoading}
+            loadingRows={10}
+            loadingCols={8}
+            loadingLabel={t.locations.loading}
+            isEmpty={totalProcessedCount === 0}
+            empty={
+                <EmptyState
+                    icon={MapPinned}
+                    title={t.locations.noResults}
+                    action={
+                        <Button variant="secondary" onClick={onClearFilters}>
+                            {t.common.clearFilters}
+                        </Button>
+                    }
                 />
-            )}
+            }
+            footer={
+                totalProcessedCount > 0 ? (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        totalItems={totalProcessedCount}
+                        itemsPerPage={itemsPerPage}
+                    />
+                ) : undefined
+            }
+            head={
+                <tr>
+                    {/* เดิมเป็น "#" ซึ่ง screen reader อ่านว่า "number sign" และหัว
+                        คอลัมน์นี้เคยเป็น cursor-pointer ทั้งที่กดแล้วไม่เรียงอะไร */}
+                    <SortableTh<LocationSortKey> label={t.locations.rowNumber} sortConfig={sortConfig} align="center" className="w-16" />
+                    <SortableTh<LocationSortKey> label={t.locations.locationName} sortKey="name" sortConfig={sortConfig} onSort={onSort} />
+                    <SortableTh<LocationSortKey> label={t.common.total} sortKey="totalPallets" sortConfig={sortConfig} onSort={onSort} align="center" />
+                    <SortableTh<LocationSortKey> label={t.locations.overdue} sortKey="overduePallets" sortConfig={sortConfig} onSort={onSort} align="center" />
+                    <SortableTh<LocationSortKey> label={t.status.damaged} sortKey="damagedPallets" sortConfig={sortConfig} onSort={onSort} align="center" />
+                    <SortableTh<LocationSortKey>
+                        label={t.locations.lastUpdated}
+                        sortKey="lastActivity"
+                        sortConfig={sortConfig}
+                        onSort={onSort}
+                        className="hidden xl:table-cell"
+                    />
+                    <SortableTh<LocationSortKey> label={t.common.status} sortKey="is_active" sortConfig={sortConfig} onSort={onSort} align="center" />
+                    <SortableTh<LocationSortKey> label={t.common.actions} sortConfig={sortConfig} align="right" />
+                </tr>
+            }
+        >
+            <tbody className="divide-y divide-slate-100">
+                {paginatedDepartments.map((dept, index) => {
+                    const stats = departmentStats[dept.name] || { totalPallets: 0, overduePallets: 0, damagedPallets: 0, lastActivity: null };
+                    const isEditing = editingId === dept.id;
 
-            {totalProcessedCount === 0 && (
-                <div className="p-12 text-center flex flex-col items-center text-gray-400 gap-3 flex-1 justify-center">
-                    <Search size={48} className="opacity-20" />
-                    <p className="text-gray-500 font-medium">{t.locations.noResults}</p>
-                    <button onClick={onClearFilters} className="text-blue-600 font-bold hover:underline">{t.common.clearFilters}</button>
-                </div>
-            )}
-        </div>
+                    return (
+                        <tr
+                            key={dept.id}
+                            className={isEditing ? 'bg-brand-50' : 'transition hover:bg-slate-50'}
+                        >
+                            <td className="px-3 py-1.5 text-center text-sm text-slate-400">
+                                {(currentPage - 1) * itemsPerPage + index + 1}
+                            </td>
+
+                            <td className="px-3 py-1.5 font-medium text-slate-800">
+                                {isEditing ? (
+                                    <TextInput
+                                        aria-label={t.locations.locationName}
+                                        value={editForm.name}
+                                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                    />
+                                ) : (
+                                    <div className="flex items-center gap-3">
+                                        <span
+                                            className={
+                                                'shrink-0 rounded-lg p-1.5 ' +
+                                                (dept.is_active
+                                                    ? 'bg-brand-50 text-brand-600'
+                                                    : 'bg-slate-100 text-slate-400')
+                                            }
+                                            aria-hidden="true"
+                                        >
+                                            <MapPin size={16} />
+                                        </span>
+                                        <span className="font-semibold">{dept.name}</span>
+                                    </div>
+                                )}
+                            </td>
+
+                            <td className="px-3 py-1.5 text-center">
+                                <span className={`${CHIP} ${stats.totalPallets > 0 ? 'bg-brand-50 text-brand-700' : 'text-slate-400'}`}>
+                                    <Box size={14} aria-hidden="true" />
+                                    {stats.totalPallets}
+                                </span>
+                            </td>
+
+                            <td className="px-3 py-1.5 text-center">
+                                {stats.overduePallets > 0 ? (
+                                    <span className={`${CHIP} bg-red-50 text-red-600`}>
+                                        <AlertTriangle size={14} aria-hidden="true" />
+                                        {stats.overduePallets}
+                                    </span>
+                                ) : (
+                                    <span className="text-slate-300">-</span>
+                                )}
+                            </td>
+
+                            <td className="px-3 py-1.5 text-center">
+                                {stats.damagedPallets > 0 ? (
+                                    <span className={`${CHIP} bg-orange-50 text-orange-600`}>
+                                        <AlertOctagon size={14} aria-hidden="true" />
+                                        {stats.damagedPallets}
+                                    </span>
+                                ) : (
+                                    <span className="text-slate-300">-</span>
+                                )}
+                            </td>
+
+                            <td className="hidden px-3 py-1.5 text-sm text-slate-600 xl:table-cell">
+                                {formatDateTime(stats.lastActivity)}
+                            </td>
+
+                            <td className="px-3 py-1.5 text-center">
+                                <span
+                                    className={
+                                        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ' +
+                                        (dept.is_active
+                                            ? 'border-green-200 bg-green-50 text-green-700'
+                                            : 'border-slate-200 bg-slate-100 text-slate-500')
+                                    }
+                                >
+                                    <span
+                                        className={`h-1.5 w-1.5 rounded-full ${dept.is_active ? 'bg-green-600' : 'bg-slate-400'}`}
+                                        aria-hidden="true"
+                                    />
+                                    {dept.is_active ? t.common.active : t.common.inactive}
+                                </span>
+                            </td>
+
+                            <td className="px-3 py-1.5 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                    {isEditing ? (
+                                        <>
+                                            {/* Blank (or whitespace-only) names were
+                                                saveable here, unlike in the add/edit
+                                                modal which has always required one. */}
+                                            <button
+                                                onClick={() => onSave(dept.id)}
+                                                disabled={!editForm.name.trim()}
+                                                className={`${ROW_BUTTON} text-green-600 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent`}
+                                                title={editForm.name.trim() ? t.locations.saveChanges : t.locations.enterNameFirst}
+                                                aria-label={t.locations.saveChanges}
+                                            >
+                                                <Save size={16} />
+                                            </button>
+                                            <button
+                                                onClick={onCancelEdit}
+                                                className={`${ROW_BUTTON} text-slate-500 hover:bg-slate-200 hover:text-slate-700`}
+                                                title={t.locations.cancelEdit}
+                                                aria-label={t.locations.cancelEdit}
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button
+                                                onClick={() => onToggleStatus(dept)}
+                                                className={
+                                                    `${ROW_BUTTON} ` +
+                                                    (dept.is_active
+                                                        ? 'text-green-600 hover:bg-green-100'
+                                                        : 'text-slate-400 hover:bg-slate-200 hover:text-slate-600')
+                                                }
+                                                title={dept.is_active ? t.locations.deactivate : t.locations.activate}
+                                                aria-label={dept.is_active ? t.locations.deactivate : t.locations.activate}
+                                            >
+                                                <Power size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => onStartEdit(dept)}
+                                                className={`${ROW_BUTTON} text-brand-400 hover:bg-brand-50 hover:text-brand-600`}
+                                                title={t.locations.editName}
+                                                aria-label={t.locations.editName}
+                                            >
+                                                <Edit2 size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => onDelete(dept.id)}
+                                                className={`${ROW_BUTTON} text-red-400 hover:bg-red-50 hover:text-red-600`}
+                                                title={t.locations.deleteLocation}
+                                                aria-label={t.locations.deleteLocation}
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </td>
+                        </tr>
+                    );
+                })}
+            </tbody>
+        </DataTable>
     );
 };
