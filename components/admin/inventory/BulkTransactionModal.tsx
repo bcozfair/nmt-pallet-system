@@ -31,7 +31,13 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
     const [action, setAction] = useState<'check_out' | 'check_in'>('check_out');
     const [destination, setDestination] = useState('');
     const [remark, setRemark] = useState('');
+    // สามสถานะแยกกัน ไม่ใช่ตัวเดียวร่วม: วันที่ เวลา และปลายทาง เป็นสามช่องที่
+    // อยู่คนละตำแหน่งบนกล่อง ข้อความผิดพลาดของช่องหนึ่งต้องไม่ไปโผล่ใต้อีกช่องที่
+    // กรอกถูกอยู่แล้ว -- เดิมใช้ dateError ตัวเดียวคุมทั้งวันที่/เวลา ผลคือเคลียร์
+    // แค่ช่องเวลาแล้วกดยืนยัน ข้อความกลับไปขึ้นใต้ช่องวันที่ที่ไม่มีอะไรผิดเลย
     const [dateError, setDateError] = useState<string | null>(null);
+    const [timeError, setTimeError] = useState<string | null>(null);
+    const [destinationError, setDestinationError] = useState<string | null>(null);
 
     // แยกวันกับเวลาเป็นสองช่อง ไม่ใช่ datetime-local ตัวเดียว: ปกติผู้ใช้แก้แค่เวลา
     // (บันทึกย้อนหลังของรอบเช้าตอนบ่าย) และช่องเดียวบังคับให้เดินผ่านวันที่ก่อนเสมอ
@@ -53,6 +59,8 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setDateError(null);
+        setTimeError(null);
+        setDestinationError(null);
 
         // ตรวจก่อนประกอบ
         //
@@ -60,11 +68,36 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
         // ถ้าช่องใดช่องหนึ่งว่างจะได้ Invalid Date แล้ว .toISOString() โยน
         // RangeError ซึ่งตกลงไปใน catch ที่มีแค่ console.error -- ผู้ใช้กดยืนยัน
         // แล้วไม่มีอะไรเกิดขึ้นเลย ไม่มีข้อความ ไม่มีสัญญาณว่าพัง
-        const combinedDate = new Date(`${dateStr}T${timeStr}`);
-        if (!dateStr || !timeStr || Number.isNaN(combinedDate.getTime())) {
+        let hasError = false;
+
+        if (!dateStr) {
             setDateError(t.inventory.invalidDateTime);
-            return;
+            hasError = true;
         }
+        if (!timeStr) {
+            setTimeError(t.inventory.invalidDateTime);
+            hasError = true;
+        }
+
+        const combinedDate = new Date(`${dateStr}T${timeStr}`);
+        if (!hasError && Number.isNaN(combinedDate.getTime())) {
+            // ทั้งสองช่องมีค่าแล้ว แต่รวมกันแล้ว parse ไม่ได้ -- แทบเป็นไปไม่ได้จริง
+            // กับ native date/time input ที่คุมฟอร์แมตให้อยู่แล้ว แต่ยังกันไว้เผื่อ
+            // ไม่รู้ว่าช่องไหนเป็นตัวปัญหา จึงขึ้นข้อความใต้ทั้งสองช่อง
+            setDateError(t.inventory.invalidDateTime);
+            setTimeError(t.inventory.invalidDateTime);
+            hasError = true;
+        }
+
+        // เบิกออกต้องมีปลายทางเสมอ -- ของเดิมพึ่ง HTML `required` บน <select> ตรง ๆ
+        // ตอนนี้ฟอร์มปิด native validation ไปแล้ว (ดูคอมเมนต์ที่ `noValidate` ใน
+        // <form> ข้างล่าง) ต้องตรวจเองที่นี่ ไม่งั้นส่งปลายทางว่างเปล่าไปเงียบ ๆ ได้
+        if (action === 'check_out' && !destination) {
+            setDestinationError(t.inventory.selectLocation);
+            hasError = true;
+        }
+
+        if (hasError) return;
 
         setLoading(true);
         try {
@@ -119,7 +152,14 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
                 </>
             }
         >
-            <form id={`${fieldId}-form`} onSubmit={handleSubmit} className="space-y-4">
+            {/* noValidate: ปิด HTML5 constraint validation ของเบราว์เซอร์ ไม่งั้นช่อง
+                `required` ที่ว่างจะโดนเบราว์เซอร์ดักไว้ก่อน -- แสดง tooltip เริ่มต้น
+                ที่ไม่มีสไตล์และไม่แปลไทย แล้ว submit event จะไม่มีวันไปถึง handleSubmit
+                เลยด้วยซ้ำ แอปสองภาษาต้องให้ฝั่ง JS เป็นเจ้าของ validation ทั้งหมด
+                ข้อความผิดพลาดจึงสม่ำเสมอเป็นภาษาเดียวกับที่เหลือของฟอร์มเสมอ
+                `required` บน input แต่ละตัวยังอยู่เพื่อความหมาย (Field ใช้ต่อ
+                aria-required) แต่ไม่ได้ทำหน้าที่ปิดกั้นการ submit อีกต่อไป */}
+            <form id={`${fieldId}-form`} onSubmit={handleSubmit} noValidate className="space-y-4">
                 {/* เต็มความกว้าง ไม่ใช่ครึ่งคอลัมน์: SegmentedControl กว้างตามเนื้อ
                     และป้ายไทย ("เบิกออก"/"รับคืน") กว้างกว่าอังกฤษราวเท่าตัว */}
                 <Field label={t.inventory.actionLabel} htmlFor={`${fieldId}-action`}>
@@ -130,7 +170,14 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
                         // ไม่มีทางรู้ว่าเป็นตัวเลือกสองทางที่เลือกได้อันเดียว
                         <SegmentedControl
                             value={action}
-                            onChange={setAction}
+                            onChange={(next) => {
+                                setAction(next);
+                                // สลับไป "รับคืน" ซ่อนช่องปลายทางทั้งช่อง (ดูคอมเมนต์
+                                // ข้างล่าง) ข้อความผิดพลาดเก่าของมันจึงต้องล้างไปด้วย
+                                // ไม่งั้นสลับกลับมา "เบิกออก" จะเจอข้อความค้างที่ยังไม่
+                                // ได้ตรวจซ้ำเลย
+                                setDestinationError(null);
+                            }}
                             ariaLabel={t.inventory.actionLabel}
                             options={[
                                 { value: 'check_out' as const, label: t.action.check_out },
@@ -163,14 +210,22 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
                 {/* เรนเดอร์เฉพาะตอนเบิกออก ไม่ใช่ซ่อนด้วย `invisible` ที่ทิ้งช่องว่าง
                     เปล่าครึ่งกล่องไว้โดยไม่อธิบายอะไร */}
                 {action === 'check_out' && (
-                    <Field label={t.inventory.destination} htmlFor={`${fieldId}-dest`} required>
+                    <Field
+                        label={t.inventory.destination}
+                        htmlFor={`${fieldId}-dest`}
+                        required
+                        error={destinationError ?? undefined}
+                    >
                         {(aria) => (
                             <SelectField
                                 id={aria.id}
                                 icon={MapPin}
                                 ariaLabel={t.inventory.destination}
                                 value={destination}
-                                onChange={setDestination}
+                                onChange={(value) => {
+                                    setDestination(value);
+                                    setDestinationError(null);
+                                }}
                                 options={[
                                     { value: '', label: t.inventory.selectLocation },
                                     ...departments
@@ -206,7 +261,12 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
                         )}
                     </Field>
 
-                    <Field label={t.common.time} htmlFor={`${fieldId}-time`} required>
+                    <Field
+                        label={t.common.time}
+                        htmlFor={`${fieldId}-time`}
+                        required
+                        error={timeError ?? undefined}
+                    >
                         {(aria) => (
                             <TextInput
                                 {...aria}
@@ -215,7 +275,7 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
                                 value={timeStr}
                                 onChange={(e) => {
                                     setTimeStr(e.target.value);
-                                    setDateError(null);
+                                    setTimeError(null);
                                 }}
                             />
                         )}
