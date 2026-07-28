@@ -337,7 +337,7 @@ export const LocationView: React.FC = () => {
     };
 
     return (
-        <div className="h-[calc(100vh-110px)] flex flex-col gap-6 overflow-hidden animate-in fade-in duration-500">
+        <div className="h-[calc(100vh-110px)] flex flex-col gap-6 overflow-hidden">
             {/* Header */}
             <div className="shrink-0">
                 <LocationHeader
@@ -405,7 +405,7 @@ export const LocationView: React.FC = () => {
                     confirmLabel={confirmAction.confirmLabel}
                     cancelLabel={dict().common.cancel}
                     closeLabel={dict().common.closeDialog}
-                    workingLabel={dict().common.loading}
+                    workingLabel={dict().common.working}
                     isDestructive={confirmAction.isDestructive}
                     onConfirm={confirmAction.onConfirm}
                     onCancel={() => setConfirmAction(null)}

@@ -56,6 +56,11 @@ export const en = {
 
         // States
         loading: 'Loading...',
+        // แยกจาก `loading` ข้างบน: อันนั้นคือ "กำลังอ่านข้อมูล" ส่วนอันนี้คือ
+        // "มีคำขอเขียนค้างอยู่" (ConfirmDialog ใช้ตอนปุ่มยืนยันกำลังทำงาน) -- ใช้
+        // `loading` ผิดที่ทำให้ปุ่มลบขึ้นว่า "กำลังโหลด..." ซึ่งไม่ตรงกับสิ่งที่
+        // เกิดขึ้นเลย
+        working: 'Working...',
         showPassword: 'Show password',
         hidePassword: 'Hide password',
         noData: 'No data found',

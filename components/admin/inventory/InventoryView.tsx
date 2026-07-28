@@ -249,7 +249,7 @@ export const InventoryView = ({
                     confirmLabel={confirmAction.confirmLabel}
                     cancelLabel={t.common.cancel}
                     closeLabel={t.common.closeDialog}
-                    workingLabel={t.inventory.working}
+                    workingLabel={t.common.working}
                     isDestructive={confirmAction.isDestructive}
                     onConfirm={confirmAction.onConfirm}
                     onCancel={() => setConfirmAction(null)}
