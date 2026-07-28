@@ -1,7 +1,8 @@
 import React from 'react';
-import { Search, MapPin, Filter, Calendar, ChevronRight, ChevronDown, X, User } from 'lucide-react';
+import { Filter, MapPin, User } from 'lucide-react';
 import { Department } from '../../../types';
 import { useT } from '../../../hooks/useT';
+import { DateRangeField, FilterBar, SearchInput, SelectField } from '../../ui';
 
 interface TransactionFiltersProps {
     searchTerm: string;
@@ -16,7 +17,18 @@ interface TransactionFiltersProps {
     userFilter: string;
     setUserFilter: (user: string) => void;
     users: Record<string, string>;
+    // How many of the five filters are not at their default value. Drives whether
+    // FilterBar shows its result row at all -- see TransactionView.tsx.
+    activeFilterCount: number;
+    // processedTransactions.length: how many rows the current combination
+    // produces, for the "N results" line under the card.
+    resultCount: number;
+    onClearFilters: () => void;
 }
+
+// สามช่องเลือกนั่งเรียงกันในแถวเดียว หน้าคลังพาเลทมีช่องเดียวจึงใช้ sm:w-48 ได้
+// ที่นี่ sm:w-48 สามตัวรวมกับช่องวันที่แล้วดันจนช่องค้นหาแทบไม่เหลือที่
+const SELECT_WIDTH = 'sm:w-44';
 
 export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
     searchTerm,
@@ -30,139 +42,106 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
     departments,
     userFilter,
     setUserFilter,
-    users
+    users,
+    activeFilterCount,
+    resultCount,
+    onClearFilters,
 }) => {
     const t = useT();
 
+    const userOptions = [
+        { value: 'all', label: t.transactions.allUsers },
+        ...Object.entries(users)
+            .sort((a, b) => a[1].localeCompare(b[1]))
+            .map(([id, name]) => ({ value: id, label: name })),
+    ];
+
+    const locationOptions = [
+        { value: 'all', label: t.transactions.allLocations },
+        // Department names are data, not UI text: they are typed into the
+        // locations screen and stored on every transaction, so they stay exactly
+        // as recorded -- including "Warehouse", which the table shows verbatim.
+        { value: 'Warehouse', label: 'Warehouse' },
+        ...departments
+            .filter((d) => d.name !== 'Warehouse')
+            .map((d) => ({ value: d.name, label: d.name })),
+    ];
+
+    // The five labels come from the shared action table, so this dropdown can
+    // never disagree with the badges in the table, the CSV export or the mobile
+    // history.
+    const actionOptions = [
+        { value: 'all', label: t.transactions.allActions },
+        { value: 'check_out', label: t.action.check_out },
+        { value: 'check_in', label: t.action.check_in },
+        { value: 'report_damage', label: t.action.report_damage },
+        { value: 'repair', label: t.action.repair },
+        { value: 'scrap', label: t.action.scrap },
+    ];
+
     return (
-        <div className="bg-white p-2.5 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex flex-col xl:flex-row gap-3 items-center">
+        <FilterBar
+            isFiltered={activeFilterCount > 0}
+            resultLabel={t.transactions.resultCount(resultCount)}
+            onClear={onClearFilters}
+            clearLabel={t.common.clearFilters}
+        >
+            <SearchInput
+                id="search-transactions"
+                name="search"
+                className="xl:flex-1"
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={t.transactions.searchPlaceholder}
+                ariaLabel={t.transactions.searchTransactions}
+                clearLabel={t.transactions.clearSearch}
+            />
 
-                {/* Search */}
-                <div className="relative flex-1 w-full xl:w-auto">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                        type="text"
-                        placeholder={t.transactions.searchPlaceholder}
-                        className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 text-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+                <SelectField
+                    id="filter-tx-user"
+                    name="user"
+                    icon={User}
+                    className={SELECT_WIDTH}
+                    value={userFilter}
+                    onChange={setUserFilter}
+                    options={userOptions}
+                    ariaLabel={t.transactions.filterByUser}
+                />
 
-                <div className="flex flex-col sm:flex-row gap-2 w-full xl:w-auto">
-                    {/* User Filter */}
-                    <div className="relative flex-1 sm:w-48">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <select
-                            className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none text-sm"
-                            value={userFilter}
-                            onChange={(e) => setUserFilter(e.target.value)}
-                        >
-                            <option value="all">{t.transactions.allUsers}</option>
-                            {Object.entries(users).sort((a, b) => (a[1] as string).localeCompare(b[1] as string)).map(([id, name]) => (
-                                <option key={id} value={id}>{name}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                            <ChevronRight size={14} className="rotate-90" />
-                        </div>
-                    </div>
+                <SelectField
+                    id="filter-tx-location"
+                    name="location"
+                    icon={MapPin}
+                    className={SELECT_WIDTH}
+                    value={locationFilter}
+                    onChange={setLocationFilter}
+                    options={locationOptions}
+                    ariaLabel={t.transactions.filterByLocation}
+                />
 
-                    {/* Location Filter */}
-                    <div className="relative flex-1 sm:w-48">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <select
-                            className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none text-sm"
-                            value={locationFilter}
-                            onChange={(e) => setLocationFilter(e.target.value)}
-                        >
-                            <option value="all">{t.transactions.allLocations}</option>
-                            {/* Department names are data, not UI text: they are typed
-                                into the locations screen and stored on every
-                                transaction, so they stay exactly as recorded --
-                                including "Warehouse", which the table shows verbatim. */}
-                            <option value="Warehouse">Warehouse</option>
-                            {departments.filter(d => d.name !== 'Warehouse').map(d => (
-                                <option key={d.id} value={d.name}>{d.name}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                            <ChevronRight size={14} className="rotate-90" />
-                        </div>
-                    </div>
+                <SelectField
+                    id="filter-tx-action"
+                    name="actionType"
+                    icon={Filter}
+                    className={SELECT_WIDTH}
+                    value={actionFilter}
+                    onChange={setActionFilter}
+                    options={actionOptions}
+                    ariaLabel={t.transactions.filterByAction}
+                />
 
-                    {/* Action Filter */}
-                    <div className="relative flex-1 sm:w-48">
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <select
-                            className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none text-sm"
-                            value={actionFilter}
-                            onChange={(e) => setActionFilter(e.target.value)}
-                        >
-                            <option value="all">{t.transactions.allActions}</option>
-                            {/* The five labels come from the shared action table, so this
-                                dropdown can never disagree with the badges in the table. */}
-                            <option value="check_out">{t.action.check_out}</option>
-                            <option value="check_in">{t.action.check_in}</option>
-                            <option value="report_damage">{t.action.report_damage}</option>
-                            <option value="repair">{t.action.repair}</option>
-                            <option value="scrap">{t.action.scrap}</option>
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                            <ChevronRight size={14} className="rotate-90" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Date Range Picker */}
-                <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 w-full sm:w-auto justify-between sm:justify-start">
-                    <Calendar size={16} className="text-gray-400 shrink-0" />
-
-                    <div className="flex items-center gap-1">
-                        <div className="relative w-28 group/date">
-                            <input
-                                type="text"
-                                readOnly
-                                placeholder={t.transactions.startDate}
-                                className="w-full bg-transparent text-sm text-gray-700 outline-none text-left cursor-pointer placeholder:text-gray-400 pr-4"
-                                value={dateRange.start ? dateRange.start.split('-').reverse().join('/') : ''}
-                            />
-                            <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover/date:text-blue-500 transition-colors" />
-                            <input
-                                type="date"
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                                value={dateRange.start}
-                                onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                            />
-                        </div>
-                        <span className="text-gray-300">-</span>
-                        <div className="relative w-28 group/date">
-                            <input
-                                type="text"
-                                readOnly
-                                placeholder={t.transactions.endDate}
-                                className="w-full bg-transparent text-sm text-gray-700 outline-none text-left cursor-pointer placeholder:text-gray-400 pr-4"
-                                value={dateRange.end ? dateRange.end.split('-').reverse().join('/') : ''}
-                            />
-                            <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover/date:text-blue-500 transition-colors" />
-                            <input
-                                type="date"
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                                value={dateRange.end}
-                                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                            />
-                        </div>
-                    </div>
-
-                    {(dateRange.start || dateRange.end) && (
-                        <button onClick={() => setDateRange({ start: '', end: '' })} className="p-1 hover:bg-gray-200 rounded-full text-gray-400 hover:text-red-500 transition">
-                            <X size={14} />
-                        </button>
-                    )}
-                </div>
-
+                <DateRangeField
+                    idPrefix="filter-tx-date"
+                    startName="startDate"
+                    endName="endDate"
+                    value={dateRange}
+                    onChange={setDateRange}
+                    startLabel={t.transactions.startDate}
+                    endLabel={t.transactions.endDate}
+                    clearLabel={t.common.clearFilters}
+                />
             </div>
-        </div>
+        </FilterBar>
     );
 };

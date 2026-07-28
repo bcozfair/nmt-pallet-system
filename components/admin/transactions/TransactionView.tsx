@@ -11,7 +11,7 @@ import { TransactionTable, TxSortConfig } from './TransactionTable';
 import { TransactionEditModal } from './TransactionEditModal';
 import { ImageViewerModal } from '../common/ImageViewerModal';
 import { TransactionHeader } from './TransactionHeader';
-import { ConfirmationModal } from '../common/ConfirmationModal';
+import { ConfirmDialog, StickyHeader } from '../../ui';
 import { generateCSV } from '../../../utils/exportHelpers';
 import { getEvidenceSignedUrl } from '../../../services/storageService';
 import { useT } from '../../../hooks/useT';
@@ -144,9 +144,16 @@ export const TransactionView = () => {
         loadData();
     }, []);
 
-    // ... (useEffect for filter reset and useMemo processedTransactions remain)
+    // Page 1 whenever the filters change. This effect was described in a comment
+    // here as already existing and did not -- UserView.tsx, LocationView.tsx and
+    // useInventoryFilters.ts all have it. Without it, narrowing the filters
+    // while on page 5 of a result set that is now one page long leaves the table
+    // empty with nothing on screen saying why.
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, actionFilter, locationFilter, userFilter, dateRange]);
 
-    // Data Processing needs to handle newly added 'notes' if needed for search? 
+    // Data Processing needs to handle newly added 'notes' if needed for search?
     // Yes, let's add notes to search
     const processedTransactions = useMemo(() => {
         let data = transactions.filter(tx => {
@@ -213,6 +220,17 @@ export const TransactionView = () => {
         setUserFilter('all');
         setDateRange({ start: '', end: '' });
     };
+
+    // How many of the five are off their default. The filter bar shows its
+    // "N results / clear filters" row only when this is above zero -- an
+    // untouched screen has nothing to report and no filters to clear.
+    const activeFilterCount = [
+        searchTerm !== '',
+        actionFilter !== 'all',
+        locationFilter !== 'all',
+        userFilter !== 'all',
+        dateRange.start !== '' || dateRange.end !== '',
+    ].filter(Boolean).length;
 
     const handleExport = () => {
         // ... (Export logic, add Notes column)
@@ -294,7 +312,7 @@ export const TransactionView = () => {
     };
 
     const handleDelete = (id: string) => {
-        // ConfirmationModal renders whatever it is handed, so the wording is
+        // ConfirmDialog renders whatever it is handed, so the wording is
         // translated here, at the call site that knows what is being confirmed.
         const c = dict();
         setConfirmAction({
@@ -342,36 +360,31 @@ export const TransactionView = () => {
     );
 
 
-    if (loading) {
-        return <div className="p-12 text-center text-gray-500">{t.transactions.loading}</div>;
-    }
-
     return (
-        <div className="h-[calc(100vh-110px)] flex flex-col gap-6 overflow-hidden">
-            {/* Header ... */}
-            <div className="shrink-0">
+        // No height and no overflow here, on purpose. This used to be a box
+        // clamped to h-[calc(100vh-110px)] wrapping an inner overflow-y-auto
+        // scroller wrapping a table clamped to h-[calc(100vh-240px)] -- the
+        // nested-scroll-container pattern InventoryView.tsx, AdminDashboard.tsx
+        // and index.css's print section all record as abandoned everywhere else
+        // in this app, for the same two reasons: the scrollbar it produces
+        // belongs to an inner box instead of the page, so the wheel stops dead
+        // at that box's edge instead of continuing down the document; and a box
+        // clamped to 100vh has nothing below the fold to hand to the printer.
+        <div className="flex flex-col gap-4">
+            {/* Everything above the rows travels together and stays pinned at
+                xl: the page header and the filter bar. What scrolls is the rows
+                and the pagination under them. The table's own head pins directly
+                beneath this block -- see StickyHeader and DataTable for how the
+                two find each other.
+
+                The inner gap-4 is this page's own rhythm, repeated here because
+                these two are no longer direct children of the column that sets
+                it. */}
+            <StickyHeader className="flex flex-col gap-4">
                 <TransactionHeader
                     onCleanup={handleCleanup}
                     onExport={handleExport}
                 />
-            </div>
-
-            {/* Scrollable Content */}
-            <div className="flex-1 min-h-0 overflow-y-auto pr-2 flex flex-col gap-6 styled-scrollbar">
-                {/* Shown only when the fetch actually came back full. Below the cap
-                    the list IS the whole history and a note would be a lie; at the
-                    cap the filters and the row count underneath are describing a
-                    window, and nothing else on screen says so.
-
-                    The wording is assembled from history.showing and history.recentOnly
-                    rather than a literal, because a hardcoded string here would be
-                    English on a Thai screen. Neither key was written for this screen
-                    -- see the note in the summary about giving transactions its own. */}
-                {transactions.length >= TX_FETCH_LIMIT && (
-                    <p className="-mb-2 px-1 text-xs text-gray-500">
-                        {t.history.showing(transactions.length)} ({t.history.recentOnly})
-                    </p>
-                )}
 
                 <TransactionFilters
                     searchTerm={searchTerm}
@@ -386,24 +399,52 @@ export const TransactionView = () => {
                     userFilter={userFilter}
                     setUserFilter={setUserFilter}
                     users={users}
-                />
-
-                <TransactionTable
-                    paginatedTransactions={paginatedTransactions}
-                    totalProcessedCount={processedTransactions.length}
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                    currentPage={currentPage}
-                    itemsPerPage={itemsPerPage}
-                    totalPages={totalPages}
-                    setCurrentPage={setCurrentPage}
-                    userMap={users}
+                    activeFilterCount={activeFilterCount}
+                    resultCount={processedTransactions.length}
                     onClearFilters={handleClearFilters}
-                    onViewImage={handleViewImage}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
                 />
-            </div>
+            </StickyHeader>
+
+            {/* Shown only when the fetch actually came back full. Below the cap
+                the list IS the whole history and a note would be a lie; at the
+                cap the filters and the row count underneath are describing a
+                window, and nothing else on screen says so.
+
+                The wording is assembled from history.showing and history.recentOnly
+                rather than a literal, because a hardcoded string here would be
+                English on a Thai screen. Neither key was written for this screen
+                -- see the note in the summary about giving transactions its own.
+
+                Deliberately outside StickyHeader: it describes the data set, not
+                a control, and anything added to the pinned stack is height taken
+                away from the rows for the whole of every scroll. */}
+            {transactions.length >= TX_FETCH_LIMIT && (
+                <p className="-mb-2 px-1 text-xs text-slate-500">
+                    {t.history.showing(transactions.length)} ({t.history.recentOnly})
+                </p>
+            )}
+
+            <TransactionTable
+                paginatedTransactions={paginatedTransactions}
+                totalProcessedCount={processedTransactions.length}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                currentPage={currentPage}
+                itemsPerPage={itemsPerPage}
+                totalPages={totalPages}
+                setCurrentPage={setCurrentPage}
+                userMap={users}
+                onClearFilters={handleClearFilters}
+                onViewImage={handleViewImage}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                // Was a full-page `if (loading) return <div>Loading...</div>`,
+                // which held the page header and the filter bar back for a whole
+                // fetch. The table draws a skeleton in its own card instead, and
+                // everything above it arrives immediately -- same as the
+                // inventory screen.
+                isLoading={loading}
+            />
 
             <TransactionEditModal
                 isOpen={editModal.isOpen}
@@ -419,21 +460,29 @@ export const TransactionView = () => {
                 onClose={() => setPreviewImage(null)}
             />
 
-            {/* Confirmation Modal */}
-            <ConfirmationModal
-                isOpen={!!confirmAction}
-                title={confirmAction?.title || ''}
-                message={confirmAction?.message || ''}
-                confirmLabel={confirmAction?.confirmLabel || ''}
-                isDestructive={confirmAction?.isDestructive}
-                onConfirm={async () => {
-                    if (confirmAction) {
-                        await confirmAction.onConfirm();
-                        setConfirmAction(null);
-                    }
-                }}
-                onCancel={() => setConfirmAction(null)}
-            />
+            {/* เรนเดอร์เฉพาะตอนมี action จริง เพื่อให้ state ภายใน (กำลังทำงาน)
+                ถูกล้างทุกครั้งที่เปิดกล่องใหม่ -- เหมือน InventoryView.tsx และ
+                LocationView.tsx ของเดิมเรนเดอร์ค้างไว้เสมอแล้วสลับด้วย isOpen
+
+                เรียก ConfirmDialog ตรง ๆ ไม่ผ่าน common/ConfirmationModal แล้ว:
+                ที่ wrapper นั้นมีอยู่ก็เพื่อเติมสามป้ายกับช่องทาง error ให้ call site
+                ที่ยังไม่ได้ย้าย -- พอย้ายแล้วก็ส่งเองได้ตรงนี้ ไฟล์นั้นยังอยู่เพราะ
+                SettingsView.tsx ใช้อยู่ */}
+            {confirmAction && (
+                <ConfirmDialog
+                    isOpen
+                    title={confirmAction.title}
+                    message={confirmAction.message}
+                    confirmLabel={confirmAction.confirmLabel}
+                    cancelLabel={t.common.cancel}
+                    closeLabel={t.common.closeDialog}
+                    workingLabel={t.common.working}
+                    isDestructive={confirmAction.isDestructive}
+                    onConfirm={confirmAction.onConfirm}
+                    onCancel={() => setConfirmAction(null)}
+                    onError={(error) => toast.error(describeAppError(error))}
+                />
+            )}
 
         </div>
     );

@@ -28,6 +28,18 @@ export const transactionsEn = {
     allActions: 'All Actions',
     startDate: 'Start Date',
     endDate: 'End Date',
+    // The six below are read out loud, not seen: the filter bar's controls carry
+    // no visible <label>, so each one needs a name of its own. They are spelled
+    // out here rather than borrowed from `inventory` because the rule at the top
+    // of this file cuts both ways -- a screen does not reach into another
+    // screen's block either.
+    searchTransactions: 'Search transactions',
+    clearSearch: 'Clear search',
+    filterByUser: 'Filter by user',
+    filterByLocation: 'Filter by location',
+    filterByAction: 'Filter by action type',
+    // Sits under the filter card, and only while something is actually filtered.
+    resultCount: (count: number) => `${count} results`,
 
     // --- Table ---
     // Doubles as the "Timestamp" column of this screen's CSV export: one column
@@ -89,6 +101,12 @@ export const transactionsTh: TransactionsDict = {
     allActions: 'ทุกประเภทรายการ',
     startDate: 'วันที่เริ่ม',
     endDate: 'ถึงวันที่',
+    searchTransactions: 'ค้นหารายการ',
+    clearSearch: 'ล้างคำค้นหา',
+    filterByUser: 'กรองตามผู้ใช้',
+    filterByLocation: 'กรองตามสถานที่',
+    filterByAction: 'กรองตามประเภทรายการ',
+    resultCount: (count: number) => `พบ ${count} รายการ`,
 
     colDateTime: 'วันที่และเวลา',
     colAction: 'ประเภทรายการ',
