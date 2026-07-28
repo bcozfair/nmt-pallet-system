@@ -97,7 +97,7 @@ git commit -m "feat(ui): เพิ่มปุ่ม variant dangerSolid สำ�
 **Interfaces:**
 - Consumes: `CARD_SURFACE` จาก `./Card`
 - Produces:
-  - `Modal: React.FC<ModalProps>` — props: `isOpen, onClose, title, subtitle?, icon?, tone?, size?, children, footer?, headerActions?, dismissOnBackdrop?, busy?, closeLabel, level?`
+  - `Modal: React.FC<ModalProps>` — props: `isOpen, onClose, title, subtitle?, icon?, tone?, size?, children, footer?, headerActions?, dismissOnBackdrop?, busy?, preventDismiss?, closeLabel, level?` (`busy` คุมแค่เส้นแบรนด์วิ่ง, `preventDismiss` คุมการปิด — แยกกันเพราะ PalletDetailModal ส่ง `busy` ตอนแค่โหลดประวัติ ไม่มีอะไรต้องกันปิด)
   - `type ModalSize = 'sm' | 'md' | 'lg' | 'xl'`
   - `type ModalTone = 'brand' | 'accent' | 'danger'`
   - `const MODAL_PANEL: string`
@@ -383,8 +383,14 @@ export interface ModalProps {
     /** ปุ่มบนหัว สำหรับโมดัลที่เนื้อยาวจนปุ่มท้ายเลื่อนพ้นจอ */
     headerActions?: React.ReactNode;
     dismissOnBackdrop?: boolean;
-    /** วิ่งเส้นแบรนด์บนขอบบนขณะมีคำขอค้างอยู่ */
+    /** วิ่งเส้นแบรนด์บนขอบบน (ผลเชิงภาพล้วน ๆ) ไม่แตะว่ากล่องปิดได้หรือไม่ ต้องการ
+        กันปิด ใช้ `preventDismiss` แยกต่างหากข้างล่าง */
     busy?: boolean;
+    /** มีคำขอค้างอยู่ (เขียน ไม่ใช่แค่โหลด): กันกล่องปิดไม่ว่าทางไหน — Escape,
+        ปุ่ม ✕ (disabled), คลิกพื้นหลัง สองพร็อพนี้เคยรวมเป็นตัวเดียว แต่ `busy`
+        ของ PalletDetailModal คือ "กำลังโหลดประวัติ" ซึ่งเป็นแค่ read ไม่มีอะไรต้อง
+        ป้องกัน จึงแยกออกมาไม่ให้กล่องปิดไม่ได้เฉย ๆ ระหว่างโหลด */
+    preventDismiss?: boolean;
     /** aria-label ของปุ่ม ✕ */
     closeLabel: string;
     /** 2 = โมดัลที่เปิดทับโมดัลอีกใบ */
