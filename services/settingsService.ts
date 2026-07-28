@@ -52,6 +52,35 @@ export const fetchAllSystemSettings = async (): Promise<SystemSettings> => {
     return settings as SystemSettings;
 };
 
+/**
+ * Whether the LINE credentials are stored -- 'unknown' when we could not find
+ * out, which is not the same as "not set".
+ */
+export type LineConfigStatus = 'configured' | 'not_configured' | 'unknown';
+
+/**
+ * The two LINE rows are flagged is_secret, and the RLS policy on system_settings
+ * filters those out of every browser SELECT, so fetchAllSystemSettings above can
+ * never see them -- it returns '' for both whatever the database holds. Asking
+ * this RPC is the only way the screen can tell a configured system from an empty
+ * one without the token being sent to the browser, which is the thing the policy
+ * exists to prevent.
+ */
+export const fetchLineConfigStatus = async (): Promise<LineConfigStatus> => {
+    const { data, error } = await supabase.rpc('get_line_config_status');
+
+    // Most likely cause: the migration adding the function has not been run on
+    // this database yet. Reporting 'not_configured' here would recreate exactly
+    // the bug this replaced -- a chip that states, with confidence, something it
+    // did not check.
+    if (error) {
+        console.error('Failed to read LINE config status:', error);
+        return 'unknown';
+    }
+
+    return data?.has_token && data?.has_target ? 'configured' : 'not_configured';
+};
+
 export const fetchSystemSetting = async (key: string): Promise<string | null> => {
     const { data, error } = await supabase
         .from('system_settings')

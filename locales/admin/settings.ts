@@ -50,10 +50,14 @@ export const settingsEn = {
     lineTitle: 'LINE Messaging API',
     lineSubtitle: 'Integration with LINE messaging',
     // The chip on this card used to read "Active" no matter what was stored --
-    // it was a literal, not a reading of anything. These two are picked between
-    // by whether both secrets below are actually set.
+    // it was a literal, not a reading of anything. Reading the two secrets below
+    // was no better: RLS hides them from the browser, so the chip then said "Not
+    // configured" forever. It reports get_line_config_status() instead, which is
+    // why there is a third state -- an RPC that fails must not be rendered as an
+    // answer.
     lineConfigured: 'Configured',
     lineNotConfigured: 'Not configured',
+    lineStatusUnknown: 'Status unavailable',
     channelToken: 'Channel Access Token',
     channelTokenHint: '(Long-lived)',
     channelTokenPlaceholder: '•••••••••••••••• (Hidden) - Type to Change',
@@ -126,6 +130,7 @@ export const settingsTh: SettingsDict = {
     lineSubtitle: 'การเชื่อมต่อแจ้งเตือนผ่าน LINE',
     lineConfigured: 'ตั้งค่าแล้ว',
     lineNotConfigured: 'ยังไม่ได้ตั้งค่า',
+    lineStatusUnknown: 'ตรวจสอบสถานะไม่ได้',
     channelToken: 'Channel Access Token',
     channelTokenHint: '(แบบอายุยาว)',
     channelTokenPlaceholder: '•••••••••••••••• (ซ่อนไว้) - พิมพ์เพื่อเปลี่ยน',

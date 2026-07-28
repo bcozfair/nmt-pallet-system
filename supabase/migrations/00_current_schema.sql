@@ -402,6 +402,27 @@ end;
 $$;
 
 
+-- Whether the LINE credentials are set -- as two booleans, never the values.
+-- The Settings chip cannot answer this from a SELECT: the policy below filters
+-- is_secret rows out for every browser session, so a hidden row and an empty one
+-- look identical from there. Non-admins get {false, false} rather than an error;
+-- the RLS policy, not this function, is what protects the secrets.
+create or replace function public.get_line_config_status()
+returns jsonb language sql security definer stable set search_path = public as $$
+    select case
+        when public.is_admin() then jsonb_build_object(
+            'has_token', coalesce(
+                (select coalesce(value, '') <> '' from public.system_settings
+                 where key = 'line_channel_token'), false),
+            'has_target', coalesce(
+                (select coalesce(value, '') <> '' from public.system_settings
+                 where key = 'line_target_id'), false)
+        )
+        else jsonb_build_object('has_token', false, 'has_target', false)
+    end;
+$$;
+
+
 -- =============================================================================
 -- 4. TRIGGERS
 -- =============================================================================
@@ -533,6 +554,7 @@ revoke execute on function public.delete_user_complete(uuid)                from
 revoke execute on function public.get_active_admins()                       from public, anon;
 revoke execute on function public.get_users_with_auth()                     from public, anon;
 revoke execute on function public.update_admin_email_base(text)             from public, anon;
+revoke execute on function public.get_line_config_status()                  from public, anon;
 
 grant execute on function public.is_admin()                                 to authenticated;
 grant execute on function public.admin_set_role(uuid, text)                 to authenticated;
@@ -541,6 +563,7 @@ grant execute on function public.delete_user_complete(uuid)                 to a
 grant execute on function public.get_active_admins()                        to authenticated;
 grant execute on function public.get_users_with_auth()                      to authenticated;
 grant execute on function public.update_admin_email_base(text)              to authenticated;
+grant execute on function public.get_line_config_status()                   to authenticated;
 
 
 -- =============================================================================

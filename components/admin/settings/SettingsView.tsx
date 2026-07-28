@@ -7,7 +7,7 @@ import { CoreSettings } from './CoreSettings';
 import { Button, ConfirmDialog, PageHeader, SkeletonCard, StickyHeader } from '../../ui';
 
 import { toast } from '../../../services/toast';
-import { fetchAllSystemSettings, updateSystemSetting, SystemSettings } from '../../../services/settingsService';
+import { fetchAllSystemSettings, fetchLineConfigStatus, updateSystemSetting, LineConfigStatus, SystemSettings } from '../../../services/settingsService';
 import { invalidateSettings } from '../../../services/settingsCache';
 import { useT } from '../../../hooks/useT';
 import { dict } from '../../../services/i18n';
@@ -35,6 +35,10 @@ const SettingsView: React.FC = () => {
         report_time_evening: '16:00'
     });
 
+    // แยกจาก settings ข้างบนโดยตั้งใจ: สองค่าลับของ LINE ถูก RLS กรองทิ้งก่อนถึง
+    // เบราว์เซอร์ settings.line_* จึงเป็น '' เสมอและใช้บอกสถานะไม่ได้
+    const [lineStatus, setLineStatus] = useState<LineConfigStatus>('unknown');
+
     // Modal State
     const [confirmAction, setConfirmAction] = useState<{
         title: string;
@@ -56,8 +60,15 @@ const SettingsView: React.FC = () => {
     const loadSettings = async () => {
         setIsLoading(true);
         try {
-            const data = await fetchAllSystemSettings();
+            // ขนานกัน: สถานะ LINE มาจาก RPC คนละทางกับตารางการตั้งค่า และการที่ RPC
+            // ล้มไม่ควรทำให้ทั้งหน้าโหลดไม่ขึ้น -- fetchLineConfigStatus จับ error
+            // ของตัวเองแล้วคืน 'unknown' อยู่แล้ว
+            const [data, status] = await Promise.all([
+                fetchAllSystemSettings(),
+                fetchLineConfigStatus(),
+            ]);
             setSettings(data);
+            setLineStatus(status);
         } catch (error) {
             console.error("Failed to load settings", error);
             // dict() rather than the `t` above: this runs from the mount effect
@@ -104,6 +115,11 @@ const SettingsView: React.FC = () => {
             // one. Inside the try, after the writes succeeded: invalidating on a
             // failed save would only throw away a value that is still correct.
             invalidateSettings();
+
+            // ป้ายบนการ์ด LINE รายงานสิ่งที่บันทึกแล้ว ไม่ใช่สิ่งที่พิมพ์ค้างในช่อง
+            // ถ้าไม่ถามใหม่ตรงนี้ คนที่เพิ่งกรอก token ครั้งแรกจะเห็นป้ายเทาต่อไป
+            // จนกว่าจะรีเฟรชหน้า ทั้งที่บันทึกสำเร็จไปแล้ว
+            setLineStatus(await fetchLineConfigStatus());
 
             toast.success(t.settings.saved);
         } catch (error: any) {
@@ -191,7 +207,7 @@ const SettingsView: React.FC = () => {
                         </>
                     ) : (
                         <>
-                            <LineConfiguration settings={settings} onChange={handleChange} />
+                            <LineConfiguration settings={settings} lineStatus={lineStatus} onChange={handleChange} />
                             <CoreSettings settings={settings} onChange={handleChange} onUpdateEmail={handleUpdateEmailBase} />
                         </>
                     )}
