@@ -66,9 +66,11 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ src, onClose
     };
 
     const handleWheel = (e: React.WheelEvent) => {
-        // Prevent default scrolling behavior (though e.preventDefault() isn't supported in React synthetic events like this,
-        // we handle the zoom logic here. To fully prevent scroll of background, we'd need a ref + native listener, 
-        // but since it's a fixed modal, body scroll locking is handled elsewhere or ignored as it covers screen).
+        // stopPropagation เฉย ๆ ไม่เรียก preventDefault: React synthetic wheel event
+        // เป็น passive listener จึง preventDefault ไม่มีผล (เบราว์เซอร์เตือนใน
+        // console เฉย ๆ ถ้าเรียก) แต่ก็ไม่จำเป็นต้องกันจริง -- Modal ล็อก scroll
+        // ของพื้นหลังเองอยู่แล้วผ่าน lockScroll/unlockScroll (Modal.tsx) ตอนกล่องนี้
+        // เปิด ล้อเมาส์เหนือรูปจึงซูมภาพในนี้เท่านั้น ไม่มีอะไรให้เลื่อนอยู่ข้างหลัง
         e.stopPropagation();
 
         const delta = e.deltaY;

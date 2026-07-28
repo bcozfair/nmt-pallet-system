@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { PalletDetailModal } from './PalletDetailModal';
 import type { ActionType, Pallet, Transaction } from '../../../types';
 
@@ -45,6 +46,10 @@ const makeHistory = (): Transaction[] =>
         evidence_image_url: null,
         timestamp: `2026-01-0${i + 1}T00:00:00.000Z`,
     }));
+
+// ป้ายจาก locales/admin/modals.ts (t.modals) -- useT อ่านค่า default เป็นไทยเสมอ
+const EVIDENCE_ALT = 'หลักฐาน';
+const PREVIEW_ALT = 'ตัวอย่างรูป';
 
 // ป้ายข้อความจาก locales/th.ts (t.action) -- useT อ่านค่า default เป็นไทยเสมอ
 // เพราะไม่มี provider ให้ mount ในเทสต์นี้
@@ -93,5 +98,46 @@ describe('PalletDetailModal', () => {
         expect(scrapDot.className).toContain('--color-series-scrap');
         expect(damageDot.className).toContain('--color-series-damage');
         expect(scrapDot.className).not.toBe(damageDot.className);
+    });
+
+    // อาการที่เทสต์นี้กัน: รูปหลักฐานเคยเป็น <img onClick> ล้วน ๆ กดได้ด้วยเมาส์
+    // อย่างเดียว คีย์บอร์ดเข้าไม่ถึงเลย ตอนนี้เป็น <button> จริง (ดูคอมเมนต์ใน
+    // PalletDetailModal.tsx ที่ตำแหน่งปุ่มรูปหลักฐาน) -- เทสต์นี้ยืนยันว่าโฟกัส
+    // ด้วยคีย์บอร์ดได้ และ Enter เปิดตัวดูรูปได้เหมือนคลิกด้วยเมาส์
+    it('รูปหลักฐานเป็นปุ่มจริง โฟกัสด้วยคีย์บอร์ดได้ และ Enter เปิดตัวดูรูป', async () => {
+        const { fetchPalletHistory } = await import('../../../services/transactionService');
+        const { fetchUsers } = await import('../../../services/userService');
+        const { getEvidenceSignedUrlMap } = await import('../../../services/storageService');
+
+        const historyWithEvidence: Transaction[] = [
+            {
+                id: 'tx-evidence',
+                pallet_id: 'P001',
+                user_id: 'u1',
+                action_type: 'report_damage',
+                department_dest: null,
+                evidence_image_url: 'damage-reports/P001-1.jpg',
+                timestamp: '2026-01-01T00:00:00.000Z',
+            },
+        ];
+
+        vi.mocked(fetchPalletHistory).mockResolvedValue(historyWithEvidence);
+        vi.mocked(fetchUsers).mockResolvedValue([]);
+        vi.mocked(getEvidenceSignedUrlMap).mockResolvedValue({
+            'damage-reports/P001-1.jpg': 'https://example.com/signed-evidence.jpg',
+        });
+
+        const user = userEvent.setup();
+        render(<PalletDetailModal pallet={pallet} onClose={() => {}} />);
+
+        const evidenceButton = await screen.findByRole('button', { name: EVIDENCE_ALT });
+
+        // โฟกัสด้วยคีย์บอร์ดได้จริง ไม่ใช่แค่เมาส์คลิกได้
+        evidenceButton.focus();
+        expect(document.activeElement).toBe(evidenceButton);
+
+        await user.keyboard('{Enter}');
+
+        expect(await screen.findByRole('heading', { name: PREVIEW_ALT })).toBeTruthy();
     });
 });
