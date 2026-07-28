@@ -1,7 +1,8 @@
 import React, { useId, useState } from 'react';
-import { X, CheckCircle, ArrowRightLeft } from 'lucide-react';
+import { ArrowRightLeft, CheckCircle, MapPin } from 'lucide-react';
 import { Department } from '../../../types';
 import { useT } from '../../../hooks/useT';
+import { Button, Field, Modal, SegmentedControl, SelectField, TextArea, TextInput } from '../../ui';
 
 interface BulkTransactionModalProps {
     isOpen: boolean;
@@ -26,13 +27,14 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
     departments
 }) => {
     const t = useT();
-    const titleId = useId();
+    const fieldId = useId();
     const [action, setAction] = useState<'check_out' | 'check_in'>('check_out');
     const [destination, setDestination] = useState('');
     const [remark, setRemark] = useState('');
-    const [showIds, setShowIds] = useState(false);
+    const [dateError, setDateError] = useState<string | null>(null);
 
-    // Split Date and Time for better UX and control
+    // แยกวันกับเวลาเป็นสองช่อง ไม่ใช่ datetime-local ตัวเดียว: ปกติผู้ใช้แก้แค่เวลา
+    // (บันทึกย้อนหลังของรอบเช้าตอนบ่าย) และช่องเดียวบังคับให้เดินผ่านวันที่ก่อนเสมอ
     const [dateStr, setDateStr] = useState(() => {
         const now = new Date();
         const year = now.getFullYear();
@@ -48,190 +50,190 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
 
     const [loading, setLoading] = useState(false);
 
-    if (!isOpen) return null;
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setDateError(null);
+
+        // ตรวจก่อนประกอบ
+        //
+        // ของเดิมต่อ `new Date(\`${dateStr}T${timeStr}\`).toISOString()` ตรง ๆ
+        // ถ้าช่องใดช่องหนึ่งว่างจะได้ Invalid Date แล้ว .toISOString() โยน
+        // RangeError ซึ่งตกลงไปใน catch ที่มีแค่ console.error -- ผู้ใช้กดยืนยัน
+        // แล้วไม่มีอะไรเกิดขึ้นเลย ไม่มีข้อความ ไม่มีสัญญาณว่าพัง
+        const combinedDate = new Date(`${dateStr}T${timeStr}`);
+        if (!dateStr || !timeStr || Number.isNaN(combinedDate.getTime())) {
+            setDateError(t.inventory.invalidDateTime);
+            return;
+        }
+
         setLoading(true);
         try {
-            // Construct timestamp from separate date/time inputs
-            // We create a Date object in the browser's local timezone
-            const combinedDate = new Date(`${dateStr}T${timeStr}`);
-            // Convert to ISO string (UTC) to send to backend
-            const isoTimestamp = combinedDate.toISOString();
-
-            await onConfirm(action, destination, remark, isoTimestamp);
+            // ตีความ input เป็นเวลาท้องถิ่นของเบราว์เซอร์แล้วแปลงเป็น UTC ก่อนส่ง
+            // -- ตรรกะเดิม ไม่เปลี่ยน
+            await onConfirm(action, destination, remark, combinedDate.toISOString());
             onClose();
         } catch (error) {
             console.error("Bulk transaction failed", error);
-            // Error handling usually done in parent via toast
+            // ผู้เรียกแสดง toast เอง -- ดู handleConfirmBulkTransaction
         } finally {
             setLoading(false);
         }
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            {/* role/aria-modal belong on the panel, not on the dimmed overlay:
-                the overlay covers the whole screen, so naming it the dialog
-                would announce every element behind it as part of the dialog.
-                It is also what SelectionBar's Escape guard looks for -- with no
-                dialog findable in the document, Escape pressed over this modal
-                cleared the row selection behind it, leaving this modal showing
-                "0 selected" with its confirm button still enabled. */}
-            <div
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={titleId}
-                className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[90vh]"
-            >
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
-                    <div>
-                        <h3 id={titleId} className="text-xl font-black text-gray-800 flex items-center gap-2">
-                            <ArrowRightLeft className="text-blue-600" size={24} />
-                            {t.inventory.bulkTitle}
-                        </h3>
-                        {/* Two keys rather than one sentence: the count keeps its own
-                            bold span, so the wording has to arrive in two pieces. */}
-                        <p className="text-sm text-gray-500 mt-1">
-                            {t.inventory.processingPrefix}
-                            <span className="font-bold text-blue-600">{selectedCount}</span>
-                            {t.inventory.processingSuffix}
-                        </p>
-                        <button
-                            type="button"
-                            onClick={() => setShowIds(!showIds)}
-                            className="text-xs text-blue-600 hover:text-blue-800 font-semibold mt-1 hover:underline focus:outline-none"
-                        >
-                            {showIds ? t.inventory.hideIds : t.inventory.showIds}
-                        </button>
-                    </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition p-2 hover:bg-gray-100 rounded-full">
-                        <X size={20} />
-                    </button>
-                </div>
+    const sortedIds = [...selectedIds].sort((a, b) =>
+        a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+    );
 
-                {showIds && (
-                    <div className="px-6 py-2 bg-blue-50/50 border-b border-blue-100 overflow-y-auto max-h-32 shrink-0">
-                        <div className="flex flex-wrap gap-2">
-                            {[...selectedIds].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })).map(id => (
-                                <span key={id} className="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-md">
+    return (
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={t.inventory.bulkTitle}
+            icon={ArrowRightLeft}
+            size="md"
+            busy={loading}
+            closeLabel={t.common.closeDialog}
+            subtitle={
+                // สองคีย์ไม่ใช่ประโยคเดียว: ตัวเลขมี span หนาของตัวเอง คำจึงต้องมา
+                // เป็นสองท่อน
+                <>
+                    {t.inventory.processingPrefix}
+                    <span className="font-semibold text-brand-600">{selectedCount}</span>
+                    {t.inventory.processingSuffix}
+                </>
+            }
+            footer={
+                <>
+                    <Button variant="secondary" onClick={onClose} disabled={loading}>
+                        {t.common.cancel}
+                    </Button>
+                    <Button
+                        type="submit"
+                        form={`${fieldId}-form`}
+                        variant="primary"
+                        icon={CheckCircle}
+                        disabled={loading}
+                    >
+                        {loading ? t.inventory.processing : t.common.confirm}
+                    </Button>
+                </>
+            }
+        >
+            <form id={`${fieldId}-form`} onSubmit={handleSubmit} className="space-y-4">
+                {/* เต็มความกว้าง ไม่ใช่ครึ่งคอลัมน์: SegmentedControl กว้างตามเนื้อ
+                    และป้ายไทย ("เบิกออก"/"รับคืน") กว้างกว่าอังกฤษราวเท่าตัว */}
+                <Field label={t.inventory.actionLabel} htmlFor={`${fieldId}-action`}>
+                    {() => (
+                        // SegmentedControl เป็น role="radiogroup" จริง เดินด้วยลูกศร
+                        // ได้ และเป็นวัตถุเดียวกับสวิตช์ช่วงเวลาบนแดชบอร์ด ของเดิม
+                        // เป็น <button> สองตัวเปล่า ๆ ในกล่องเทา ซึ่ง screen reader
+                        // ไม่มีทางรู้ว่าเป็นตัวเลือกสองทางที่เลือกได้อันเดียว
+                        <SegmentedControl
+                            value={action}
+                            onChange={setAction}
+                            ariaLabel={t.inventory.actionLabel}
+                            options={[
+                                { value: 'check_out' as const, label: t.action.check_out },
+                                { value: 'check_in' as const, label: t.action.check_in },
+                            ]}
+                        />
+                    )}
+                </Field>
+
+                {/* รายการรหัสอยู่ในเนื้อ ใต้ตัวสลับ ไม่ใช่ปุ่มบนหัวที่กางแถบนอกหัว
+                    -- <details> ได้พฤติกรรมกาง/หุบและการประกาศสถานะจากเบราว์เซอร์ */}
+                <details className="rounded-xl border border-slate-200 bg-slate-50/70">
+                    <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
+                        {t.inventory.showIds}
+                    </summary>
+                    <div className="styled-scrollbar max-h-32 overflow-y-auto px-3 pb-3">
+                        <div className="flex flex-wrap gap-1.5">
+                            {sortedIds.map((id) => (
+                                <span
+                                    key={id}
+                                    className="rounded-md bg-brand-100 px-2 py-1 font-mono text-xs font-medium text-brand-700"
+                                >
                                     {id}
                                 </span>
                             ))}
                         </div>
                     </div>
+                </details>
+
+                {/* เรนเดอร์เฉพาะตอนเบิกออก ไม่ใช่ซ่อนด้วย `invisible` ที่ทิ้งช่องว่าง
+                    เปล่าครึ่งกล่องไว้โดยไม่อธิบายอะไร */}
+                {action === 'check_out' && (
+                    <Field label={t.inventory.destination} htmlFor={`${fieldId}-dest`} required>
+                        {(aria) => (
+                            <SelectField
+                                id={aria.id}
+                                icon={MapPin}
+                                ariaLabel={t.inventory.destination}
+                                value={destination}
+                                onChange={setDestination}
+                                options={[
+                                    { value: '', label: t.inventory.selectLocation },
+                                    ...departments
+                                        .filter((d) => d.is_active)
+                                        .map((d) => ({ value: d.name, label: d.name })),
+                                ]}
+                            />
+                        )}
+                    </Field>
                 )}
 
-                <form onSubmit={handleSubmit} className="p-5 space-y-3 overflow-y-auto">
-                    {/* Action & Destination Grid */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">{t.inventory.actionLabel}</label>
-                            <div className="flex bg-gray-100 p-0.5 rounded-lg">
-                                <button
-                                    type="button"
-                                    onClick={() => setAction('check_out')}
-                                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${action === 'check_out' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                                >
-                                    {t.action.check_out}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setAction('check_in')}
-                                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${action === 'check_in' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                                >
-                                    {t.action.check_in}
-                                </button>
-                            </div>
-                        </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <Field
+                        label={t.common.date}
+                        htmlFor={`${fieldId}-date`}
+                        required
+                        error={dateError ?? undefined}
+                    >
+                        {(aria) => (
+                            // native ล้วน ไม่มี input โปร่งใสซ้อนทับ input ข้อความ
+                            // แบบของเดิม -- ที่นั่นทั้งสองตัวไม่มี label และตัวบน
+                            // แท็บโฟกัสได้โดยไม่ประกาศอะไรเลย
+                            <TextInput
+                                {...aria}
+                                type="date"
+                                required
+                                value={dateStr}
+                                onChange={(e) => {
+                                    setDateStr(e.target.value);
+                                    setDateError(null);
+                                }}
+                            />
+                        )}
+                    </Field>
 
-                        {/* Destination (Only for Check Out, otherwise placeholder or empty) */}
-                        <div className={action === 'check_out' ? 'animate-in fade-in zoom-in-95 duration-200' : 'invisible'}>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">{t.inventory.destination} <span className="text-red-500">*</span></label>
-                            <select
-                                value={destination}
-                                onChange={(e) => setDestination(e.target.value)}
-                                required={action === 'check_out'}
-                                className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition font-medium text-sm"
-                            >
-                                <option value="">{t.inventory.selectLocation}</option>
-                                {departments.filter(d => d.is_active).map(d => (
-                                    <option key={d.id} value={d.name}>{d.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Transaction Date & Time */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">{t.common.date}</label>
-                            <div className="relative group/date">
-                                <input
-                                    type="text"
-                                    readOnly
-                                    className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition font-medium cursor-pointer text-sm"
-                                    value={dateStr ? dateStr.split('-').reverse().join('/') : ''}
-                                />
-                                <input
-                                    type="date"
-                                    required
-                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                                    value={dateStr}
-                                    onChange={(e) => setDateStr(e.target.value)}
-                                />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">{t.common.time}</label>
-                            <input
+                    <Field label={t.common.time} htmlFor={`${fieldId}-time`} required>
+                        {(aria) => (
+                            <TextInput
+                                {...aria}
                                 type="time"
                                 required
                                 value={timeStr}
-                                onChange={(e) => setTimeStr(e.target.value)}
-                                className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition font-medium text-sm"
+                                onChange={(e) => {
+                                    setTimeStr(e.target.value);
+                                    setDateError(null);
+                                }}
                             />
-                        </div>
-                    </div>
+                        )}
+                    </Field>
+                </div>
 
-                    {/* Remark */}
-                    <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1">{t.common.remark}</label>
-                        <textarea
+                <Field label={t.common.remark} htmlFor={`${fieldId}-remark`}>
+                    {(aria) => (
+                        <TextArea
+                            {...aria}
+                            rows={2}
+                            placeholder={t.inventory.noteOptional}
                             value={remark}
                             onChange={(e) => setRemark(e.target.value)}
-                            placeholder={t.inventory.noteOptional}
-                            rows={2}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition font-medium resize-none text-sm"
                         />
-                    </div>
-
-                    <div className="pt-2 flex justify-end gap-3 border-t border-gray-100 mt-2">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-lg transition text-sm"
-                        >
-                            {t.common.cancel}
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className={`flex items-center gap-2 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-sm transition text-sm ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                        >
-                            {loading ? (
-                                <span className="animate-pulse">{t.inventory.processing}</span>
-                            ) : (
-                                <>
-                                    <CheckCircle size={16} />
-                                    {t.common.confirm}
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                    )}
+                </Field>
+            </form>
+        </Modal>
     );
 };
