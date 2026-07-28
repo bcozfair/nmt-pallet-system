@@ -41,12 +41,25 @@ describe('AddPalletModal', () => {
 
         const alert = await screen.findByRole('alert');
         expect(alert.textContent).toContain(ID_EXISTS_MESSAGE);
+        // ผูกจริงด้วย aria-describedby ไม่ใช่แค่ปรากฏอยู่ในเอกสารที่ไหนก็ได้ --
+        // ก่อนหน้านี้ตรวจได้แค่ข้อความ ตอนนี้ SelectField/TextInput รับ aria ครบ
+        // ก้อนแล้ว ความสัมพันธ์นี้จึงพิสูจน์ได้จริง
+        expect(idInput.getAttribute('aria-describedby')).toBe(alert.id);
 
         // กล่องไม่ปิด: ผู้เรียกไม่เคยถูกสั่งให้ปิด และ dialog ยังอยู่ในเอกสาร
         expect(onClose).not.toHaveBeenCalled();
         expect(screen.getByRole('dialog')).toBeTruthy();
         // ค่าที่พิมพ์ไปยังอยู่ครบ ไม่ถูกล้างทิ้งตอนบันทึกไม่สำเร็จ
         expect(idInput.value).toBe('P001');
+    });
+
+    // Important #1: initialFocusRef ต้องเอาชนะพฤติกรรมเดิมของ Modal ที่โฟกัส
+    // ตัวโฟกัสได้ตัวแรก (ปุ่ม ✕ เพราะหัวมาก่อนเนื้อใน DOM) -- ก่อนหน้านี้ autoFocus
+    // บนช่องรหัสตายไปเงียบ ๆ เพราะ effect ของ Modal วิ่งทีหลังเสมอ
+    it('เปิดกล่องเพิ่มพาเลท: โฟกัสไปลงที่ช่องรหัสพาเลททันที ไม่ใช่ปุ่มปิด', () => {
+        render(<AddPalletModal isOpen onClose={() => {}} onSuccess={() => {}} departments={[]} />);
+        const idInput = screen.getByLabelText(PALLET_ID_LABEL, { exact: false });
+        expect(document.activeElement).toBe(idInput);
     });
 });
 

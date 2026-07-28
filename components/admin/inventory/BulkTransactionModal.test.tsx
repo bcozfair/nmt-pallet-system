@@ -129,6 +129,15 @@ describe('BulkTransactionModal', () => {
         const alert = await screen.findByRole('alert');
         expect(alert.textContent).toContain(SELECT_DESTINATION_MESSAGE);
 
+        // Important #2: SelectField ต้องประกาศตัวเองว่าผิดพลาดจริง ไม่ใช่แค่มี
+        // ข้อความสีแดงอยู่ข้างล่างเฉย ๆ -- ก่อนหน้านี้ call site คัดมาแค่ aria.id
+        // ตัว <select> จึงไม่มี aria-invalid และไม่ประกาศอะไรตอนคีย์บอร์ดแท็บกลับมา
+        const destinationSelect = screen.getByLabelText(DESTINATION_LABEL, {
+            exact: false,
+        }) as HTMLSelectElement;
+        expect(destinationSelect.getAttribute('aria-invalid')).toBe('true');
+        expect(destinationSelect.getAttribute('aria-describedby')).toBe(alert.id);
+
         expect(onConfirm).not.toHaveBeenCalled();
         expect(onClose).not.toHaveBeenCalled();
     });

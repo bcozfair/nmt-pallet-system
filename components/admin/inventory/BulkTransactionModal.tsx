@@ -219,7 +219,7 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
                     >
                         {(aria) => (
                             <SelectField
-                                id={aria.id}
+                                {...aria}
                                 icon={MapPin}
                                 ariaLabel={t.inventory.destination}
                                 value={destination}

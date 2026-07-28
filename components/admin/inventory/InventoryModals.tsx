@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { MapPin, PackagePlus, Save, SquarePen } from 'lucide-react';
 import { createPallet } from '../../../services/palletService';
 import { toast } from '../../../services/toast';
@@ -25,6 +25,9 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({
     // useId ให้ id ที่ไม่ชนกันแม้จะเปิดสองโมดัลพร้อมกัน -- Field ใช้ค่านี้เดินสาย
     // label/aria ทั้งชุด
     const fieldId = useId();
+    // ให้ Modal โฟกัสช่องนี้ตอนเปิด แทนปุ่ม ✕ ที่เป็นตัวแรกใน DOM เสมอ -- ดู
+    // initialFocusRef ใน Modal.tsx
+    const idInputRef = useRef<HTMLInputElement>(null);
     const [newId, setNewId] = useState('');
     const [newLocation, setNewLocation] = useState('Warehouse');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,6 +85,7 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({
             busy={isSubmitting}
             preventDismiss={isSubmitting}
             closeLabel={t.common.closeDialog}
+            initialFocusRef={idInputRef}
             footer={
                 <>
                     <Button variant="secondary" onClick={close} disabled={isSubmitting}>
@@ -112,9 +116,9 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({
                     {(aria) => (
                         <TextInput
                             {...aria}
+                            ref={idInputRef}
                             mono
                             required
-                            autoFocus
                             value={newId}
                             onChange={(e) => {
                                 setNewId(e.target.value.toUpperCase());
@@ -127,7 +131,7 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({
                 <Field label={t.inventory.initialLocation} htmlFor={`${fieldId}-location`}>
                     {(aria) => (
                         <SelectField
-                            id={aria.id}
+                            {...aria}
                             icon={MapPin}
                             ariaLabel={t.inventory.initialLocation}
                             value={newLocation}
@@ -156,6 +160,7 @@ export const EditPalletModal: React.FC<EditPalletModalProps> = ({
 }) => {
     const t = useT();
     const fieldId = useId();
+    const idInputRef = useRef<HTMLInputElement>(null);
     const [id, setId] = useState(pallet.id);
     const [remark, setRemark] = useState(pallet.remark);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -199,6 +204,7 @@ export const EditPalletModal: React.FC<EditPalletModalProps> = ({
             busy={isSubmitting}
             preventDismiss={isSubmitting}
             closeLabel={t.common.closeDialog}
+            initialFocusRef={idInputRef}
             footer={
                 <>
                     <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
@@ -227,6 +233,7 @@ export const EditPalletModal: React.FC<EditPalletModalProps> = ({
                     {(aria) => (
                         <TextInput
                             {...aria}
+                            ref={idInputRef}
                             mono
                             required
                             value={id}
