@@ -118,17 +118,17 @@ export const InventoryView = ({
         // opened "Show IDs" from the bar's menu the panel above it took the
         // floating stack past 200px and covered the pagination control -- with
         // no way for this file to know, because `showIds` is local state inside
-        // InventorySelectionBar. `+ 1.5rem` is this page's own gap between the
-        // last card and the bar, matching the `gap-6` above.
+        // InventorySelectionBar. `+ 1rem` is this page's own gap between the
+        // last card and the bar, matching the `gap-4` above.
         //
         // Inline style, not a Tailwind arbitrary value: the number is produced
         // at runtime, and Tailwind only ever compiles classes it can read as
         // literal text in the source.
         <div
-            className="flex flex-col gap-6"
+            className="flex flex-col gap-4"
             style={
                 selectedIds.size > 0
-                    ? { paddingBottom: 'calc(var(--selection-bar-h, 0px) + 1.5rem)' }
+                    ? { paddingBottom: 'calc(var(--selection-bar-h, 0px) + 1rem)' }
                     : undefined
             }
         >

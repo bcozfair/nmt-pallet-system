@@ -49,12 +49,20 @@ export interface StatTileProps {
 // rather than immediately under the caption, so a tile with a meter and one
 // without still line up along the bottom edge of the row.
 //
-// 5.5rem and p-4, down from 7.5rem and p-5. The value used to be a row of its
-// own under the label; it now shares the label's row (see `body` below), which
-// removed a 36px line plus its 12px top margin from every tile. The floor and
-// the padding came down with it -- a 120px floor under a ~96px tile is not a
-// floor, it is 24px of white nobody asked for.
-const STAT_TILE_LAYOUT = 'flex min-h-[5.5rem] w-full flex-col p-4 text-left';
+// 4.5rem and p-3.5, down from 5.5rem/p-4, itself down from 7.5rem/p-5. The
+// value used to be a row of its own under the label; it now shares the label's
+// row (see `body` below), which removed a 36px line plus its 12px top margin
+// from every tile. The floor and the padding have come down twice since, both
+// times for the same reason: a floor well under the content is not a floor, it
+// is white space nobody asked for. A tile with only a label and a value is one
+// 32px icon chip plus its padding -- 60px of content, so an 88px floor was
+// leaving 28px of nothing on every tile of the inventory status strip.
+//
+// `min-h`, not `h`, is what makes this safe to keep lowering: the dashboard's
+// tiles carry a caption and a meter as well, and a two-line Thai label grows a
+// tile past any of these numbers. The floor only ever affects the tiles that
+// have less content than it, which is exactly the ones that were too tall.
+const STAT_TILE_LAYOUT = 'flex min-h-[4.5rem] w-full flex-col p-3.5 text-left';
 
 export const STAT_TILE_BOX = `${CARD_SHELL} ${STAT_TILE_LAYOUT}`;
 

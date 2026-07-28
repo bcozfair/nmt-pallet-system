@@ -1,6 +1,6 @@
 import React from 'react';
 import { Activity, AlertTriangle, Boxes, CircleCheck } from 'lucide-react';
-import { Skeleton, SkeletonTile, StatTile } from '../../ui';
+import { SkeletonTile, StatTile } from '../../ui';
 import { useT } from '../../../hooks/useT';
 
 export interface InventoryStatusStripProps {
@@ -75,9 +75,6 @@ export const InventoryStatusStrip: React.FC<InventoryStatusStripProps> = ({
                     <SkeletonTile />
                     <SkeletonTile />
                 </div>
-                <div className="mt-3 min-h-4">
-                    <Skeleton className="h-3 w-56 max-w-full" />
-                </div>
             </div>
         );
     }
@@ -126,11 +123,19 @@ export const InventoryStatusStrip: React.FC<InventoryStatusStripProps> = ({
                 same visual weight as four numbers it is deliberately absent
                 from -- and a reader would then try to make the four add up to
                 a total that does not contain it. Same reasoning KpiRow.tsx
-                records for the dashboard's version of this row. `min-h-4`
-                reserves the line even when there is nothing to say, so the
-                filters and table below do not jump once the count arrives. */}
-            <div className="mt-3 min-h-4">
-                {showScrappedNote && (
+                records for the dashboard's version of this row.
+
+                This row used to be `mt-3 min-h-4`, reserving its 16px even with
+                nothing to say so the table below could not jump once the count
+                arrived. That reservation is gone. On a fleet with nothing
+                scrapped -- the normal case -- it was 28px of permanently blank
+                strip sitting directly above the filter bar, and it read as a
+                gap in the layout rather than as space held for something. The
+                cost of removing it is a single 28px shift on first load for the
+                fleets that DO have scrapped pallets; the cost of keeping it was
+                paid by every screen on every render. */}
+            {showScrappedNote && (
+                <div className="mt-2">
                     <p className={scrappedActive ? NOTE_ACTIVE : NOTE_IDLE}>
                         {t.inventory.scrappedNote(counts.scrapped)}{' '}
                         {/* `aria-pressed` rather than a second sentence saying
@@ -149,8 +154,8 @@ export const InventoryStatusStrip: React.FC<InventoryStatusStripProps> = ({
                             {t.inventory.viewScrapped}
                         </button>
                     </p>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 };
