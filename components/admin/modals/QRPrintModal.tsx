@@ -3,6 +3,8 @@ import { Pallet } from '../../../types';
 import { QrCode, Printer, ImageDown } from 'lucide-react';
 import { useT } from '../../../hooks/useT';
 import { getLang } from '../../../services/i18n';
+import { toast } from '../../../services/toast';
+import { Button, Modal } from '../../ui';
 
 // A pallet id was previously dropped straight into both the QR service URL and
 // the print window's markup. Today's ids are all "P001"-shaped so nothing broke,
@@ -131,71 +133,71 @@ export const QRPrintModal = ({ pallets, onClose }: { pallets: Pallet[], onClose:
             URL.revokeObjectURL(downloadUrl);
         } catch (error: any) {
             console.error('Download failed', error);
-            alert(t.modals.downloadFailed);
+            // toast ไม่ใช่ alert: alert() บล็อกเธรดทั้งหน้าจนกว่าจะกดตกลง ซึ่งบน
+            // กล่องที่มีปุ่มดาวน์โหลดเรียงเป็นสิบใบหมายถึงต้องปิดกล่องระบบทีละใบ
+            // และแอปมี toast service อยู่แล้ว
+            toast.error(t.modals.downloadFailed);
         }
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
-
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col relative z-10 animate-in zoom-in-95 duration-200 overflow-hidden">
-                <div className="shrink-0 p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center bg-gray-50 gap-4 shadow-sm z-10">
-                    <div className="w-full sm:w-auto">
-                        <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800">
-                            <QrCode className="text-indigo-600" />
-                            <span className="truncate">{t.modals.qrSheetTitle}</span>
-                        </h2>
-                        <p className="text-sm text-gray-500 truncate">
-                            {t.modals.itemsSelected(pallets.length)}
-                        </p>
-                    </div>
-                    <div className="flex gap-2 w-full sm:w-auto">
-                        <button
-                            onClick={handlePrint}
-                            className="flex-1 sm:flex-none px-4 md:px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 transition whitespace-nowrap"
+        <Modal
+            isOpen
+            onClose={onClose}
+            title={t.modals.qrSheetTitle}
+            icon={QrCode}
+            size="xl"
+            dismissOnBackdrop
+            closeLabel={t.common.closeDialog}
+            subtitle={t.modals.itemsSelected(pallets.length)}
+            // ปุ่มอยู่บนหัว ไม่ใช่ท้ายกล่อง: เนื้อเป็นกริดยาวที่ต้องเลื่อน ปุ่มพิมพ์
+            // ต้องเห็นตลอดโดยไม่ต้องเลื่อนลงไปสุด -- นี่เป็นโมดัลตัวเดียวในแอปที่
+            // ใช้ headerActions
+            headerActions={
+                <Button variant="primary" icon={Printer} onClick={handlePrint}>
+                    {t.modals.printPdf}
+                </Button>
+            }
+        >
+            <div className="-mx-5 -mb-5 bg-slate-100 px-5 py-5">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+                    {pallets.map(p => (
+                        <div
+                            key={p.pallet_id}
+                            className="flex w-full break-inside-avoid flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm transition hover:shadow-md"
                         >
-                            <Printer size={20} /> {t.modals.printPdf}
-                        </button>
-                        <button
-                            onClick={onClose}
-                            className="px-4 md:px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition"
-                        >
-                            {t.common.close}
-                        </button>
-                    </div>
-                </div>
+                            {/* font-bold ไม่ใช่ font-black -- แอปโหลดฟอนต์แค่ 300-700
+                                น้ำหนัก 900 ถูกเบราว์เซอร์สังเคราะห์ */}
+                            <h3 className="font-mono text-2xl font-bold leading-none tracking-tighter text-slate-900">
+                                {p.pallet_id}
+                            </h3>
 
-                <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 bg-slate-100 relative w-full styled-scrollbar">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pb-10">
-                        {pallets.map(p => (
-                            <div key={p.pallet_id} className="bg-white p-4 rounded-xl border border-gray-200 flex flex-col items-center justify-center text-center gap-3 shadow-sm hover:shadow-md transition relative group w-full break-inside-avoid">
-
-                                <h3 className="text-2xl font-black text-gray-900 font-mono tracking-tighter leading-none">{p.pallet_id}</h3>
-
-                                <div className="p-2 bg-white rounded-lg border border-gray-100">
-                                    <img
-                                        src={qrUrl(p.pallet_id, 150)}
-                                        alt={p.pallet_id}
-                                        className="w-24 h-24 object-contain rendering-pixelated mix-blend-multiply"
-                                    />
-                                </div>
-
-                                <div className="w-full pt-2 mt-1 flex items-center justify-between border-t border-gray-100">
-                                    <p className="text-[10px] font-bold text-gray-400 truncate">{t.modals.propertyMarkShort}</p>
-                                    <button
-                                        onClick={() => handleDownloadImage(p.pallet_id)}
-                                        className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition flex items-center gap-1 text-[10px] font-bold whitespace-nowrap"
-                                        title={t.modals.downloadPng}
-                                    >
-                                        <ImageDown size={14} /> {t.common.save}
-                                    </button>
-                                </div>
+                            <div className="rounded-lg border border-slate-100 bg-white p-2">
+                                <img
+                                    src={qrUrl(p.pallet_id, 150)}
+                                    alt={p.pallet_id}
+                                    className="rendering-pixelated h-24 w-24 object-contain mix-blend-multiply"
+                                />
                             </div>
-                        ))}
-                    </div>
+
+                            <div className="mt-1 flex w-full items-center justify-between border-t border-slate-100 pt-2">
+                                <p className="truncate text-[10px] font-semibold text-slate-400">
+                                    {t.modals.propertyMarkShort}
+                                </p>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    icon={ImageDown}
+                                    onClick={() => handleDownloadImage(p.pallet_id)}
+                                    aria-label={t.modals.downloadPng}
+                                >
+                                    {t.common.save}
+                                </Button>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 };
