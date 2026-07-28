@@ -97,3 +97,6 @@ export type { TextInputProps } from './TextInput';
 
 export { TextArea } from './TextArea';
 export type { TextAreaProps } from './TextArea';
+
+export { ConfirmDialog } from './ConfirmDialog';
+export type { ConfirmDialogProps } from './ConfirmDialog';
