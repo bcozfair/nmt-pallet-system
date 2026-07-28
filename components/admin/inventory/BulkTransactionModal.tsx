@@ -125,6 +125,7 @@ export const BulkTransactionModal: React.FC<BulkTransactionModalProps> = ({
             icon={ArrowRightLeft}
             size="md"
             busy={loading}
+            preventDismiss={loading}
             closeLabel={t.common.closeDialog}
             subtitle={
                 // สองคีย์ไม่ใช่ประโยคเดียว: ตัวเลขมี span หนาของตัวเอง คำจึงต้องมา

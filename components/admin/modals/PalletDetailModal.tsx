@@ -132,6 +132,7 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
                                 {history.map((tx) => (
                                     <div key={tx.id} className="relative pl-6">
                                         <div
+                                            data-testid="timeline-dot"
                                             className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 border-white shadow-sm ${DOT_COLOR[tx.action_type]}`}
                                             aria-hidden="true"
                                         />

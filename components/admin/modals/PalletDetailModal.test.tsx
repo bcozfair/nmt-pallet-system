@@ -69,17 +69,14 @@ describe('PalletDetailModal', () => {
         // ที่ประกอบไว้ข้างบน) ขึ้นจริง แปลว่าโหลดเสร็จและ dot เรนเดอร์ครบแล้ว
         await screen.findByText(ACTION_LABEL_TH.report_damage);
 
-        // ค้นด้วย document.body ไม่ใช่ container ที่ render() คืนมา: <Modal>
-        // เรนเดอร์ผ่าน createPortal ไป document.body ตรง ๆ ต้นไม้ของมันจึงไม่อยู่
-        // ใต้ container wrapper ของ RTL เลย -- screen.findByText ข้างบนหาเจอเพราะ
-        // มันค้นทั้งเอกสาร แต่ container.querySelectorAll จะไม่เห็นอะไรเลย
+        // screen.getAllByTestId ค้นทั้งเอกสาร (ไม่ใช่แค่ container ที่ render() คืนมา)
+        // ซึ่งจำเป็นจริง: <Modal> เรนเดอร์ผ่าน createPortal ไป document.body ตรง ๆ
+        // ต้นไม้ของมันจึงไม่อยู่ใต้ container wrapper ของ RTL เลย
         //
-        // แถวประวัติแต่ละแถวมี dot เป็น div เดียวที่ผสม rounded-full กับ
-        // border-2 border-white -- StatusBadge ก็ใช้ rounded-full เหมือนกันแต่ไม่มี
-        // border-2 border-white ผสม จึงไม่ปนกัน
-        const dots = Array.from(
-            document.body.querySelectorAll('.rounded-full.border-2.border-white'),
-        ) as HTMLElement[];
+        // เลือกด้วย data-testid="timeline-dot" ไม่ใช่ CSS class เพราะประเด็นของ
+        // เทสต์นี้คือ "สีแม็ปกับ action type ถูกไหม" ไม่ใช่ "dot ทรงกลมมีขอบขาวไหม"
+        // -- การ restyle dot ในอนาคตไม่ควรทำให้เทสต์นี้พังไปด้วย
+        const dots = screen.getAllByTestId('timeline-dot');
 
         expect(dots).toHaveLength(ACTION_TYPES.length);
 

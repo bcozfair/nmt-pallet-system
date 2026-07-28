@@ -80,6 +80,7 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({
             icon={PackagePlus}
             size="md"
             busy={isSubmitting}
+            preventDismiss={isSubmitting}
             closeLabel={t.common.closeDialog}
             footer={
                 <>
@@ -196,6 +197,7 @@ export const EditPalletModal: React.FC<EditPalletModalProps> = ({
             icon={SquarePen}
             size="md"
             busy={isSubmitting}
+            preventDismiss={isSubmitting}
             closeLabel={t.common.closeDialog}
             footer={
                 <>

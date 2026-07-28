@@ -64,6 +64,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             size="sm"
             closeLabel={closeLabel}
             busy={isWorking}
+            preventDismiss={isWorking}
             // ไม่ใส่ dismissOnBackdrop โดยตั้งใจ: กล่องนี้ถามคำถามที่ต้องถูกตอบ
             // การปัดทิ้งด้วยการคลิกพลาดข้าง ๆ ทำให้ไม่รู้ว่าตกลงเกิดอะไรขึ้นหรือเปล่า
             footer={
