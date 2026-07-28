@@ -186,32 +186,45 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                 (isOverdue ? 'border-l-2 border-amber-400' : '')
                             }
                         >
-                            <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                            {/* Body cells are `py-1.5`, the header `py-2.5` (see
+                                DataTable's TH_BASE). That is not drift -- the row
+                                height of a table this dense is the number that
+                                decides how much of the fleet fits on one screen,
+                                and the header is one row that pays for itself by
+                                staying easy to hit and to read.
+
+                                `py-1.5` alone would not have shrunk anything: a
+                                row is as tall as its tallest cell, and the round
+                                action buttons at the end were `p-2` around a 16px
+                                icon -- 32px, taller than any text in the row. They
+                                came down to `p-1.5`/28px in the same pass, which
+                                is what let the padding change show up at all. */}
+                            <td className="px-3 py-1.5" onClick={(e) => e.stopPropagation()}>
                                 <Checkbox
                                     ariaLabel={`${t.common.palletId}: ${p.pallet_id}`}
                                     checked={isSelected}
                                     onChange={() => onSelectRow(p.pallet_id)}
                                 />
                             </td>
-                            <td className="px-3 py-2.5 font-mono font-semibold text-slate-700">{p.pallet_id}</td>
+                            <td className="px-3 py-1.5 font-mono font-semibold text-slate-700">{p.pallet_id}</td>
 
-                            <td className="px-3 py-2.5">
+                            <td className="px-3 py-1.5">
                                 <StatusBadge status={p.status} />
                             </td>
-                            <td className="px-3 py-2.5 text-sm text-slate-600">
+                            <td className="px-3 py-1.5 text-sm text-slate-600">
                                 {p.last_transaction_date ? formatDateTime(p.last_transaction_date) : '-'}
                             </td>
-                            <td className="px-3 py-2.5 text-slate-600">
+                            <td className="px-3 py-1.5 text-slate-600">
                                 <div className="flex items-center gap-2">
                                     <MapPin size={14} className="shrink-0 text-slate-400" />
                                     {p.current_location}
                                 </div>
                             </td>
 
-                            <td className="hidden px-3 py-2.5 text-sm text-slate-500 xl:table-cell">
+                            <td className="hidden px-3 py-1.5 text-sm text-slate-500 xl:table-cell">
                                 {formatDateTime(p.last_checkout_date)}
                             </td>
-                            <td className="px-3 py-2.5">
+                            <td className="px-3 py-1.5">
                                 {p.status === 'in_use' && p.last_checkout_date ? (
                                     <div
                                         className={`flex items-center gap-1 font-semibold ${
@@ -227,7 +240,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                 )}
                             </td>
                             <td
-                                className="hidden max-w-[200px] truncate px-3 py-2.5 text-sm text-slate-500 xl:table-cell"
+                                className="hidden max-w-[200px] truncate px-3 py-1.5 text-sm text-slate-500 xl:table-cell"
                                 title={p.pallet_remark || ''}
                             >
                                 {p.pallet_remark ? (
@@ -239,7 +252,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                     <span className="text-slate-300">-</span>
                                 )}
                             </td>
-                            <td className="px-3 py-2.5 text-right">
+                            <td className="px-3 py-1.5 text-right">
                                 <div className="flex justify-end gap-1">
                                     {/* Both resolutions for a damaged pallet, side by side:
                                         repair it, or write it off. Scrapping is reachable
@@ -249,7 +262,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                         <>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onRepairRow(p.pallet_id); }}
-                                                className="rounded-full p-2 text-green-600 transition hover:bg-green-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                                className="rounded-full p-1.5 text-green-600 transition hover:bg-green-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                                                 title={t.inventory.markRepairedTitle}
                                                 aria-label={t.inventory.markRepairedTitle}
                                             >
@@ -257,7 +270,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                             </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onScrapRow(p.pallet_id); }}
-                                                className="rounded-full p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                                className="rounded-full p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                                                 title={t.inventory.markScrappedTitle}
                                                 aria-label={t.inventory.markScrappedTitle}
                                             >
@@ -267,7 +280,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                     )}
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onPrintQr([p]); }}
-                                        className="rounded-full p-2 text-indigo-600 transition hover:bg-indigo-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                        className="rounded-full p-1.5 text-indigo-600 transition hover:bg-indigo-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                                         title={t.inventory.printQrTitle}
                                         aria-label={t.inventory.printQrTitle}
                                     >
@@ -278,7 +291,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                         label now says so. */}
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onEditRow(p); }}
-                                        className="rounded-full p-2 text-brand-400 transition hover:bg-brand-50 hover:text-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                        className="rounded-full p-1.5 text-brand-400 transition hover:bg-brand-50 hover:text-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                                         title={t.inventory.editPalletTitle}
                                         aria-label={t.inventory.editPalletTitle}
                                     >
@@ -286,7 +299,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                     </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onDeleteClick(p.pallet_id, e); }}
-                                        className="rounded-full p-2 text-red-400 transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                        className="rounded-full p-1.5 text-red-400 transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                                         title={t.inventory.deletePalletTitle}
                                         aria-label={t.inventory.deletePalletTitle}
                                     >
