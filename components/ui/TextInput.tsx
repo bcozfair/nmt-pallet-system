@@ -22,16 +22,18 @@ const BASE =
 const SURFACE_IDLE = 'border-slate-200 focus-visible:outline-brand-500';
 const SURFACE_INVALID = 'border-red-300 focus-visible:outline-red-500';
 
-export const TextInput: React.FC<TextInputProps> = ({
-    invalid = false,
-    mono = false,
-    className = '',
-    ...rest
-}) => (
-    <input
-        className={`${BASE} ${invalid ? SURFACE_INVALID : SURFACE_IDLE} ${
-            mono ? 'font-mono uppercase' : ''
-        } ${className}`}
-        {...rest}
-    />
+// forwardRef เพราะ AddPalletModal/EditPalletModal ต้องส่งช่องรหัสพาเลทเข้า
+// `initialFocusRef` ของ Modal (ดูคอมเมนต์ที่ prop นั้นใน Modal.tsx) -- component
+// ฟังก์ชันธรรมดารับ ref ไม่ได้ ต้องห่อด้วย forwardRef ถึงจะเป็น target โฟกัสได้
+export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
+    ({ invalid = false, mono = false, className = '', ...rest }, ref) => (
+        <input
+            ref={ref}
+            className={`${BASE} ${invalid ? SURFACE_INVALID : SURFACE_IDLE} ${
+                mono ? 'font-mono uppercase' : ''
+            } ${className}`}
+            {...rest}
+        />
+    ),
 );
+TextInput.displayName = 'TextInput';
