@@ -115,8 +115,28 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ src, onClose
             closeLabel={t.common.closeDialog}
             headerActions={
                 <>
-                    <Button size="sm" variant="secondary" icon={ZoomOut} onClick={handleZoomOut} aria-label={t.modals.zoomOut} />
-                    <Button size="sm" variant="secondary" icon={ZoomIn} onClick={handleZoomIn} aria-label={t.modals.zoomIn} />
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        icon={ZoomOut}
+                        onClick={handleZoomOut}
+                        aria-label={t.modals.zoomOut}
+                        disabled={scale <= 0.5}
+                    />
+                    {/* เลขนี้เปลี่ยนทุกครั้งที่ซูม -- เป็นตัวหนังสือในตัว span ตรง ๆ
+                        ไม่ประกอบเข้าไปในคลาส เพดานความหนาคือ font-semibold
+                        (ห้าม font-black) tabular-nums กันเลขสั่นตอนหลักเปลี่ยน */}
+                    <span className="w-10 select-none text-center text-xs font-semibold tabular-nums text-slate-500">
+                        {Math.round(scale * 100)}%
+                    </span>
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        icon={ZoomIn}
+                        onClick={handleZoomIn}
+                        aria-label={t.modals.zoomIn}
+                        disabled={scale >= 3}
+                    />
                     <Button size="sm" variant="secondary" icon={RotateCcw} onClick={handleReset} aria-label={t.modals.resetZoom} />
                     <Button size="sm" variant="secondary" icon={Download} onClick={handleDownload} aria-label={t.modals.downloadImage} />
                 </>
@@ -124,6 +144,7 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ src, onClose
         >
             <div
                 className="-mx-5 -mb-5 flex min-h-[60vh] items-center justify-center overflow-hidden bg-slate-950"
+                onWheel={handleWheel}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
