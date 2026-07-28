@@ -6,7 +6,7 @@
 // the caller is the one that knows whether a label is a status, a period or a
 // column heading.
 
-export { Card, CARD_SHELL } from './Card';
+export { Card, CARD_SHELL, BrandHairline } from './Card';
 export type { CardProps } from './Card';
 
 export { SectionHeader } from './SectionHeader';
@@ -85,3 +85,6 @@ export type { SelectionBarProps } from './SelectionBar';
 
 export { StickyHeader } from './StickyHeader';
 export type { StickyHeaderProps } from './StickyHeader';
+
+export { Modal, MODAL_PANEL } from './Modal';
+export type { ModalProps, ModalSize, ModalTone } from './Modal';

@@ -34,6 +34,28 @@ export const CARD_SURFACE = 'border-slate-200/80 bg-white';
 
 export const CARD_SHELL = `${CARD_SHELL_SHAPE} ${CARD_SURFACE}`;
 
+// The brand hairline doubles as this app's only progress indicator: the
+// gradient is laid out at twice the bar's width and slid leftwards while a
+// request is in flight. One element, two jobs -- which is exactly why the
+// sign-in and reset screens carry no separate spinner, and why the dashboard
+// should not grow one either.
+//
+// Extracted from Card's body so Modal.tsx can wear the same line without also
+// taking CARD_SHELL's shadow, which is tuned for a card sitting on a light page
+// and disappears entirely over a dimmed overlay. Copying the markup into
+// Modal.tsx instead would have let the two drift; appending a shadow class to
+// CARD_SHELL would have hit the class-order trap documented above.
+export const BrandHairline: React.FC<{ busy?: boolean }> = ({ busy = false }) => (
+    <div
+        className={
+            'h-[3px] w-full shrink-0 bg-linear-to-r from-brand-600 via-accent-500 to-brand-600 ' +
+            'bg-[length:200%_100%] ' +
+            (busy ? 'animate-brand-sweep' : '')
+        }
+        aria-hidden="true"
+    />
+);
+
 export const Card: React.FC<CardProps> = ({
     children,
     className = '',
@@ -45,22 +67,7 @@ export const Card: React.FC<CardProps> = ({
     // 3px bar, so without it the gradient pokes out past the rounded-3xl corners
     // and the top of the card reads as a rendering artefact.
     <Tag className={`${CARD_SHELL} overflow-hidden ${className}`}>
-        {accent && (
-            // The brand hairline doubles as this app's only progress indicator:
-            // the gradient is laid out at twice the bar's width and slid
-            // leftwards while a request is in flight. One element, two jobs --
-            // which is exactly why the sign-in and reset screens carry no
-            // separate spinner, and why the dashboard should not grow one
-            // either. A refetch tints the plot and moves this line; nothing
-            // unmounts, so nothing strobes.
-            <div
-                className={
-                    'h-[3px] w-full bg-linear-to-r from-brand-600 via-accent-500 to-brand-600 bg-[length:200%_100%] ' +
-                    (busy ? 'animate-brand-sweep' : '')
-                }
-                aria-hidden="true"
-            />
-        )}
+        {accent && <BrandHairline busy={busy} />}
         {children}
     </Tag>
 );
