@@ -1,13 +1,35 @@
 import React, { useEffect, useState } from 'react';
 
-import { Pallet, Transaction } from '../../../types';
+import { ActionType, Pallet, Transaction } from '../../../types';
 import { fetchUsers } from '../../../services/userService';
 import { fetchPalletHistory } from '../../../services/transactionService';
 import { formatDate, formatDateTime, StatusBadge } from '../common/AdminHelpers';
-import { X, MapPin, Clock, History } from 'lucide-react';
+import { Clock, History, MapPin, PackageSearch } from 'lucide-react';
 import { ImageViewerModal } from '../common/ImageViewerModal';
 import { getEvidenceSignedUrlMap, IMAGE_DELETED } from '../../../services/storageService';
 import { useT } from '../../../hooks/useT';
+import { Button, Modal, StatTile } from '../../ui';
+
+// จุดบนไทม์ไลน์ใช้ token ชุดเดียวกับกราฟบนแดชบอร์ด "เบิกออก" จึงเป็นน้ำเงินเฉด
+// เดียวกันทุกที่ในแอป แทนสีดิบ blue/green/gray/red ที่ไฟล์นี้เคยประกอบเอง
+//
+// กฎ CVD ที่ index.css:62-75 ตั้งไว้ไม่ถูกละเมิด: กฎนั้นห้าม co-plot ทั้งห้าสีโดยมี
+// สีเป็นตัวแยกอย่างเดียว แต่ทุกแถวบนไทม์ไลน์มีป้ายข้อความกำกับ (t.action[...])
+// สีจึงไม่ได้แบกความหมายลำพัง
+//
+// `satisfies Record<ActionType, string>` เป็นตัวกันไม่ให้ตกเคส -- ของเดิมเป็นโซ่
+// ternary ที่ else สุดท้ายแปลว่า "รายงานความเสียหาย" ทำให้ 'scrap' ถูกทาสีเป็น
+// damage อยู่พักหนึ่ง ไทม์ไลน์จึงแสดงรายงานความเสียหายสองครั้งโดยไม่มีร่องรอยว่า
+// พาเลทถูกตัดออกจากระบบไปแล้ว
+const DOT_COLOR = {
+    check_out: 'bg-[var(--color-series-checkout)]',
+    check_in: 'bg-[var(--color-series-checkin)]',
+    repair: 'bg-[var(--color-series-repair)]',
+    scrap: 'bg-[var(--color-series-scrap)]',
+    // ชื่อ action คือ `report_damage` (types.ts:39) ส่วน token คือ `series-damage`
+    // -- สองชื่อนี้ไม่ตรงกันโดยธรรมชาติ อย่า "แก้" ให้เหมือนกัน
+    report_damage: 'bg-[var(--color-series-damage)]',
+} satisfies Record<ActionType, string>;
 
 export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose: () => void }) => {
     const t = useT();
@@ -49,109 +71,124 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
     }, [pallet.pallet_id]);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col relative z-10 animate-in zoom-in-95 duration-200">
-                {/* Header */}
-                <div className="p-6 border-b border-gray-100 flex justify-between items-start bg-gray-50/50 rounded-t-2xl">
-                    <div>
-                        <div className="flex items-center gap-3 mb-1">
-                            <h2 className="text-2xl font-mono font-bold text-gray-800 tracking-tight">{pallet.pallet_id}</h2>
-                            <StatusBadge status={pallet.status} />
-                        </div>
-                        <p className="text-sm text-gray-500 flex items-center gap-1">
-                            {t.modals.addedOn(formatDate(pallet.created_at))}
-                        </p>
+        <>
+            <Modal
+                isOpen
+                onClose={onClose}
+                // หัวเรื่องเป็นรหัสพาเลท จึงเป็นโมโนและไม่แปล
+                title={pallet.pallet_id}
+                icon={PackageSearch}
+                size="lg"
+                dismissOnBackdrop
+                busy={loading}
+                closeLabel={t.common.closeDialog}
+                subtitle={
+                    <span className="flex flex-wrap items-center gap-2">
+                        <StatusBadge status={pallet.status} />
+                        <span>{t.modals.addedOn(formatDate(pallet.created_at))}</span>
+                    </span>
+                }
+                footer={
+                    <Button variant="secondary" onClick={onClose}>
+                        {t.common.close}
+                    </Button>
+                }
+            >
+                <div className="space-y-6">
+                    {/* StatTile แทนกล่องที่ไฟล์นี้เคยประกอบเอง -- กล่องขวาของเดิมใช้
+                        purple-50/purple-900 ซึ่งเป็นสีที่ไม่มีอยู่ใน @theme ของแอปเลย */}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <StatTile
+                            label={t.modals.currentLocation}
+                            value={pallet.current_location}
+                            icon={MapPin}
+                            tone="brand"
+                        />
+                        <StatTile
+                            label={t.modals.lastInteraction}
+                            value={
+                                pallet.last_checkout_date
+                                    ? formatDate(pallet.last_checkout_date)
+                                    : t.modals.never
+                            }
+                            icon={Clock}
+                            tone="accent"
+                        />
                     </div>
-                    <button onClick={onClose} className="p-2 bg-white hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-full border border-gray-200 transition">
-                        <X size={20} />
-                    </button>
-                </div>
 
-                {/* Body - Scrollable */}
-                <div className="overflow-y-auto p-6 space-y-8 styled-scrollbar">
-                    {/* Key Stats Grid */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
-                            <p className="text-xs font-bold text-blue-400 mb-1">{t.modals.currentLocation}</p>
-                            <div className="flex items-center gap-2 text-blue-900 font-bold text-lg">
-                                <MapPin size={20} className="text-blue-500" />
-                                {pallet.current_location}
-                            </div>
-                        </div>
-                        <div className="p-4 bg-purple-50/50 rounded-xl border border-purple-100">
-                            <p className="text-xs font-bold text-purple-400 mb-1">{t.modals.lastInteraction}</p>
-                            <div className="flex items-center gap-2 text-purple-900 font-bold text-lg">
-                                <Clock size={20} className="text-purple-500" />
-                                {pallet.last_checkout_date ? formatDate(pallet.last_checkout_date) : t.modals.never}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Timeline */}
                     <div>
-                        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <History size={18} /> {t.modals.activityHistory}
+                        <h3 className="mb-4 flex items-center gap-2 font-semibold text-slate-800">
+                            <History size={18} aria-hidden="true" /> {t.modals.activityHistory}
                         </h3>
 
                         {loading ? (
-                            <div className="text-center py-8 text-gray-400">{t.modals.loadingHistory}</div>
+                            <div className="py-8 text-center text-slate-400">{t.modals.loadingHistory}</div>
                         ) : history.length === 0 ? (
-                            <div className="text-center py-8 text-gray-400 italic bg-gray-50 rounded-xl">{t.modals.noHistory}</div>
+                            <div className="rounded-xl bg-slate-50 py-8 text-center italic text-slate-400">
+                                {t.modals.noHistory}
+                            </div>
                         ) : (
-                            <div className="relative border-l-2 border-gray-100 ml-3 space-y-6 pb-2">
-                                {history.map((tx, idx) => (
+                            <div className="relative ml-3 space-y-6 border-l-2 border-slate-100 pb-2">
+                                {history.map((tx) => (
                                     <div key={tx.id} className="relative pl-6">
-                                        {/* Dot */}
-                                        {/* 'scrap' needs its own arm here. The final
-                                            `else` means "damage report", so without it
-                                            a scrap row took the damage colour -- the
-                                            timeline would show two damage reports and
-                                            no sign the pallet had been written off at
-                                            all. The label below used to repeat this
-                                            same chain and carried the same bug; it now
-                                            reads `action` from the dictionary, which is
-                                            `satisfies Record<ActionType, string>` and
-                                            so cannot miss a case by construction. */}
-                                        <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${tx.action_type === 'check_out' ? 'bg-blue-500' :
-                                            tx.action_type === 'check_in' || tx.action_type === 'repair' ? 'bg-green-500' :
-                                                tx.action_type === 'scrap' ? 'bg-gray-500' :
-                                                    'bg-red-500'
-                                            }`}></div>
+                                        <div
+                                            className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 border-white shadow-sm ${DOT_COLOR[tx.action_type]}`}
+                                            aria-hidden="true"
+                                        />
 
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="font-bold text-gray-800 text-sm">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-slate-800">
                                                     {t.action[tx.action_type]}
                                                 </p>
-                                                <p className="text-xs text-gray-500 mt-0.5">
-                                                    {t.modals.by} <span className="font-medium text-gray-700">{userMap[tx.user_id] || t.modals.unknownUser(tx.user_id)}</span>
-                                                    {tx.department_dest && <span> • {t.modals.toDest} <span className="font-medium text-gray-700">{tx.department_dest}</span></span>}
+                                                <p className="mt-0.5 text-xs text-slate-500">
+                                                    {t.modals.by}{' '}
+                                                    <span className="font-medium text-slate-700">
+                                                        {userMap[tx.user_id] || t.modals.unknownUser(tx.user_id)}
+                                                    </span>
+                                                    {tx.department_dest && (
+                                                        <span>
+                                                            {' '}• {t.modals.toDest}{' '}
+                                                            <span className="font-medium text-slate-700">
+                                                                {tx.department_dest}
+                                                            </span>
+                                                        </span>
+                                                    )}
                                                 </p>
                                                 {tx.transaction_remark && (
-                                                    <div className="mt-1.5 p-2 bg-gray-50 rounded-lg text-xs text-gray-600 border border-gray-100 italic">
+                                                    <div className="mt-1.5 rounded-lg border border-slate-100 bg-slate-50 p-2 text-xs italic text-slate-600">
                                                         "{tx.transaction_remark}"
                                                     </div>
                                                 )}
 
-                                                {/* Evidence Image */}
-                                                {tx.evidence_image_url && tx.evidence_image_url !== IMAGE_DELETED && evidenceUrls[tx.evidence_image_url] && (
-                                                    <div className="mt-2">
-                                                        <img
-                                                            src={evidenceUrls[tx.evidence_image_url]}
-                                                            alt={t.modals.evidenceAlt}
-                                                            className="h-20 w-auto rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:scale-105 transition"
-                                                            onClick={() => setPreviewImage(evidenceUrls[tx.evidence_image_url!])}
-                                                        />
-                                                    </div>
-                                                )}
+                                                {tx.evidence_image_url &&
+                                                    tx.evidence_image_url !== IMAGE_DELETED &&
+                                                    evidenceUrls[tx.evidence_image_url] && (
+                                                        <div className="mt-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setPreviewImage(evidenceUrls[tx.evidence_image_url!])
+                                                                }
+                                                                className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                                            >
+                                                                {/* ปุ่มจริง ไม่ใช่ <img onClick> -- ของเดิมกดได้ด้วย
+                                                                    เมาส์อย่างเดียว คีย์บอร์ดเข้าไม่ถึงรูปหลักฐานเลย */}
+                                                                <img
+                                                                    src={evidenceUrls[tx.evidence_image_url]}
+                                                                    alt={t.modals.evidenceAlt}
+                                                                    className="h-20 w-auto rounded-lg border border-slate-200 shadow-sm transition hover:scale-105"
+                                                                />
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 {tx.evidence_image_url === IMAGE_DELETED && (
-                                                    <div className="mt-2 text-xs text-gray-400 italic flex items-center gap-1">
+                                                    <div className="mt-2 flex items-center gap-1 text-xs italic text-slate-400">
                                                         {t.modals.evidenceDeleted}
                                                     </div>
                                                 )}
                                             </div>
-                                            <span className="text-xs font-mono text-gray-400 whitespace-nowrap">
+                                            <span className="shrink-0 whitespace-nowrap font-mono text-xs text-slate-400">
                                                 {formatDateTime(tx.timestamp)}
                                             </span>
                                         </div>
@@ -161,20 +198,15 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
                         )}
                     </div>
                 </div>
+            </Modal>
 
-                {/* Footer Actions */}
-                <div className="p-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl flex justify-end">
-                    <button onClick={onClose} className="px-6 py-2 bg-white border border-gray-300 shadow-sm text-gray-700 font-bold rounded-lg hover:bg-gray-100 transition">
-                        {t.common.close}
-                    </button>
-                </div>
-            </div>
-
-            {/* Image Preview Modal */}
+            {/* นอก <Modal> ข้างบน ไม่ใช่ข้างใน: มันเป็นโมดัลของตัวเอง ที่ portal ไป
+                document.body เหมือนกัน การซ้อนมันไว้ในเนื้อจะทำให้ focus trap ของ
+                ตัวนอกนับปุ่มในตัวในเป็นของตัวเองด้วย */}
             <ImageViewerModal
                 src={previewImage}
                 onClose={() => setPreviewImage(null)}
             />
-        </div>
+        </>
     );
 };
