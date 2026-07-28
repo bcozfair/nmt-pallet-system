@@ -5,6 +5,7 @@ export type ButtonVariant =
     | 'primary'
     | 'secondary'
     | 'danger'
+    | 'dangerSolid'
     | 'ghost'
     | 'inverse'
     | 'inverseGhost'
@@ -50,6 +51,17 @@ export const BUTTON_VARIANT: Record<ButtonVariant, string> = {
     danger:
         'border border-red-200 bg-white text-red-600 hover:bg-red-50 ' +
         'active:scale-[0.99] disabled:hover:bg-white',
+    // `danger` ข้างบนเป็นปุ่มอันตรายที่นั่งปนกับปุ่มอื่นบนหน้า -- เส้นขอบ พื้นขาว
+    // ตัวหนังสือแดง อ่านว่า "ระวัง" โดยไม่ตะโกน ตัวนี้คนละหน้าที่: เป็นปุ่มหลักใน
+    // ท้ายโมดัลยืนยัน ซึ่งมีปุ่มยกเลิก (secondary -- พื้นขาว เส้นขอบเทา) นั่งซ้ายมือ
+    // อยู่แล้ว ถ้าใช้ `danger` ตรงนั้น ปุ่มทำลายจะมีน้ำหนักสายตาเท่าหรือน้อยกว่า
+    // ปุ่มถอย ซึ่งกลับหัวลำดับความสำคัญของกล่อง
+    //
+    // ทรงยกมาจาก `primary` ทั้งชุด เปลี่ยนแค่ hue: ปุ่มยืนยันของทุกโมดัลจึงเป็น
+    // วัตถุเดียวกันไม่ว่าจะทำลายหรือไม่ ต่างกันที่สีอย่างเดียว
+    dangerSolid:
+        'bg-red-600 text-white shadow-lg shadow-red-600/20 hover:bg-red-700 ' +
+        'active:scale-[0.99] disabled:hover:bg-red-600',
     ghost: 'text-slate-600 hover:bg-slate-100 active:scale-[0.99] disabled:hover:bg-transparent',
     // สองตัวล่างสำหรับพื้นเข้มเท่านั้น (SelectionBar) -- brand-600 บน brand-900
     // คอนทราสต์ต่ำเกินอ่าน และการส่ง className ไปทับจากข้างนอกใช้ไม่ได้
