@@ -90,6 +90,7 @@ export const inventoryEn = {
     selectLocation: 'Select Location',
     noteOptional: 'Optional note...',
     processing: 'Processing...',
+    invalidDateTime: 'Enter a valid date and time',
 
     // --- Confirmations and toasts (hooks/inventory/useInventoryActions.ts) ---
     // Delete and Scrap read almost the same in English but mean opposite things
@@ -219,6 +220,7 @@ export const inventoryTh: InventoryDict = {
     selectLocation: 'เลือกสถานที่',
     noteOptional: 'หมายเหตุเพิ่มเติม (ถ้ามี)',
     processing: 'กำลังดำเนินการ...',
+    invalidDateTime: 'กรุณาระบุวันที่และเวลาให้ถูกต้อง',
 
     // --- Confirmations and toasts ---
     // ข้อความ "ลบ" กับ "ตัดออกจากระบบ" ต้องต่างกันให้ชัด เพราะการลบทำให้

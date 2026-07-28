@@ -33,6 +33,7 @@ export const th: Dictionary = {
         delete: 'ลบ',
         edit: 'แก้ไข',
         close: 'ปิด',
+        closeDialog: 'ปิดหน้าต่าง',
         confirm: 'ยืนยัน',
         add: 'เพิ่ม',
         search: 'ค้นหา',

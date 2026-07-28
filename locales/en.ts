@@ -37,6 +37,10 @@ export const en = {
         delete: 'Delete',
         edit: 'Edit',
         close: 'Close',
+        // แยกจาก `close` ข้างบน: อันนั้นเป็นป้ายบนปุ่มที่คนเห็น ส่วนอันนี้เป็น
+        // aria-label ของกากบาทมุมโมดัล ซึ่งไม่มีข้อความให้อ่าน "Close" เฉย ๆ
+        // ในบริบทนั้นกำกวมว่าปิดอะไร
+        closeDialog: 'Close dialog',
         confirm: 'Confirm',
         add: 'Add',
         search: 'Search',
