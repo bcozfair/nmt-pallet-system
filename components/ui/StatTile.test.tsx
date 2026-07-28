@@ -55,6 +55,34 @@ describe('StatTile', () => {
         expect(idle).not.toContain('bg-brand-50');
     });
 
+    // อาการที่เทสต์คู่นี้กัน: ไทล์ถูกออกแบบมาสำหรับ "ตัวเลขแสดงผลหนึ่งตัว" ค่าจึงเป็น
+    // text-3xl + shrink-0 อยู่แถวเดียวกับป้าย พอ PalletDetailModal ส่งค่าที่เป็น
+    // ข้อความยาว ("Warehouse", "ไม่เคยใช้งาน") ค่ากินความกว้างทั้งแถว คอลัมน์ป้าย
+    // (min-w-0) ยุบเหลือเกือบศูนย์ แล้วป้ายไทยซึ่งตัดกลางคำไม่ได้ก็ล้นออกมาทับตัวค่า
+    it('ค่าที่เป็นข้อความ (size="text") วางใต้ป้าย ไม่แย่งแถวเดียวกัน และห่อบรรทัดได้', () => {
+        render(<StatTile label="สถานที่ปัจจุบัน" value="Warehouse" size="text" />);
+        const value = screen.getByText('Warehouse');
+
+        // ไม่ shrink-0 อีก และห่อบรรทัดได้ -- ค่ายาวจึงไม่ดันอะไรออกนอกไทล์
+        expect(value.className).not.toContain('shrink-0');
+        expect(value.className).toContain('break-words');
+        // ขนาดอ่านข้อความ ไม่ใช่ขนาดตัวเลขแสดงผล
+        expect(value.className).not.toContain('text-3xl');
+
+        // และต้องไม่อยู่ในแถว justify-between เดียวกับป้ายอีก
+        const row = value.parentElement!;
+        expect(row.className).toContain('flex-col');
+        expect(row.className).not.toContain('justify-between');
+    });
+
+    it('ค่าที่เป็นตัวเลขยังอยู่แถวเดียวกับป้าย ตัวโต และไม่ยอมหด', () => {
+        render(<StatTile label="ทั้งหมด" value={12} />);
+        const value = screen.getByText('12');
+        expect(value.className).toContain('shrink-0');
+        expect(value.className).toContain('text-3xl');
+        expect(value.parentElement!.className).toContain('justify-between');
+    });
+
     it('เรียก onClick เมื่อกด', async () => {
         const onClick = vi.fn();
         const user = userEvent.setup();

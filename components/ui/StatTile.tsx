@@ -13,8 +13,23 @@ export interface StatTileProps {
     /** Tints the icon chip ONLY. The value stays in ink -- text never wears the data colour. */
     tone?: StatTone;
     delta?: { label: string; direction: 'up' | 'down' | 'flat'; isGood: boolean };
-    /** `hero` enlarges the value only. One tile per row at most, or it is not a hero. */
-    size?: 'md' | 'hero';
+    /** How the VALUE is presented, which is a question about what the value is
+     *  rather than only about how big to draw it.
+     *
+     *  `md`/`hero` are display figures -- a count, a percentage. They share the
+     *  label's row and never shrink, because the figure is what the tile exists
+     *  for and the label can wrap around it.
+     *
+     *  `text` is prose: a location name, a date, "Never". It stacks under the
+     *  label at a reading size and wraps. This is not a taste call. A prose
+     *  value in the figure layout takes the whole row -- it is `shrink-0` and
+     *  several times longer than "42" -- which collapses the label's column to
+     *  near-zero width; and a Thai label cannot break mid-word, so its segments
+     *  overflow that collapsed column and render ON TOP OF the value. That is
+     *  what "สถานที่ปัจจุบัน" + "Warehouse" did in PalletDetailModal.
+     *
+     *  `hero` also means one tile per row at most, or it is not a hero. */
+    size?: 'md' | 'hero' | 'text';
     /** 0-100. Draws a slim track under the caption. The value is expected to
      *  already spell the percentage out, so the bar carries no ARIA. */
     meterPct?: number;
@@ -98,6 +113,23 @@ const TONE_CHIP: Record<StatTone, string> = {
     neutral: 'bg-slate-100 text-slate-500',
 };
 
+// Full sets of classes picked between by ONE lookup, not a base string with an
+// override appended -- same reasoning as TILE_SURFACE_* above. `gap-3` and
+// `gap-1.5` are the same property, so an appended one would be decided by
+// Tailwind's emission order rather than by the caller.
+const VALUE_ROW = 'flex items-center justify-between gap-3';
+const VALUE_STACK = 'flex flex-col gap-1.5';
+
+// `shrink-0` on the figures is load-bearing (see the `size` prop's doc); its
+// ABSENCE on `text`, together with `min-w-0`, is equally load-bearing -- that is
+// what lets a long location name wrap inside the tile instead of widening the
+// row past it.
+const VALUE_CLASS: Record<'md' | 'hero' | 'text', string> = {
+    md: 'shrink-0 text-2xl sm:text-3xl',
+    hero: 'shrink-0 text-3xl sm:text-4xl',
+    text: 'min-w-0 break-words text-lg leading-snug sm:text-xl',
+};
+
 const DELTA_ICON: Record<'up' | 'down' | 'flat', LucideIcon> = {
     up: TrendingUp,
     down: TrendingDown,
@@ -167,18 +199,23 @@ export const StatTile: React.FC<StatTileProps> = ({
 
     const body = (
         <>
-            {/* ONE row: icon, label, value. The value used to sit on its own line
-                underneath, which cost every tile a 36px line box plus a 12px
-                margin and left the right half of the row empty -- so the tile was
-                tall AND had a hole in it. `justify-between` puts the figure hard
-                against the right edge, which is also where the eye goes to
-                compare four tiles down a row.
+            {/* A figure gets ONE row: icon, label, value. The value used to sit on
+                its own line underneath, which cost every tile a 36px line box
+                plus a 12px margin and left the right half of the row empty -- so
+                the tile was tall AND had a hole in it. `justify-between` puts
+                the figure hard against the right edge, which is also where the
+                eye goes to compare four tiles down a row.
 
                 `items-center`, not `items-start`: at text-3xl the value's line
                 box is 36px and the icon chip is 32px, while the label is a 20px
                 line that may wrap to two. Aligning tops would leave the number
-                looking like it had slipped below the label it belongs to. */}
-            <div className="flex items-center justify-between gap-3">
+                looking like it had slipped below the label it belongs to.
+
+                Prose stacks instead, and gets the row back for a different
+                reason than the old layout had: there is no hole to leave, since
+                a location name or a date fills the line it is given. See the
+                `size` prop's doc for what the one-row layout does to it. */}
+            <div className={size === 'text' ? VALUE_STACK : VALUE_ROW}>
                 <div className="flex min-w-0 items-center gap-2.5">
                     {Icon && (
                         // Hidden below `sm`, and this is arithmetic rather than
@@ -216,11 +253,7 @@ export const StatTile: React.FC<StatTileProps> = ({
                     30px "100%" would take half of it. `shrink-0` because this is
                     the element the tile exists for: if something has to give, it
                     is the label, which can wrap. */}
-                <p
-                    className={`shrink-0 font-semibold tracking-tight text-slate-900 ${
-                        size === 'hero' ? 'text-3xl sm:text-4xl' : 'text-2xl sm:text-3xl'
-                    }`}
-                >
+                <p className={`font-semibold tracking-tight text-slate-900 ${VALUE_CLASS[size]}`}>
                     {value}
                 </p>
             </div>

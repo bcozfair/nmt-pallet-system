@@ -62,6 +62,44 @@ const ACTION_LABEL_TH: Record<ActionType, string> = {
 };
 
 describe('PalletDetailModal', () => {
+    // อาการที่เทสต์นี้กัน: ไทล์ "ทำรายการล่าสุด" เคยอ่าน `last_checkout_date` ซึ่ง
+    // transactionService ล้างเป็น null ทุกครั้งที่รับคืน/ซ่อม/ตัดออกจากระบบ
+    // (transactionService.ts:229, 344, 410, 517) พาเลทที่ถูกรับคืนแล้วจึงขึ้นว่า
+    // "ไม่เคยใช้งาน" ทั้งที่ไทม์ไลน์ใต้ไทล์นั้นแสดงรายการมาแล้วหลายแถว
+    //
+    // ฟิลด์ที่ตรงกับป้ายคือ `last_transaction_date` -- ทุกทางเขียนอัปเดตค่านี้
+    // (types.ts:31, dashboardAnalytics.ts:687-691)
+    it('ไทล์ "ทำรายการล่าสุด" อ่าน last_transaction_date ไม่ใช่ last_checkout_date', async () => {
+        const { fetchPalletHistory } = await import('../../../services/transactionService');
+        const { fetchUsers } = await import('../../../services/userService');
+        vi.mocked(fetchPalletHistory).mockResolvedValue(makeHistory());
+        vi.mocked(fetchUsers).mockResolvedValue([]);
+
+        // พาเลทที่ "ถูกรับคืนแล้ว": เคยเบิกออกจริง แต่ last_checkout_date ถูกล้าง
+        const returned: Pallet = {
+            ...pallet,
+            last_checkout_date: null,
+            last_transaction_date: '2026-01-05T00:00:00.000Z',
+        };
+
+        render(<PalletDetailModal pallet={returned} onClose={() => {}} />);
+
+        expect(await screen.findByText('05-Jan-2026')).toBeTruthy();
+        expect(screen.queryByText('ไม่เคยใช้งาน')).toBeNull();
+    });
+
+    // ไม่มีร่องรอยการทำรายการเลยจริง ๆ จึงค่อยขึ้น "ไม่เคยใช้งาน"
+    it('พาเลทที่ยังไม่เคยมีรายการเลย ยังขึ้นว่า "ไม่เคยใช้งาน"', async () => {
+        const { fetchPalletHistory } = await import('../../../services/transactionService');
+        const { fetchUsers } = await import('../../../services/userService');
+        vi.mocked(fetchPalletHistory).mockResolvedValue([]);
+        vi.mocked(fetchUsers).mockResolvedValue([]);
+
+        render(<PalletDetailModal pallet={pallet} onClose={() => {}} />);
+
+        expect(await screen.findByText('ไม่เคยใช้งาน')).toBeTruthy();
+    });
+
     it('ทุก ActionType บนไทม์ไลน์มีสี dot ของตัวเอง ไม่มีสองเคสใช้สีร่วมกัน', async () => {
         const { fetchPalletHistory } = await import('../../../services/transactionService');
         const { fetchUsers } = await import('../../../services/userService');

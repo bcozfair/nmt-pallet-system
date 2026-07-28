@@ -70,6 +70,8 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
         return () => { active = false; };
     }, [pallet.pallet_id]);
 
+    const lastTouch = pallet.last_transaction_date || pallet.last_checkout_date;
+
     return (
         <>
             <Modal
@@ -96,23 +98,37 @@ export const PalletDetailModal = ({ pallet, onClose }: { pallet: Pallet, onClose
             >
                 <div className="space-y-6">
                     {/* StatTile แทนกล่องที่ไฟล์นี้เคยประกอบเอง -- กล่องขวาของเดิมใช้
-                        purple-50/purple-900 ซึ่งเป็นสีที่ไม่มีอยู่ใน @theme ของแอปเลย */}
+                        purple-50/purple-900 ซึ่งเป็นสีที่ไม่มีอยู่ใน @theme ของแอปเลย
+
+                        size="text" ไม่ใช่ค่า default: สองไทล์นี้เป็นข้อความ (ชื่อสถานที่,
+                        วันที่, "ไม่เคยใช้งาน") ไม่ใช่ตัวเลขแสดงผล เลย์เอาต์ตัวเลขจะวางค่า
+                        ไว้แถวเดียวกับป้ายแบบ shrink-0 คอลัมน์ป้ายจึงยุบจนป้ายไทยล้นออกมา
+                        ทับตัวค่า -- ดูคอมเมนต์ของ prop `size` ใน StatTile.tsx */}
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <StatTile
                             label={t.modals.currentLocation}
                             value={pallet.current_location}
                             icon={MapPin}
                             tone="brand"
+                            size="text"
                         />
+                        {/* last_transaction_date ไม่ใช่ last_checkout_date: ทุกทางเขียนที่
+                            ไม่ใช่การเบิกออกจะล้าง last_checkout_date เป็น null
+                            (transactionService.ts:229, 344, 410, 517) พาเลทที่รับคืนแล้ว
+                            จึงขึ้นว่า "ไม่เคยใช้งาน" ทั้งที่ไทม์ไลน์ข้างล่างมีรายการเต็มไปหมด
+                            ป้ายคือ "ทำรายการล่าสุด" ฟิลด์ที่ตรงกับป้ายจึงเป็นตัวแรก
+
+                            ยังกลับไปอ่าน last_checkout_date ต่อ (สำนวนเดียวกับ
+                            dashboardAnalytics.ts:691) เพราะแถวที่สร้างก่อนจะมีคอลัมน์
+                            last_transaction_date จะไม่มีค่าในคอลัมน์นั้น แต่ไม่ตกไปถึง
+                            created_at -- วันที่สร้างอยู่บนหัวโมดัลอยู่แล้ว การเอามาใส่ตรงนี้
+                            จะกลายเป็นพาเลทที่ไม่เคยถูกใช้เลยดูเหมือนเพิ่งทำรายการไป */}
                         <StatTile
                             label={t.modals.lastInteraction}
-                            value={
-                                pallet.last_checkout_date
-                                    ? formatDate(pallet.last_checkout_date)
-                                    : t.modals.never
-                            }
+                            value={lastTouch ? formatDate(lastTouch) : t.modals.never}
                             icon={Clock}
                             tone="accent"
+                            size="text"
                         />
                     </div>
 
