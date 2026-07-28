@@ -299,7 +299,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                     )}
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onPrintQr([p]); }}
-                                        className="rounded-full p-1.5 text-indigo-600 transition hover:bg-indigo-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                        className="rounded-full p-1.5 text-brand-400 transition hover:bg-brand-50 hover:text-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                                         title={t.inventory.printQrTitle}
                                         aria-label={t.inventory.printQrTitle}
                                     >
