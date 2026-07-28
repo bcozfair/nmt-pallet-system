@@ -177,13 +177,32 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                             onClick={() => onSelectPallet(p.pallet_id)}
                             className={
                                 'cursor-pointer transition ' +
-                                (isSelected ? 'bg-brand-50' : 'hover:bg-slate-50') +
-                                ' ' +
-                                // A left border, not a full-row wash: `bg-yellow-200/30`
-                                // fought the blue of a selected row into a muddy colour,
-                                // and at 30% opacity on plain white it barely showed up
-                                // in the first place.
-                                (isOverdue ? 'border-l-2 border-amber-400' : '')
+                                // Three complete, mutually exclusive surfaces from ONE
+                                // chain, rather than a base plus an appended override.
+                                // Two classes setting the same property is a coin flip
+                                // decided by the order of the built stylesheet, not by
+                                // the order they were written in (Button.tsx:53-59).
+                                //
+                                // An overdue row is a solid `bg-amber-50`, the same tone
+                                // StatTile.tsx:97 already gives `warning`. An earlier
+                                // attempt at a wash used `bg-yellow-200/30` and failed
+                                // twice over: translucent amber sat ON TOP of a selected
+                                // row's blue and mixed into a muddy colour, and at 30%
+                                // on plain white it was almost invisible anyway. Both
+                                // problems came from the opacity, not from the idea --
+                                // an opaque fill with an explicit precedence has
+                                // nothing to blend with.
+                                //
+                                // Selected outranks overdue, so a selected overdue row
+                                // reads as blue. Overdue is not lost there: the row
+                                // still carries the red day count and its alert icon,
+                                // which is the accessible carrier anyway -- colour has
+                                // never been the only signal here.
+                                (isSelected
+                                    ? 'bg-brand-50 hover:bg-brand-100'
+                                    : isOverdue
+                                      ? 'bg-amber-50 hover:bg-amber-100'
+                                      : 'hover:bg-slate-50')
                             }
                         >
                             {/* Body cells are `py-1.5`, the header `py-2.5` (see
