@@ -1,8 +1,7 @@
 import React from 'react';
-import { ArrowRightLeft, QrCode, MoreHorizontal, List, CircleCheckBig, Ban, Trash2 } from 'lucide-react';
+import { ArrowRightLeft, QrCode, List, CircleCheckBig, Ban, Trash2 } from 'lucide-react';
 import { useT } from '../../../hooks/useT';
-import { Button, Menu, SelectionBar } from '../../ui';
-import type { MenuItem } from '../../ui';
+import { Button, SelectionBar } from '../../ui';
 
 export interface InventorySelectionBarProps {
     selectedCount: number;
@@ -36,32 +35,6 @@ export const InventorySelectionBar: React.FC<InventorySelectionBarProps> = ({
     const t = useT();
     const [showIds, setShowIds] = React.useState(false);
 
-    const menuItems: MenuItem[] = [
-        {
-            label: showIds ? t.inventory.hideIds : t.inventory.showIds,
-            icon: List,
-            tone: 'neutral',
-            onClick: () => setShowIds((prev) => !prev),
-        },
-    ];
-
-    // Same condition gates both: the selection is all damaged pallets, so
-    // either resolution -- repair it, or write it off -- applies.
-    if (showRepairButton) {
-        menuItems.push(
-            { label: t.action.repair, icon: CircleCheckBig, tone: 'brand', onClick: onBulkRepair },
-            { label: t.inventory.scrap, icon: Ban, tone: 'neutral', onClick: onBulkScrap },
-        );
-    }
-
-    // Delete lives in the menu, not on the bar itself, on purpose: deleting a
-    // pallet erases its entire transaction history permanently and
-    // unrecoverably (see deleteMessage / bulkDeleteMessage in
-    // locales/admin/inventory.ts), and a button that destructive should not
-    // sit 8px away from the buttons this bar is meant to be pressed on
-    // routinely. The confirm modal it opens is unchanged.
-    menuItems.push({ label: t.common.delete, icon: Trash2, tone: 'danger', onClick: onBulkDelete });
-
     // `localeCompare` with `numeric: true` so "P2" sorts before "P10" instead
     // of after it, and `sensitivity: 'base'` so case never splits what is
     // otherwise the same ID -- carried over unchanged from the panel this
@@ -92,6 +65,18 @@ export const InventorySelectionBar: React.FC<InventorySelectionBarProps> = ({
                     </div>
                 ) : undefined
             }
+            // Every action sits on the bar. There is no "..." menu any more:
+            // reaching a bulk action used to cost a click to open the menu, a
+            // read of four labels, and a second click -- for a bar that exists
+            // to be acted on immediately, and whose whole point is that the
+            // actions are in front of you at the moment you have made a
+            // selection. At most six buttons appear at once, and three of them
+            // are conditional, so the common case is three or four.
+            //
+            // The bar wraps to a second row when the labels do not fit, and
+            // that costs nothing now: SelectionBar measures its own rendered
+            // height and publishes it, so the page reserves whatever the bar
+            // actually turned out to be rather than a number written here.
             actions={
                 <>
                     {showTransactionButton && (
@@ -102,17 +87,45 @@ export const InventorySelectionBar: React.FC<InventorySelectionBarProps> = ({
                     <Button variant="inverseGhost" icon={QrCode} onClick={onPrintQrSelected}>
                         {t.inventory.printQr}
                     </Button>
+                    {/* A real toggle, so it carries `aria-pressed` rather than
+                        relying on the label flipping between "show" and "hide"
+                        -- the label alone tells a screen reader what the next
+                        press will do, never what the current state is. */}
+                    <Button
+                        variant="inverseGhost"
+                        icon={List}
+                        aria-pressed={showIds}
+                        onClick={() => setShowIds((prev) => !prev)}
+                    >
+                        {showIds ? t.inventory.hideIds : t.inventory.showIds}
+                    </Button>
+                    {/* Same condition gates both: the selection is all damaged
+                        pallets, so either resolution -- repair it, or write it
+                        off -- applies. */}
+                    {showRepairButton && (
+                        <>
+                            <Button variant="inverseGhost" icon={CircleCheckBig} onClick={onBulkRepair}>
+                                {t.action.repair}
+                            </Button>
+                            <Button variant="inverseGhost" icon={Ban} onClick={onBulkScrap}>
+                                {t.inventory.scrap}
+                            </Button>
+                        </>
+                    )}
+                    {/* Delete is on the bar because that is what was asked for,
+                        but it does not get to look like its neighbours. It
+                        erases a pallet's entire transaction history permanently
+                        and unrecoverably (see deleteMessage / bulkDeleteMessage
+                        in locales/admin/inventory.ts), and it now sits inches
+                        from buttons pressed routinely, where it used to be two
+                        clicks deep in a menu. `inverseDanger` and last position
+                        are what is left carrying that weight -- along with the
+                        confirm modal, which is unchanged and is the thing
+                        actually standing between a misclick and data loss. */}
+                    <Button variant="inverseDanger" icon={Trash2} onClick={onBulkDelete}>
+                        {t.common.delete}
+                    </Button>
                 </>
-            }
-            menu={
-                <Menu
-                    iconOnly
-                    openUpward
-                    variant="inverseGhost"
-                    icon={MoreHorizontal}
-                    label={t.inventory.moreActions}
-                    items={menuItems}
-                />
             }
         />
     );

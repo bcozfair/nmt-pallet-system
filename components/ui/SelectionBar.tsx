@@ -108,7 +108,7 @@ export const SelectionBar: React.FC<SelectionBarProps> = ({
             ref={stackRef}
             className="fixed inset-x-0 bottom-0 z-20 px-4 pb-4 lg:pl-[calc(16rem+1rem)] print:hidden"
         >
-            <div className="mx-auto flex max-w-4xl flex-col gap-2">
+            <div className="mx-auto flex max-w-5xl flex-col gap-2">
                 {detail}
                 <div
                     className={

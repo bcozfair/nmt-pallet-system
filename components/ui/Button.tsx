@@ -7,7 +7,8 @@ export type ButtonVariant =
     | 'danger'
     | 'ghost'
     | 'inverse'
-    | 'inverseGhost';
+    | 'inverseGhost'
+    | 'inverseDanger';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: ButtonVariant;
@@ -57,6 +58,21 @@ export const BUTTON_VARIANT: Record<ButtonVariant, string> = {
     inverseGhost:
         'border border-white/25 bg-white/10 text-white hover:bg-white/20 active:scale-[0.99] ' +
         'disabled:hover:bg-white/10 focus-visible:outline-white',
+    // `danger` is built for a white card and is unreadable here -- red-600 text
+    // on brand-900 is barely darker than the bar it sits on. This is the same
+    // shape as inverseGhost with the tint carried over to red, which is enough
+    // to separate a destructive action from the ones beside it without a
+    // filled red button shouting on a bar the user opens routinely.
+    //
+    // `focus-visible:outline-white` overrides BUTTON_BASE's outline-brand-500
+    // the same way inverseGhost does. That override was checked against the
+    // built stylesheet rather than assumed: appending a class does not by
+    // itself beat one already in the base string (see the note above), but
+    // Tailwind emits outline-white after outline-brand-500, so it wins.
+    inverseDanger:
+        'border border-red-400/40 bg-red-500/15 text-red-200 hover:bg-red-500/25 ' +
+        'hover:text-red-100 active:scale-[0.99] disabled:hover:bg-red-500/15 ' +
+        'focus-visible:outline-white',
 };
 
 export const Button: React.FC<ButtonProps> = ({
