@@ -77,28 +77,30 @@ export const AdminSidebar = ({
                 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
             `}>
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                        {/* Was a blue rounded square with a letter "N" in it standing
-                            in for a logo. This is the actual NMT wordmark, the same
-                            component the sign-in card uses, drawn in brand-600 and
-                            accent-500 -- so the mark an admin signs in under is the
-                            mark they keep looking at. It carries the product name
-                            itself, which is why the "NMT System" text next to it is
-                            gone rather than duplicated. */}
-                        <BrandMark className="h-5 w-auto shrink-0" />
-                        {/* The desktop half of the language control, beside the
-                            mark rather than down in the footer: on the sign-in
-                            screen the toggle sits in the card header next to the
-                            same wordmark, so this is where a returning admin
-                            already expects to find it.
+                    {/* Was a blue rounded square with a letter "N" in it standing
+                        in for a logo. This is the actual NMT wordmark, the same
+                        component the sign-in card uses, drawn in brand-600 and
+                        accent-500 -- so the mark an admin signs in under is the
+                        mark they keep looking at. It carries the product name
+                        itself, which is why the "NMT System" text next to it is
+                        gone rather than duplicated. */}
+                    <BrandMark className="h-5 w-auto shrink-0" />
+                    {/* The desktop half of the language control. A direct child
+                        of the `justify-between` row, not tucked into the mark's
+                        group: on desktop the close button beside it is
+                        `lg:hidden`, so the row had only one child left and the
+                        toggle sat glued to the wordmark on the left edge. As a
+                        sibling it takes the right end of the row, which is where
+                        the other two mounts of this control already sit -- the
+                        sign-in card header (AuthShell.tsx) and the mobile top
+                        bar (AdminDashboard.tsx).
 
-                            hidden below lg because the mobile half lives in the
-                            AdminDashboard top bar -- the two must never be on
-                            screen at once, or changing the language in one leaves
-                            the other looking like a second, separate setting. */}
-                        <div className="hidden lg:block">
-                            <LanguageToggle />
-                        </div>
+                        hidden below lg because that mobile top bar carries the
+                        other half -- the two must never be on screen at once, or
+                        changing the language in one leaves the other looking
+                        like a second, separate setting. */}
+                    <div className="hidden lg:block">
+                        <LanguageToggle />
                     </div>
                     <button
                         onClick={() => setIsMobileMenuOpen(false)}
