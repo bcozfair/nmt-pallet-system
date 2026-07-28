@@ -199,8 +199,18 @@ export const useInventoryActions = (
             onRefresh();
         } catch (error: any) {
             console.error(error);
+            // โยนต่อ ไม่ toast เอง
+            //
+            // ของเดิมดักแล้ว toast แล้วจบ ฟังก์ชันนี้จึง resolve เสมอไม่ว่าจะสำเร็จ
+            // หรือไม่ ส่วน EditPalletModal เรียก `await onSave(...)` แล้ว `onClose()`
+            // ในบรรทัดถัดไป ผลคือรหัสซ้ำ (23505) ทำให้โมดัลปิด ข้อความที่พิมพ์ไป
+            // หายหมด เหลือ toast สีแดงใบเดียวลอยอยู่ -- ไม่มีทางกลับไปแก้ค่าเดิม
+            //
+            // ข้อความยังแปลที่นี่เหมือนเดิม เพราะที่นี่คือที่เดียวที่รู้จักรหัส error
+            // ของ Postgres ฝั่งโมดัลรับไปแสดงใต้ช่องที่ผิดจริง ๆ แทนที่จะเด้งอยู่บนสุด
+            // ของจอขณะที่สายตาอยู่ที่ช่องกรอก
             const msg = error.code === '23505' ? dict().inventory.idExists : dict().inventory.updateFailed;
-            toast.error(msg);
+            throw new Error(msg);
         }
     };
 
