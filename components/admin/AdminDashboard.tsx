@@ -244,7 +244,21 @@ const AdminDashboard = () => {
                 on <main> used to mask this by making the column a scroll
                 container; removing it to get a single document scroller is
                 what exposed it. */}
-            <div className="flex-1 min-w-0 flex flex-col min-h-dvh">
+            {/* xl:overflow-x-clip ตัดส่วนที่ StickyHeader ยืดพื้นหลังออกไปนอกจอ
+                (ดู components/ui/StickyHeader.tsx) ถ้าไม่ตัด ::before ที่กว้าง
+                100vw ทั้งสองข้างจะไปเพิ่มพื้นที่เลื่อนแนวนอนให้เอกสาร แล้วจะมี
+                สกรอลล์บาร์ล่างโผล่มาทั้งแอป
+
+                `clip` ไม่ใช่ `hidden` และไม่ใช่แค่ความชอบ: `hidden` สร้าง scroll
+                container ขึ้นมา ทำให้ทั้ง StickyHeader และหัวตารางไปเกาะกับกล่องนี้
+                แทน viewport แล้วก็เลิกเกาะได้เลย -- เหตุผลเดียวกับที่ DataTable.tsx
+                เลือก overflow-clip ไว้ที่การ์ดตาราง (บรรทัด 101-105)
+
+                วางไว้ที่คอลัมน์นี้ ไม่ใช่ที่ <main> เพราะ overflow ตัดที่ padding
+                box ส่วน <main> มี lg:p-8 ช่องว่าง 32px ที่ต้องการให้พื้นหลังคลุม
+                จึงจะโดนตัดทิ้งไปพอดี คอลัมน์นี้ไม่มี padding padding box จึงเท่ากับ
+                ขอบคอลัมน์ -- พื้นหลังกินได้ตั้งแต่ขอบ sidebar ถึงขอบจอขวา */}
+            <div className="flex-1 min-w-0 flex flex-col min-h-dvh xl:overflow-x-clip">
                 {/* print:hidden for the same reason the sidebar is: chrome, not
                     content. */}
                 <header className="lg:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between gap-3 sticky top-0 z-10 print:hidden">

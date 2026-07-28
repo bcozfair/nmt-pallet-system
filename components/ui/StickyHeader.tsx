@@ -1,9 +1,29 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 export interface StickyHeaderProps {
     children: React.ReactNode;
     className?: string;
 }
+
+// เกณฑ์ "เริ่มเกาะ" กับ "เลิกเกาะ" ไม่ใช่ค่าเดียวกัน และนี่คือประเด็นทั้งหมดของ
+// nextStuck ข้างล่าง
+//
+// ของเดิมใช้ `top <= 0` ค่าเดียวทั้งสองทาง ซึ่งแปลว่าตรงจุดเกาะพอดี ค่าที่วัดได้
+// แกว่งข้ามเส้นกลับไปกลับมาได้ตลอด: getBoundingClientRect คืนทศนิยม ตำแหน่งเลื่อน
+// บนแทร็คแพดกับล้อเมาส์ละเอียดก็เป็นทศนิยม และบนจอที่ตั้ง scale 125% (ค่ามาตรฐาน
+// ของ Windows) 1 CSS px ไม่ตรงกับ device px อยู่แล้ว ผลคือ 0.4 -> ไม่เกาะ ->
+// -0.2 -> เกาะ สลับกันทุกเฟรมที่เลื่อนช้า ๆ แถวจึงกะพริบให้เห็นข้างหลังแถบ
+//
+// 4px ไม่ใช่เลขสุ่ม: ต้องน้อยกว่า 8 ซึ่งเป็นระยะจริงที่แถบนี้ต้องเลื่อนก่อนจะเกาะ
+// (main มี lg:p-8 = 32px ส่วนแถบดึงตัวเองขึ้น -mt-6 = 24px เหลือ 8) ถ้าตั้งเกณฑ์
+// ปล่อยไว้ที่ 8 ขึ้นไป มันจะไปไม่ถึงเลย แถบก็จะติดพื้นหลังค้างตลอดกาล
+const STICK_AT = 0;
+const UNSTICK_AT = 4;
+
+/** แยกออกมาเป็นฟังก์ชันบริสุทธิ์เพราะ jsdom ไม่จัดหน้า -- getBoundingClientRect
+ *  คืน 0 เสมอ การตัดสินใจนี้จึงทดสอบผ่าน DOM ไม่ได้ แต่ทดสอบตรง ๆ ได้ */
+export const nextStuck = (top: number, wasStuck: boolean): boolean =>
+    wasStuck ? top < UNSTICK_AT : top <= STICK_AT;
 
 // ตรึงทุกอย่างเหนือตาราง -- หัวเพจ แถบไทล์ แถบกรอง -- ไว้ที่ยอดจอ แล้วปล่อยให้
 // เลื่อนเฉพาะแถวข้อมูลลงไปจนถึงตัวแบ่งหน้า
@@ -28,9 +48,25 @@ export interface StickyHeaderProps {
 // ไม่มีเงา หน้าตาเหมือนตอนไม่มี component นี้ทุกประการ ไล่สีจึงอยู่ครบ พอเลื่อนจน
 // เกาะแล้วค่อยได้พื้นทึบเต็มกับเงาบาง ๆ ใต้ขอบ ซึ่งตอนนั้นไล่สีเลื่อนพ้นจอไปแล้ว
 // ไม่มีอะไรให้รักษาอีก
+//
+// "เกาะอยู่หรือยัง" เป็น data attribute ที่เขียนลง DOM ตรง ๆ ไม่ใช่ useState และนี่
+// เป็นการแก้บั๊ก ไม่ใช่การจูนความเร็ว
+//
+// ของเดิมเป็น state ลำดับจึงเป็น scroll -> rAF -> วัด -> setState -> React render
+// -> commit คลาสใหม่ถึงจอ ช้ากว่าตอนที่ element เกาะจริงอย่างน้อยหนึ่งเฟรม และแถบ
+// นี้เกาะหลังเลื่อนแค่ 8px เฟรมที่ค้างอยู่นั้นจึงเป็นเฟรมที่พื้นหลังยังใสอยู่พอดี
+// ตอนที่แถวข้อมูลกำลังวิ่งขึ้นมาอยู่ข้างหลัง -- เลื่อนเร็ว ๆ ทีไรก็เห็นแถวทะลุทุกที
+//
+// attribute ตัวนี้ไม่ได้อยู่ใน JSX โดยตั้งใจ React จึงไม่รู้จักมันและไม่ patch ทับ
+// เวลา parent re-render (InventoryView re-render ทุกครั้งที่พิมพ์ในช่องค้นหา)
+//
+// และไม่มี transition ทั้งพื้นหลังและเงา ของเดิมมี transition-shadow 200ms อยู่กับ
+// เงาอย่างเดียว พื้นหลังสลับทันที สองอย่างจึงมาถึงคนละเวลาแล้วเห็นเป็นรอยต่อ
+// จะให้ตรงกันมีสองทาง: ใส่ทั้งคู่ หรือไม่ใส่ทั้งคู่ -- ต้องเป็นไม่ใส่ทั้งคู่ เพราะ
+// ระหว่างที่พื้นหลังกำลังเฟดเข้ามามันยังโปร่งอยู่ ซึ่งก็คืออาการเดิมอีกครั้ง
+// แค่ยืดออกไป 200ms เงาที่นี่จาง (-18px spread) การปรากฏทันทีจึงไม่สะดุดตา
 export const StickyHeader: React.FC<StickyHeaderProps> = ({ children, className = '' }) => {
     const ref = useRef<HTMLDivElement>(null);
-    const [stuck, setStuck] = useState(false);
 
     // อ่านตำแหน่งจริงเทียบยอด viewport แทนที่จะเดาจาก scrollY เพราะระยะที่กองนี้
     // อยู่ห่างจากยอดเอกสารไม่คงที่ -- padding ของ <main> ต่างกันตามความกว้าง
@@ -44,14 +80,24 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({ children, className 
         // รวบ scroll event หลายตัวให้เหลือการวัดครั้งเดียวต่อเฟรม -- ไม่งั้นทุก
         // event จะบังคับให้เบราว์เซอร์คำนวณ layout ใหม่กลางการเลื่อน
         let frame = 0;
+        // สถานะอยู่ในตัวแปรของ closure ไม่ใช่ใน state -- ต้องอ่านค่าล่าสุดได้ทันที
+        // ในเฟรมเดียวกับที่วัด ไม่ใช่รอค่าที่ React จะส่งกลับมาในรอบ render ถัดไป
+        let stuck = false;
         const measure = () => {
             frame = 0;
-            setStuck(node.getBoundingClientRect().top <= 0);
+            const next = nextStuck(node.getBoundingClientRect().top, stuck);
+            if (next === stuck) return;
+            stuck = next;
+            node.dataset.stuck = next ? 'true' : 'false';
         };
         const onScroll = () => {
             if (!frame) frame = requestAnimationFrame(measure);
         };
 
+        // เขียนค่าตั้งต้นก่อน measure เพราะ measure ข้ามการเขียนเมื่อค่าไม่เปลี่ยน
+        // ถ้าไม่มีบรรทัดนี้ แถบที่ยังไม่เกาะจะไม่มี attribute เลย แล้วชุดคลาสฝั่ง
+        // false ก็จะไม่ถูกเลือก -- บังเอิญหน้าตาเหมือนกัน แต่เป็นการพึ่งความบังเอิญ
+        node.dataset.stuck = 'false';
         measure();
         window.addEventListener('scroll', onScroll, { passive: true });
         window.addEventListener('resize', onScroll, { passive: true });
@@ -100,14 +146,43 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({ children, className 
                 // ข้างล่าง (pb-4) ปิดช่อง gap-4 ระหว่างกองกับการ์ดตาราง ถ้าไม่มี
                 // แถวที่เลื่อนผ่านจะโผล่ให้เห็นในช่องนั้น
                 'xl:sticky xl:top-0 xl:z-20 xl:-mt-6 xl:-mb-4 xl:pt-6 xl:pb-4 ' +
-                'xl:transition-shadow xl:duration-200 ' +
-                // ชุดคลาสเต็มสองชุดจากเงื่อนไขเดียว ไม่ใช่ base แล้วเอาคลาสอื่นไปทับ
-                // -- สองคลาสที่ตั้งค่าเดียวกันแพ้ชนะกันตามลำดับใน CSS ที่ build
-                // ออกมา ไม่ใช่ลำดับที่เขียน (ดู Button.tsx:53-59)
-                (stuck
-                    ? 'xl:bg-slate-50 xl:shadow-[0_14px_22px_-18px_rgba(15,42,82,0.5)]'
-                    : 'xl:bg-transparent xl:shadow-none') +
-                ' ' +
+                // พื้นหลังอยู่บน ::before ที่ยืดออกไป 100vw ทั้งสองข้าง ไม่ได้อยู่บน
+                // ตัว element -- และนี่เป็นการแก้บั๊ก ไม่ใช่การตกแต่ง
+                //
+                // ทาพื้นบนตัว element เองแล้วมันกว้างเท่าคอลัมน์เนื้อหาพอดี เหลือ
+                // ช่องว่าง 32px (main มี lg:p-8) เปิดไว้ทั้งซ้ายขวาให้เห็น .app-canvas
+                // ข้างใต้ -- และตรงนั้นไม่ใช่ #f8fafc เปล่า ๆ อย่างที่คอมเมนต์ข้างบน
+                // เคยสมมติไว้ ไล่สีของ .app-canvas วัด 60% จากความสูงของ *เอกสาร*
+                // ไม่ใช่ของ viewport (index.css:278) หน้าที่มี 20 แถวสูงราว 1,400px
+                // ไล่สีจึงยังคลุมถึง y≈670 ของเอกสาร กินทั้งช่วงที่แถบนี้เกาะอยู่
+                //
+                // ผลคือในกรอบเป็นเทาเรียบ นอกกรอบอมฟ้ากว่า เห็นเป็นสี่เหลี่ยมแปะอยู่
+                // มีรอยต่อแนวตั้งวิ่งลงมาสองข้าง พอกินเต็มความกว้างแล้วไม่มีพื้นที่
+                // ระดับสายตาเดียวกันให้เทียบ รอยต่อก็หายไปเอง โดยไม่ต้องไปแตะ
+                // .app-canvas ซึ่งหน้าอื่นทั้งแอปใช้ร่วมกันอยู่
+                //
+                // ส่วนที่ล้นออกไปถูกตัดทิ้งด้วย xl:overflow-x-clip ที่คอลัมน์เนื้อหา
+                // ใน AdminDashboard.tsx -- `clip` ไม่ใช่ `hidden` เพราะ hidden สร้าง
+                // scroll container แล้ว sticky ทั้งหน้าจะพังทันที (เหตุผลเดียวกับที่
+                // DataTable.tsx:101-105 บันทึกไว้)
+                'xl:before:absolute xl:before:inset-y-0 xl:before:-left-[100vw] ' +
+                'xl:before:-right-[100vw] xl:before:-z-10 xl:before:content-[""] ' +
+                // ชุดคลาสเต็มสองชุดเหมือนเดิม ไม่ใช่ base แล้วเอาคลาสอื่นไปทับ --
+                // สองคลาสที่ตั้งค่าเดียวกันแพ้ชนะกันตามลำดับใน CSS ที่ build ออกมา
+                // ไม่ใช่ลำดับที่เขียน (ดู Button.tsx:53-59)
+                //
+                // ต่างจากเดิมตรงที่ตัวเลือกไม่ใช่ ternary ใน JS แล้ว แต่เป็น
+                // selector ของ CSS ที่อ่าน data-stuck ทั้งสองชุดจึงอยู่ใน className
+                // พร้อมกันตลอดโดยไม่ตีกัน: [data-stuck="true"] กับ
+                // [data-stuck="false"] เป็นจริงพร้อมกันไม่ได้ ลำดับใน CSS จึงไม่มี
+                // ผล และการสลับก็ไม่ต้องให้ React เข้ามาเกี่ยวข้อง
+                //
+                // เงาย้ายมาอยู่บน ::before ด้วย ถ้าทิ้งไว้บนตัว element เงาจะจบตรง
+                // ขอบคอลัมน์ ทั้งที่พื้นหลังกินเต็มจอ -- เส้นขอบล่างจะขาดหายไปสองข้าง
+                'xl:data-[stuck=false]:before:bg-transparent ' +
+                'xl:data-[stuck=false]:before:shadow-none ' +
+                'xl:data-[stuck=true]:before:bg-slate-50 ' +
+                'xl:data-[stuck=true]:before:shadow-[0_14px_22px_-18px_rgba(15,42,82,0.5)] ' +
                 className
             }
         >

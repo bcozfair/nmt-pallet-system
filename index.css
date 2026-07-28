@@ -211,6 +211,20 @@
     position: static !important;
   }
 
+  /* StickyHeader ทาพื้นหลังของตัวเองไว้บน ::before ที่ยืดออกไป 100vw ทั้งสองข้าง
+     เพื่อให้แถบกินเต็มความกว้างตอนเกาะ (ดู components/ui/StickyHeader.tsx)
+
+     สองกฎข้างบนไม่ครอบมันเลย: `position: static` แตะแค่ตัว element ส่วน
+     `box-shadow: none` แม็ตช์จาก class attribute ของ element เหมือนกัน แต่ทั้งคู่
+     ไม่มีทางเอื้อมถึงกล่องที่ pseudo สร้างขึ้นมาเอง -- pseudo จึงยังลอยอยู่ที่เดิม
+     พร้อมพื้นสีทึบ กลายเป็นแถบเทาพาดขวางกระดาษหนึ่งแถบ ทับเนื้อหาที่อยู่ใต้มัน
+
+     และมันเกิดขึ้นจริงบนกระดาษ ไม่ใช่แค่ในทางทฤษฎี ด้วยเหตุผลเดียวกับที่คอมเมนต์
+     ข้างบนบันทึกไว้: กฎ xl: มีผลตอนพิมพ์ด้วย */
+  [class*="before:-left-"]::before {
+    display: none !important;
+  }
+
   /* Nothing scrolls on paper: an inner scroller would print only its first
      screenful and drop the rest with no indication anything was missing. */
   .overflow-y-auto,
