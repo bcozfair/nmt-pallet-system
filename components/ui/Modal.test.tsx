@@ -185,6 +185,39 @@ describe('Modal', () => {
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
+    // มีคำขอค้างอยู่ (busy) ต้องปิดไม่ได้เลยไม่ว่าทางไหน -- ไม่งั้น error ที่กำลัง
+    // จะโยนกลับมาทีหลังตกลงบนต้นไม้ที่ unmount ไปแล้ว กลายเป็นความเงียบสมบูรณ์
+    it('Escape ไม่ปิดโมดัลระหว่าง busy', async () => {
+        const onClose = vi.fn();
+        const user = userEvent.setup();
+        render(<Modal {...base} isOpen busy onClose={onClose}>เนื้อ</Modal>);
+        await user.keyboard('{Escape}');
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('Escape กลับมาปิดโมดัลได้เมื่อ busy กลายเป็น false', async () => {
+        const onClose = vi.fn();
+        const user = userEvent.setup();
+        const { rerender } = render(<Modal {...base} isOpen busy onClose={onClose}>เนื้อ</Modal>);
+        rerender(<Modal {...base} isOpen busy={false} onClose={onClose}>เนื้อ</Modal>);
+        await user.keyboard('{Escape}');
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('คลิกพื้นหลังไม่ปิดระหว่าง busy แม้เปิด dismissOnBackdrop ไว้', async () => {
+        const onClose = vi.fn();
+        const user = userEvent.setup();
+        render(<Modal {...base} isOpen busy dismissOnBackdrop onClose={onClose}>เนื้อ</Modal>);
+        await user.click(screen.getByTestId('modal-overlay'));
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('ปุ่ม ✕ ถูก disabled ระหว่าง busy', () => {
+        render(<Modal {...base} isOpen busy>เนื้อ</Modal>);
+        const closeButton = screen.getByRole('button', { name: 'ปิดหน้าต่าง' });
+        expect(closeButton.hasAttribute('disabled')).toBe(true);
+    });
+
     it('เรนเดอร์ footer และ headerActions ที่ส่งมา', () => {
         render(
             <Modal
