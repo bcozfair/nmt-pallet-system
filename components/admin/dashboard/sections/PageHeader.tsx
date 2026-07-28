@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, FileText, Package, PieChart, Printer } from 'lucide-react';
+import { Clock, FileText, LayoutDashboard, Package, PieChart, Printer } from 'lucide-react';
 import { Button, Menu, PageHeader as UiPageHeader } from '../../../ui';
 import type { MenuItem } from '../../../ui';
 import { useT } from '../../../../hooks/useT';
@@ -57,6 +57,10 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         <UiPageHeader
             title={t.dashboard.title}
             subtitle={t.dashboard.subtitle}
+            // ทุกหน้าแอดมินมีไอคอนนำหน้าหัวเรื่อง หน้านี้เคยเป็นหน้าเดียวที่ไม่มี
+            // -- เป็นเศษที่เหลือจากตอนที่หน้านี้ยังไม่มีหัวเรื่องเลย (ดูข้อ 3 ข้างบน)
+            // ตอนเติมหัวเรื่องกลับมาจึงเติมแต่ข้อความ ไอคอนตกหล่นไป
+            icon={LayoutDashboard}
             actionsBusy={isBusy}
             actions={
                 <>

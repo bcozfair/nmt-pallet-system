@@ -29,7 +29,7 @@ export const dashboardEn = {
     reportWindowTitle: 'NMT Dashboard Report',
     reportTitle: 'Dashboard Report',
     reportGeneratedOn: (when: string) => `Generated on ${when}`,
-    printedFooter: (when: string) => `Printed from NMT Pallet Management System on ${when}`,
+    printedFooter: (when: string) => `Printed from Pallet Management System on ${when}`,
 
     // --- Summary CSV ---
     // Row labels for the stats-only export in the header's dropdown. The three
@@ -125,7 +125,7 @@ export const dashboardTh: DashboardDict = {
     reportWindowTitle: 'รายงานภาพรวม NMT',
     reportTitle: 'รายงานภาพรวม',
     reportGeneratedOn: (when: string) => `สร้างรายงานเมื่อ ${when}`,
-    printedFooter: (when: string) => `พิมพ์จากระบบจัดการพาเลท NMT เมื่อ ${when}`,
+    printedFooter: (when: string) => `พิมพ์จากระบบจัดการพาเลทเมื่อ ${when}`,
 
     // --- Summary CSV ---
     summaryCsv: {

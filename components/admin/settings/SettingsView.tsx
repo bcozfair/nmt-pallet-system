@@ -5,6 +5,7 @@ import { GeneralSettings } from './GeneralSettings';
 import { ReportScheduling } from './ReportScheduling';
 import { LineConfiguration } from './LineConfiguration';
 import { CoreSettings } from './CoreSettings';
+import { Button, PageHeader } from '../../ui';
 
 import { toast } from '../../../services/toast';
 import { fetchAllSystemSettings, updateSystemSetting, SystemSettings } from '../../../services/settingsService';
@@ -137,23 +138,31 @@ const SettingsView: React.FC = () => {
 
     return (
         <div className="h-[calc(100vh-110px)] flex flex-col gap-4 overflow-hidden">
-            {/* Header with Save Button */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 mb-2 px-1">
-                <div>
-                    <h2 className="text-3xl font-black text-gray-800 flex items-center gap-2 tracking-tight">
-                        <Database className="text-blue-600" /> {t.settings.title}
-                    </h2>
-                    <p className="text-gray-500 text-sm mt-1">{t.settings.subtitle}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    <button
-                        onClick={handleSaveSettings}
-                        disabled={isSaving}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition shadow-sm whitespace-nowrap ${isSaving ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-                    >
-                        {isSaving ? t.common.saving : <><Save size={18} /> {t.settings.saveChanges}</>}
-                    </button>
-                </div>
+            {/* Header with Save Button.
+
+                ห่อด้วย div อีกชั้นเพราะหน้านี้เป็น flex column ที่ overflow-hidden
+                -- `shrink-0` ต้องอยู่บนลูกโดยตรงของคอลัมน์ ไม่งั้นหัวเรื่องจะถูกบีบ
+                ตอนตารางตั้งค่าด้านล่างยาว ส่วน PageHeader เองไม่รับ className
+                เพื่อไม่ให้แต่ละหน้าแอบปรับทรงของมันจนหลุดจากกัน */}
+            <div className="shrink-0 mb-2 px-1">
+                <PageHeader
+                    title={t.settings.title}
+                    subtitle={t.settings.subtitle}
+                    icon={Database}
+                    actionsBusy={isSaving}
+                    actions={
+                        <Button
+                            variant="primary"
+                            // ระหว่างบันทึกไม่มีไอคอน ตามของเดิม: ป้ายเปลี่ยนเป็น
+                            // "กำลังบันทึก..." ซึ่งไอคอนรูปแผ่นดิสก์ไม่ได้ช่วยอธิบายอะไร
+                            icon={isSaving ? undefined : Save}
+                            onClick={handleSaveSettings}
+                            disabled={isSaving}
+                        >
+                            {isSaving ? t.common.saving : t.settings.saveChanges}
+                        </Button>
+                    }
+                />
             </div>
 
             {/* Main Grid Layout */}

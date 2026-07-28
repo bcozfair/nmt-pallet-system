@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0ea5e9,50:6366f1,100:22d3ee&height=200&section=header&text=NMT%20Pallet%20System&fontSize=42&fontColor=ffffff&fontAlignY=36&desc=Pallet%20Management%20Real-time%20Tracking%20System&descAlignY=55&descSize=15&animation=fadeIn" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0ea5e9,50:6366f1,100:22d3ee&height=200&section=header&text=Pallet%20Management%20System&fontSize=42&fontColor=ffffff&fontAlignY=36&desc=Real-time%20Pallet%20Tracking%20with%20QR%20Code&descAlignY=55&descSize=15&animation=fadeIn" width="100%"/>
 
 <br/>
 
@@ -22,7 +22,7 @@
 
 ## 📌 เกี่ยวกับโปรเจกต์
 
-**NMT Pallet System** คือระบบบริหารจัดการและติดตามพาเลทสินค้าแบบ real-time พัฒนาขึ้นเพื่อแก้ปัญหาการจัดการคลังสินค้า ด้วยการสแกน QR Code ผ่านมือถือ ติดตามสถานะพาเลทแต่ละชิ้น และแสดงผลบน Admin Dashboard โดยใช้ **Supabase** เป็น backend ที่รองรับ PostgreSQL, Auth และ Realtime API ในตัว
+**Pallet Management System** คือระบบบริหารจัดการและติดตามพาเลทสินค้าแบบ real-time พัฒนาขึ้นเพื่อแก้ปัญหาการจัดการคลังสินค้า ด้วยการสแกน QR Code ผ่านมือถือ ติดตามสถานะพาเลทแต่ละชิ้น และแสดงผลบน Admin Dashboard โดยใช้ **Supabase** เป็น backend ที่รองรับ PostgreSQL, Auth และ Realtime API ในตัว
 
 ---
 

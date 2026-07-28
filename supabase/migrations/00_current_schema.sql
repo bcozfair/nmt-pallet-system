@@ -1,5 +1,5 @@
 -- =============================================================================
--- NMT Pallet System -- complete database schema
+-- Pallet Management System -- complete database schema
 --
 -- Generated 2026-07-20 by introspecting the live project, so this is a faithful
 -- mirror of the running database rather than a reconstruction from memory.

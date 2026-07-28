@@ -1,5 +1,5 @@
 /*
- * Minimal service worker for NMT Pallet Tracker.
+ * Minimal service worker for the Pallet Management System.
  *
  * Chrome will not offer "Install app" without a service worker that has a
  * fetch handler, so one has to exist. What it must NOT do is cache data.

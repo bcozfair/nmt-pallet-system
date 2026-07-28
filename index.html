@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>NMT Pallet Tracker</title>
+    <title>Pallet Management System</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
@@ -11,7 +11,11 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="NMT Pallet" />
+    <!-- The home-screen label, not the page title: iOS truncates past ~12
+         characters, so this is the short form of "Pallet Management System"
+         rather than the full name. Kept in step with manifest.json's
+         `short_name` -- the two label the same icon. -->
+    <meta name="apple-mobile-web-app-title" content="Pallet System" />
     <!-- Inter has no Thai glyphs. Without a Thai face listed the browser falls
          back per-character to whatever it can find, which mixes two typefaces
          inside a single sentence. -->

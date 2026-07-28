@@ -1,7 +1,7 @@
 {
-  "name": "NMT Pallet Tracker",
-  "short_name": "NMT Pallet",
-  "description": "Pallet tracking system for NMT Limited - QR scanning, check-out, check-in and damage reporting.",
+  "name": "Pallet Management System",
+  "short_name": "Pallet System",
+  "description": "Pallet Management System for NMT Limited - QR scanning, check-out, check-in and damage reporting.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

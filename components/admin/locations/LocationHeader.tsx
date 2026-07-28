@@ -1,32 +1,26 @@
 import React from 'react';
 import { Plus, MapPinned } from 'lucide-react';
 import { useT } from '../../../hooks/useT';
+import { Button, PageHeader } from '../../ui';
 
-interface LocationHeaderProps {
-    onAdd: () => void;
-}
-
-export const LocationHeader: React.FC<LocationHeaderProps> = ({
-    onAdd
-}) => {
+// เคยเป็น `<h2 className="text-3xl font-black">` พร้อมไอคอน `text-blue-600`
+// ฝังอยู่ในหัวเรื่อง และปุ่ม `bg-blue-600` ที่ประกอบคลาสเอง -- สไตล์เดียวกับที่
+// หน้าผู้ใช้ รายการเดินพาเลท และตั้งค่า เคยทำซ้ำกันคนละชุด ตอนนี้ทั้งหกหน้า
+// ผ่าน components/ui/PageHeader ตัวเดียว จึงได้ขนาด น้ำหนัก และสีไอคอนชุดเดียวกัน
+// โดยไม่มีใครต้องจำตัวเลข
+export const LocationHeader: React.FC<{ onAdd: () => void }> = ({ onAdd }) => {
     const t = useT();
 
     return (
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 min-h-[48px]">
-            <div>
-                <h2 className="text-3xl font-black text-gray-800 flex items-center gap-2 tracking-tight">
-                    <MapPinned className="text-blue-600" /> {t.locations.title}
-                </h2>
-                <p className="text-gray-500 text-sm mt-1">{t.locations.subtitle}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-                <button
-                    onClick={onAdd}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-sm font-bold whitespace-nowrap"
-                >
-                    <Plus size={18} /> {t.locations.addLocation}
-                </button>
-            </div>
-        </div>
+        <PageHeader
+            title={t.locations.title}
+            subtitle={t.locations.subtitle}
+            icon={MapPinned}
+            actions={
+                <Button variant="primary" icon={Plus} onClick={onAdd}>
+                    {t.locations.addLocation}
+                </Button>
+            }
+        />
     );
 };

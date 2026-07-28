@@ -97,7 +97,7 @@ export const MobileHome = ({ user, onLogout, onSetMode }: MobileHomeProps) => {
             </div>
 
             <div className="p-4 text-center text-[10px] text-gray-400 uppercase tracking-widest font-semibold shrink-0">
-                NMT Pallet System v1.1
+                Pallet Management System v1.1
             </div>
         </div>
     );
