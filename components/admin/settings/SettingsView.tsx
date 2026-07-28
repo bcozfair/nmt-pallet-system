@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Database } from 'lucide-react';
-import { GeneralSettings } from './GeneralSettings';
-import { ReportScheduling } from './ReportScheduling';
+import { NotificationSettings } from './NotificationSettings';
 import { LineConfiguration } from './LineConfiguration';
-import { CoreSettings } from './CoreSettings';
+import { DangerZone } from './DangerZone';
 import { Button, ConfirmDialog, PageHeader, SkeletonCard, StickyHeader } from '../../ui';
 
 import { toast } from '../../../services/toast';
@@ -12,9 +11,6 @@ import { invalidateSettings } from '../../../services/settingsCache';
 import { useT } from '../../../hooks/useT';
 import { dict } from '../../../services/i18n';
 import { describeAppError } from '../../../services/appError';
-
-
-// Remove WEEKDAYS constant as it is now in ReportScheduling
 
 
 const SettingsView: React.FC = () => {
@@ -155,7 +151,20 @@ const SettingsView: React.FC = () => {
         // StickyHeader.tsx). Dropping the locked column is also what let the
         // wrapper around PageHeader go: `shrink-0` only meant something while
         // this was a flex column that could squeeze its children.
-        <div className="flex flex-col gap-4">
+        //
+        // max-w-5xl ครอบทั้งหัวเพจและการ์ด ไม่ได้ครอบเฉพาะการ์ด -- ถ้าครอบแค่การ์ด
+        // หัวเพจกับปุ่มบันทึกจะกางออกไปกว้างกว่าของที่มันคุมอยู่
+        //
+        // 5xl ไม่ใช่ 4xl เพราะแถวเดียวใน NotificationSettings ต้องการเนื้อที่ราว 962px
+        // (ชิพเจ็ดวัน ~356 + เกณฑ์ ~134 + สองช่องเวลา ~288 + เมนู ~120 + ช่องไฟ 64)
+        // 4xl ให้เนื้อที่ 848px หลังหัก p-6 สองข้าง แถวจึงแตกลงบรรทัดใหม่ตั้งแต่บนจอ
+        // กว้าง 5xl ให้ 976px ซึ่งพอโดยเหลือระยะกันชนราว 14px
+        //
+        // การจำกัดความกว้างไม่กระทบพื้นหลังของแถบตรึง: StickyHeader วาดพื้นหลังบน
+        // ::before ที่ยืด -left-[100vw]/-right-[100vw] ไม่ได้ทาบนตัว element เอง
+        // (StickyHeader.tsx:150-167 อธิบายไว้ยาวว่าทำไมถึงต้องเป็นแบบนั้น) พื้นหลัง
+        // จึงยังกินเต็มจอตอนเกาะเหมือนเดิม ไม่ได้หดตามคอลัมน์
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
             <StickyHeader>
                 <PageHeader
                     title={t.settings.title}
@@ -177,41 +186,41 @@ const SettingsView: React.FC = () => {
                 />
             </StickyHeader>
 
-            {/* กริดเดิมทุกประการ และ skeleton ใช้กริดตัวเดียวกัน การ์ดจริงจึงมาแทน
-                ที่ placeholder ตรงตำแหน่งเดิม ไม่ใช่ดันเลย์เอาต์ใหม่ทั้งหน้า
+            {/* skeleton ใช้กองเดียวกับการ์ดจริง การ์ดจึงมาแทนที่ placeholder ตรง
+                ตำแหน่งเดิม ไม่ใช่ดันเลย์เอาต์ใหม่ทั้งหน้า
 
                 ของเดิมคือ `if (isLoading) return <div>กำลังโหลดการตั้งค่า...</div>`
-                ที่กินทั้งหน้า หัวเพจกับปุ่มบันทึกจึงมาถึงจอช้าไปหนึ่งรอบ fetch */}
-            <div className="grid grid-cols-12 gap-6">
-                <div className="col-span-12 flex flex-col gap-6 lg:col-span-5">
-                    {isLoading ? (
-                        <>
-                            {/* ตัวแรกเท่านั้นที่ประกาศตัวเป็น live region -- สี่ตัวจะให้
-                                screen reader พูดว่า "กำลังโหลด" สี่รอบสำหรับหน้าเดียว */}
-                            <SkeletonCard ariaLabel={t.settings.loading} />
-                            <SkeletonCard />
-                        </>
-                    ) : (
-                        <>
-                            <GeneralSettings settings={settings} onChange={handleChange} />
-                            <ReportScheduling settings={settings} onChange={handleChange} />
-                        </>
-                    )}
-                </div>
+                ที่กินทั้งหน้า หัวเพจกับปุ่มบันทึกจึงมาถึงจอช้าไปหนึ่งรอบ fetch
 
-                <div className="col-span-12 flex flex-col gap-6 lg:col-span-7">
-                    {isLoading ? (
-                        <>
-                            <SkeletonCard />
-                            <SkeletonCard />
-                        </>
-                    ) : (
-                        <>
-                            <LineConfiguration settings={settings} lineStatus={lineStatus} onChange={handleChange} />
-                            <CoreSettings settings={settings} onChange={handleChange} onUpdateEmail={handleUpdateEmailBase} />
-                        </>
-                    )}
-                </div>
+                กริด 12 คอลัมน์แบบ 5/7 ที่เคยอยู่ตรงนี้หายไปทั้งอัน ความกว้างของ
+                คอลัมน์ไม่ได้มาจากเนื้อหาข้างใน การ์ดที่มีของชิ้นเดียวจึงได้ที่ว่าง
+                ครึ่งใบ ส่วนการ์ดที่มีของสามชุดถูกบีบ -- ดูสเปกฉบับเต็มที่
+                docs/superpowers/specs/2026-07-29-settings-layout-redesign-design.md */}
+            <div className="flex flex-col gap-6">
+                {isLoading ? (
+                    <>
+                        {/* ตัวแรกเท่านั้นที่ประกาศตัวเป็น live region -- สามตัวจะให้
+                            screen reader พูดว่า "กำลังโหลด" สามรอบสำหรับหน้าเดียว */}
+                        <SkeletonCard ariaLabel={t.settings.loading} />
+                        <SkeletonCard />
+                        <SkeletonCard />
+                    </>
+                ) : (
+                    <>
+                        <NotificationSettings settings={settings} onChange={handleChange} />
+                        <LineConfiguration settings={settings} lineStatus={lineStatus} onChange={handleChange} />
+                        {/* ระยะห่างมากกว่าช่องว่างปกติระหว่างการ์ด (gap-6 = 24px)
+                            เพราะโซนอันตรายไม่ใช่การ์ดใบที่สามในกองเดียวกัน
+                            มันเป็นส่วนอื่นของหน้า และช่องว่างคือสิ่งที่พูดแบบนั้น */}
+                        <div className="pt-4">
+                            <DangerZone
+                                settings={settings}
+                                onChange={handleChange}
+                                onUpdateEmail={handleUpdateEmailBase}
+                            />
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* เรนเดอร์เฉพาะตอนมี action จริง เพื่อให้ state ภายใน (กำลังทำงาน)

@@ -22,6 +22,16 @@ export interface MenuProps {
     variant?: ButtonVariant; // default 'primary'
     openUpward?: boolean; // default false
     disabled?: boolean;
+    /**
+     * ให้พาเนลกว้างเท่าปุ่มเป๊ะ แทนความกว้างคงที่ 256px
+     *
+     * ใช้คู่กับ `className` ที่กำหนดความกว้างให้ราก เช่น `className="w-44"` --
+     * ปุ่มกับพาเนลจะกิน `w-full` ของรากตัวเดียวกัน จึงกว้างเท่ากันโดยไม่ต้องมีใคร
+     * เดาความกว้างของอีกฝ่าย ถ้าไม่ให้ความกว้างมา รากจะกว้างตามคอนเทนเนอร์แม่
+     */
+    matchTriggerWidth?: boolean;
+    /** ความกว้างของราก -- ตัว Menu เองไม่กำหนดความกว้าง เหมือน SelectField */
+    className?: string;
 }
 
 const TONE_CHIP: Record<MenuTone, string> = {
@@ -38,9 +48,20 @@ const ITEM_BASE =
 
 const CHIP = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg';
 
-const PANEL =
-    'absolute z-30 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 ' +
+// รูปทรงกับความกว้างแยกกัน แล้วค่อยประกอบ -- ความกว้างสองแบบต้อง "สลับทั้งก้อน"
+// ไม่ใช่เอา w-full ไปต่อท้ายสตริงที่มี w-64 อยู่แล้ว สองคลาสที่ตั้งค่าเดียวกันบน
+// element เดียวตัดสินผู้ชนะที่ลำดับใน CSS ที่ build ออกมา ไม่ใช่ลำดับในสตริง
+// (กับดักเดียวกับที่ Card.tsx และ Button.tsx บันทึกไว้)
+const PANEL_SHAPE =
+    'absolute z-30 rounded-2xl border border-slate-200 ' +
     'bg-white p-1.5 shadow-[0_24px_60px_-32px_rgba(15,42,82,0.45)] animate-pop-in';
+
+// max-w กันพาเนลไม่ให้ล้นจอ 360px: มันเกาะกับปุ่มที่อาจอยู่ชิดขอบจอ w-64 เปล่า ๆ
+// จึงห้อยพ้นจอได้เมื่อป้ายภาษาไทยดันให้กว้างขึ้น
+const PANEL_WIDTH_DEFAULT = 'w-64 max-w-[calc(100vw-2rem)]';
+
+// ไม่ต้องมี max-w: พาเนลกว้างเท่าปุ่ม และปุ่มอยู่ในจออยู่แล้วเสมอ
+const PANEL_WIDTH_TRIGGER = 'w-full';
 
 // Generic accessible dropdown menu: a trigger button that opens a list of
 // actions. Extracted from components/admin/dashboard/sections/PageHeader.tsx,
@@ -58,6 +79,8 @@ export const Menu: React.FC<MenuProps> = ({
     variant = 'primary',
     openUpward = false,
     disabled = false,
+    matchTriggerWidth = false,
+    className = '',
 }) => {
     const menuId = useId();
 
@@ -156,10 +179,14 @@ export const Menu: React.FC<MenuProps> = ({
         }
     };
 
-    const triggerClassName = `${BUTTON_BASE} ${BUTTON_SIZE.md} ${BUTTON_VARIANT[variant]} ${iconOnly ? 'px-2.5' : 'px-3.5'}`;
+    // `w-full` ต่อท้ายได้โดยไม่ชนอะไร -- ไม่มีคลาสความกว้างอยู่ใน BUTTON_BASE,
+    // BUTTON_SIZE หรือ BUTTON_VARIANT เลย ต่างจากความกว้างของพาเนลที่ต้องสลับทั้งก้อน
+    const triggerClassName =
+        `${BUTTON_BASE} ${BUTTON_SIZE.md} ${BUTTON_VARIANT[variant]} ` +
+        `${iconOnly ? 'px-2.5' : 'px-3.5'} ${matchTriggerWidth ? 'w-full' : ''}`;
 
     return (
-        <div className="relative" ref={rootRef}>
+        <div className={`relative ${className}`} ref={rootRef}>
             <button
                 ref={triggerRef}
                 type="button"
@@ -181,7 +208,15 @@ export const Menu: React.FC<MenuProps> = ({
                     <ChevronDown
                         size={16}
                         aria-hidden="true"
-                        className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                        // ml-auto เฉพาะตอนปุ่มถูกยืดให้กว้างกว่าเนื้อหา -- margin auto
+                        // กินที่ว่างก่อน justify-content ไอคอนกับป้ายจึงไปชิดซ้ายและ
+                        // เชฟรอนไปชิดขวาเอง โดยไม่ต้องเอา justify-between ไปทับ
+                        // justify-center ที่อยู่ใน BUTTON_BASE ซึ่งเป็นการวางคลาสสอง
+                        // ตัวที่คุมคุณสมบัติเดียวกันบน element เดียว
+                        className={
+                            `transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ` +
+                            (matchTriggerWidth ? 'ml-auto' : '')
+                        }
                     />
                 )}
             </button>
@@ -193,12 +228,9 @@ export const Menu: React.FC<MenuProps> = ({
                     aria-orientation="vertical"
                     aria-label={label}
                     onKeyDown={onMenuKeyDown}
-                    // max-w keeps the panel inside a 360px viewport: it aligns to
-                    // a button that may sit near the screen edge, so a fixed
-                    // w-64 would otherwise hang off the screen once Thai labels
-                    // widen it.
                     className={
-                        `${PANEL} ` +
+                        `${PANEL_SHAPE} ` +
+                        `${matchTriggerWidth ? PANEL_WIDTH_TRIGGER : PANEL_WIDTH_DEFAULT} ` +
                         (openUpward ? 'bottom-full mb-2' : 'top-full mt-2') +
                         ' ' +
                         (align === 'right' ? 'right-0' : 'left-0')

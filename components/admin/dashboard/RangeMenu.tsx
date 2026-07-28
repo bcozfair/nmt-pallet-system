@@ -40,13 +40,22 @@ import type { DashboardRange } from '../../../hooks/dashboard/useDashboardData';
  *
  * ============================== POSITIONING ================================
  *
- * `absolute`, inside a `relative` wrapper, and NOT a portal. Card sets
+ * `absolute`, inside a `relative` wrapper, and NOT a portal. Every card this
+ * control mounts on is an `accent` Card, and an accent Card sets
  * `overflow-hidden` (load-bearing: it clips the 3px brand hairline to the
  * rounded corners), so anything that escapes the card's box gets cut off. The
  * menu therefore has to open DOWNWARD and INWARD -- right-aligned to a trigger
  * that already sits at the card's right padding edge, and ~160px wide against a
  * ~328px minimum card, so it stays inside on both axes. Do not make it wider
  * than the narrowest card, and do not flip it upwards.
+ *
+ * This paragraph used to say "Card sets overflow-hidden" flat, as a rule of
+ * every card in the app. That reading is what let a Menu get placed in the last
+ * row of a card on the settings screen, where half its panel was clipped off the
+ * bottom edge. The clip belongs to the hairline, so Card now applies it only
+ * with `accent` -- see the note above the Tag in Card.tsx. The constraint here
+ * is unchanged, because every card on the dashboard is accented; what changed is
+ * that it is a constraint of THESE cards, not of the primitive.
  *
  * ============================= THAI TYPOGRAPHY =============================
  *

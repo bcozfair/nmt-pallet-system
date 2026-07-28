@@ -10,6 +10,43 @@ const items = [
     { label: 'อย่างที่สาม', onClick: vi.fn() },
 ];
 
+// jsdom ไม่จัดหน้า จึงวัดพิกเซลจริงไม่ได้ -- สามเคสนี้ยึดสัญญาที่ทำให้สองกล่องกว้าง
+// เท่ากันแทน: ทั้งปุ่มและพาเนลต้องกิน w-full ของรากตัวเดียวกัน และความกว้างคงที่เดิม
+// ต้องถูกสลับออก ไม่ใช่ถูกทับ
+describe('Menu -- matchTriggerWidth', () => {
+    it('ปุ่มกับพาเนลกิน w-full ของรากตัวเดียวกัน', async () => {
+        const user = userEvent.setup();
+        render(<Menu label="ทดสอบส่ง" items={items} matchTriggerWidth className="w-44" />);
+        const trigger = screen.getByRole('button', { name: /ทดสอบส่ง/ });
+        expect(trigger.className).toContain('w-full');
+        expect(trigger.parentElement?.className).toContain('w-44');
+
+        await user.click(trigger);
+        expect(screen.getByRole('menu').className).toContain('w-full');
+    });
+
+    it('สลับความกว้างคงที่ออก ไม่ได้เอา w-full ไปทับ w-64', async () => {
+        const user = userEvent.setup();
+        render(<Menu label="ทดสอบส่ง" items={items} matchTriggerWidth />);
+        await user.click(screen.getByRole('button', { name: /ทดสอบส่ง/ }));
+        // คลาสความกว้างสองตัวบน element เดียวตัดสินผู้ชนะที่ลำดับใน CSS ที่ build
+        // ออกมา ไม่ใช่ลำดับในสตริง การมี w-64 ค้างอยู่จึงแปลว่าผลลัพธ์ขึ้นกับสิ่งที่
+        // ไฟล์นี้มองไม่เห็น
+        expect(screen.getByRole('menu').className).not.toContain('w-64');
+    });
+
+    it('ไม่ใส่ก็ยังได้พาเนลกว้างคงที่เหมือนเดิม', async () => {
+        const user = userEvent.setup();
+        render(<Menu label="ส่งออก" items={items} />);
+        const trigger = screen.getByRole('button', { name: /ส่งออก/ });
+        expect(trigger.className).not.toContain('w-full');
+        await user.click(trigger);
+        const panel = screen.getByRole('menu');
+        expect(panel.className).toContain('w-64');
+        expect(panel.className).not.toContain('w-full');
+    });
+});
+
 describe('Menu', () => {
     it('ปุ่มประกาศสถานะเปิด/ปิดผ่าน aria-expanded', async () => {
         const user = userEvent.setup();

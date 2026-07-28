@@ -6,8 +6,8 @@
 // the caller is the one that knows whether a label is a status, a period or a
 // column heading.
 
-export { Card, CARD_SHELL, BrandHairline } from './Card';
-export type { CardProps } from './Card';
+export { Card, CARD_SHELL, CARD_SURFACE, CARD_SURFACE_DANGER, BrandHairline } from './Card';
+export type { CardProps, CardTone } from './Card';
 
 export { SectionHeader } from './SectionHeader';
 export type { SectionHeaderProps } from './SectionHeader';

@@ -41,9 +41,11 @@ export const LineConfiguration: React.FC<LineConfigurationProps> = ({
         : t.settings.lineStatusUnknown;
 
     return (
-        <Card className="p-5 sm:p-6">
+        <Card as="section" className="p-5 sm:p-6">
+            {/* h2 ด้วยเหตุผลเดียวกับ NotificationSettings.tsx -- การ์ดใบนี้เป็นภูมิภาค
+                ระดับบนสุดใต้ <h1> ของ PageHeader ไม่ได้อยู่ในภูมิภาค h2 อีกชั้น */}
             <SectionHeader
-                level="h3"
+                level="h2"
                 title={t.settings.lineTitle}
                 subtitle={t.settings.lineSubtitle}
                 icon={MessageSquare}
@@ -63,7 +65,11 @@ export const LineConfiguration: React.FC<LineConfigurationProps> = ({
                 }
             />
 
-            <div className="mt-5 flex flex-col gap-4">
+            {/* สองช่องเรียงคู่ ไม่ใช่เรียงตั้ง -- มันเป็นค่าคู่กันที่มาจากคอนโซล LINE
+                หน้าเดียวกัน และการ์ดใบนี้กว้างพอสำหรับสองช่องแล้วหลังจากเลิกใช้กริด
+                5/7 ที่เคยบีบมันไว้ ยุบกลับเป็นแถวเดียวต่ำกว่า md ซึ่งเป็นจุดที่ค่า
+                monospace ยาว ๆ เริ่มอ่านไม่ออกถ้าอยู่ครึ่งความกว้าง */}
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field
                     label={t.settings.channelToken}
                     htmlFor={`${fieldId}-token`}

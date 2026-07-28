@@ -86,4 +86,61 @@ describe('Field', () => {
         );
         expect(screen.getByLabelText(/ปลายทาง/).getAttribute('aria-required')).toBe('true');
     });
+
+    // orientation ย้ายแค่ตำแหน่งบนกริด สายที่ประกอบขึ้นจาก htmlFor ต้องไม่รู้สึกอะไร
+    // เลย -- เคสพวกนี้คือสิ่งที่กันไม่ให้การจัดหน้าไปตัดสายนั้นขาดโดยไม่มีใครเห็น
+    describe('orientation="horizontal"', () => {
+        it('ยังผูกป้ายกับช่องจริง คลิกป้ายแล้วโฟกัสเข้าช่อง', async () => {
+            const user = userEvent.setup();
+            render(
+                <Field label="อีเมลหลัก" htmlFor="admin-email" orientation="horizontal">
+                    {(aria) => <TextInput {...aria} type="email" defaultValue="" />}
+                </Field>,
+            );
+            const input = screen.getByLabelText('อีเมลหลัก');
+            expect(input.tagName).toBe('INPUT');
+            await user.click(screen.getByText('อีเมลหลัก'));
+            expect(document.activeElement).toBe(input);
+        });
+
+        it('ยังเดิน aria-describedby ไปยังคำเตือน แม้คำเตือนจะอยู่คนละแถวกับช่อง', () => {
+            render(
+                <Field
+                    label="อีเมลหลัก"
+                    htmlFor="admin-email"
+                    orientation="horizontal"
+                    warning="คำเตือน: ผู้ใช้ทุกคนต้องเข้าสู่ระบบด้วยโดเมนใหม่"
+                >
+                    {(aria) => <TextInput {...aria} type="email" />}
+                </Field>,
+            );
+            const input = screen.getByLabelText('อีเมลหลัก');
+            expect(input.getAttribute('aria-invalid')).toBeNull();
+            const describedBy = input.getAttribute('aria-describedby');
+            expect(describedBy).toBeTruthy();
+            expect(document.getElementById(describedBy as string)?.textContent).toContain(
+                'โดเมนใหม่',
+            );
+        });
+
+        it('error ยังทับ warning และยังประกาศตัวเป็น alert', () => {
+            render(
+                <Field
+                    label="อีเมลหลัก"
+                    htmlFor="admin-email"
+                    orientation="horizontal"
+                    warning="ระวัง"
+                    error="อีเมลไม่ถูกต้อง"
+                >
+                    {(aria) => <TextInput {...aria} type="email" />}
+                </Field>,
+            );
+            const input = screen.getByLabelText('อีเมลหลัก');
+            expect(input.getAttribute('aria-invalid')).toBe('true');
+            const note = screen.getByRole('alert');
+            expect(note.textContent).toContain('อีเมลไม่ถูกต้อง');
+            expect(note.textContent).not.toContain('ระวัง');
+            expect(input.getAttribute('aria-describedby')).toBe(note.id);
+        });
+    });
 });
