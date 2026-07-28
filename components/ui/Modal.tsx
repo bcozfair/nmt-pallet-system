@@ -39,6 +39,10 @@ export interface ModalProps {
     closeLabel: string;
     /** 2 = โมดัลที่เปิดทับโมดัลอีกใบ */
     level?: 1 | 2;
+    /** ให้โฟกัสตอนเปิดไปลงที่ element นี้แทนตัวที่โฟกัสได้ตัวแรกในกล่อง (ปกติคือ
+        ปุ่ม ✕ เพราะหัวมาก่อนเนื้อใน DOM) มีไว้สำหรับฟอร์มที่อยากให้เคอร์เซอร์ไปเริ่ม
+        ที่ช่องกรอกแรกแทนที่จะไปเริ่มที่ปุ่มปิด */
+    initialFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
 // พื้นผิว: ยืม CARD_SURFACE (สีขอบ + สีพื้น) มาให้กล่องเป็นวัสดุเดียวกับการ์ดทุกใบ
@@ -118,6 +122,7 @@ function useDialog(
     onClose: () => void,
     panelRef: React.RefObject<HTMLDivElement | null>,
     preventDismiss: boolean,
+    initialFocusRef?: React.RefObject<HTMLElement | null>,
 ) {
     // อัตลักษณ์ประจำอินสแตนซ์ ใช้หาตัวเองใน stack -- Symbol เพราะสองโมดัลที่เปิด
     // พร้อมกันต้องไม่ชนกันแม้จะมี props เหมือนกันทุกอย่าง
@@ -167,13 +172,25 @@ function useDialog(
         // ดีดไปเริ่มแท็บใหม่ที่ต้นหน้าทุกครั้งที่ปิดโมดัล
         const previouslyFocused = document.activeElement as HTMLElement | null;
 
+        // initialFocusRef ชนะเสมอถ้ามีให้: ฟอร์มอย่าง AddPalletModal อยากให้เคอร์เซอร์
+        // ไปเริ่มที่ช่องกรอกแรก ไม่ใช่ปุ่ม ✕ ซึ่งเป็นตัวแรกใน DOM เสมอเพราะหัวกล่อง
+        // มาก่อนเนื้อ -- ไม่มีให้ค่อย fallback ไปหาตัวโฟกัสได้ตัวแรก แล้วจึง panel เอง
         const first = panel?.querySelector<HTMLElement>(FOCUSABLE);
-        (first ?? panel)?.focus();
+        (initialFocusRef?.current ?? first ?? panel)?.focus();
 
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key !== 'Tab' || !panel) return;
             const nodes = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
-            if (nodes.length === 0) return;
+            // ไม่ใช่ defensive code ที่ไปไม่ถึง: ConfirmDialog ระหว่างคำขอค้างปิด
+            // ปุ่ม ✕ และปุ่มท้ายทั้งคู่ (disabled) ซึ่ง FOCUSABLE คัด [disabled] ออก
+            // ผลคือกล่องไม่มีอะไรโฟกัสได้เลยชั่วขณะนั้น -- กัน Tab ไว้ที่ panel เอง
+            // (มี tabIndex={-1} ไว้เป็นที่พักพอดี) ไม่ปล่อยให้หลุดออกไปหน้าที่อยู่
+            // ข้างหลัง
+            if (nodes.length === 0) {
+                event.preventDefault();
+                panel.focus();
+                return;
+            }
             const head = nodes[0];
             const tail = nodes[nodes.length - 1];
             if (event.shiftKey && document.activeElement === head) {
@@ -190,7 +207,7 @@ function useDialog(
             panel?.removeEventListener('keydown', onKeyDown);
             previouslyFocused?.focus?.();
         };
-    }, [isOpen, panelRef]);
+    }, [isOpen, panelRef, initialFocusRef]);
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -209,10 +226,11 @@ export const Modal: React.FC<ModalProps> = ({
     preventDismiss = false,
     closeLabel,
     level = 1,
+    initialFocusRef,
 }) => {
     const titleId = useId();
     const panelRef = useRef<HTMLDivElement>(null);
-    useDialog(isOpen, onClose, panelRef, preventDismiss);
+    useDialog(isOpen, onClose, panelRef, preventDismiss, initialFocusRef);
 
     if (!isOpen) return null;
 

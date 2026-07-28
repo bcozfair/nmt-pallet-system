@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -235,6 +235,56 @@ describe('Modal', () => {
         render(<Modal {...base} isOpen preventDismiss>เนื้อ</Modal>);
         const closeButton = screen.getByRole('button', { name: 'ปิดหน้าต่าง' });
         expect(closeButton.hasAttribute('disabled')).toBe(true);
+    });
+
+    // อาการที่เทสต์นี้กัน: AddPalletModal ส่ง autoFocus ไปที่ช่องรหัสพาเลท แต่
+    // effect ของ Modal วิ่งหลัง commit-phase autoFocus ของ React เสมอ แล้วดึง
+    // โฟกัสกลับไปที่ตัวโฟกัสได้ตัวแรก (ปุ่ม ✕ เพราะหัวมาก่อนเนื้อใน DOM) --
+    // initialFocusRef คือทางที่ถูกสำหรับกรณีนี้
+    it('initialFocusRef ชนะตัวโฟกัสได้ตัวแรก -- โฟกัสไปลงที่ element ที่ชี้ไว้แทนปุ่ม ✕', () => {
+        const Harness = () => {
+            const inputRef = useRef<HTMLInputElement>(null);
+            return (
+                <Modal {...base} isOpen initialFocusRef={inputRef}>
+                    <input ref={inputRef} aria-label="ช่องแรก" />
+                    <button type="button">ปุ่มในกล่อง</button>
+                </Modal>
+            );
+        };
+        render(<Harness />);
+        expect(document.activeElement).toBe(screen.getByLabelText('ช่องแรก'));
+    });
+
+    // เมื่อไม่ส่ง initialFocusRef มา พฤติกรรมเดิมต้องยังอยู่: ตัวโฟกัสได้ตัวแรก
+    // ในกล่อง (ไม่ใช่ panel เอง เพราะที่นี่มีปุ่ม ✕ ให้โฟกัสอยู่แล้ว)
+    it('ไม่ส่ง initialFocusRef มา ยังโฟกัสตัวโฟกัสได้ตัวแรกในกล่องเหมือนเดิม', () => {
+        render(<Modal {...base} isOpen>เนื้อ</Modal>);
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'ปิดหน้าต่าง' }));
+    });
+
+    // Important #3: ConfirmDialog ระหว่างคำขอค้าง ปิดปุ่ม ✕ และปุ่มท้ายทั้งคู่ --
+    // FOCUSABLE คัด [disabled] ออก กล่องจึงไม่มีอะไรโฟกัสได้เลยชั่วขณะนั้น ของเดิม
+    // `if (nodes.length === 0) return;` ปล่อยให้ Tab หลุดออกไปหน้าที่อยู่ข้างหลัง
+    it('กล่องที่ไม่มีอะไรโฟกัสได้เลย (ทุกอย่าง disabled) กัน Tab ไว้ในกล่อง ไม่ให้หลุดออกไปข้างนอก', async () => {
+        const user = userEvent.setup();
+        render(
+            <>
+                <button type="button">ปุ่มข้างหลัง</button>
+                <Modal {...base} isOpen preventDismiss>
+                    <button type="button" disabled>ปุ่มที่ถูกปิดใช้งาน</button>
+                </Modal>
+            </>,
+        );
+
+        const dialog = screen.getByRole('dialog');
+        // ปุ่ม ✕ ถูก disabled ไปด้วย (preventDismiss) เหลือ panel เป็นที่พักโฟกัส
+        expect(document.activeElement).toBe(dialog);
+
+        await user.tab();
+        expect(document.activeElement).toBe(dialog);
+        expect(document.activeElement).not.toBe(
+            screen.getByRole('button', { name: 'ปุ่มข้างหลัง' }),
+        );
     });
 
     it('เรนเดอร์ footer และ headerActions ที่ส่งมา', () => {
