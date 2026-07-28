@@ -185,35 +185,54 @@ describe('Modal', () => {
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    // มีคำขอค้างอยู่ (busy) ต้องปิดไม่ได้เลยไม่ว่าทางไหน -- ไม่งั้น error ที่กำลัง
-    // จะโยนกลับมาทีหลังตกลงบนต้นไม้ที่ unmount ไปแล้ว กลายเป็นความเงียบสมบูรณ์
-    it('Escape ไม่ปิดโมดัลระหว่าง busy', async () => {
+    // `busy` เป็นภาพล้วน ๆ (วิ่งเส้นแบรนด์) ตั้งแต่รอบนี้เป็นต้นไป -- ไม่แตะการปิด
+    // เลย นี่คือประเด็นหลักที่รอบตรวจนี้บังคับ: PalletDetailModal ส่ง busy={loading}
+    // ซึ่งเป็นแค่ "กำลังโหลดประวัติ" (read) ไม่มีอะไรต้องป้องกัน ถ้า busy ยังกัน
+    // Escape/✕/backdrop เหมือนเดิม ผู้ใช้จะปิดกล่องรายละเอียดพาเลทไม่ได้เลยระหว่าง
+    // โหลด ทั้งที่ของเดิม (ก่อน Task 10) กดปิดได้ตลอด
+    it('busy อย่างเดียว (ไม่มี preventDismiss) ไม่กัน Escape', async () => {
         const onClose = vi.fn();
         const user = userEvent.setup();
         render(<Modal {...base} isOpen busy onClose={onClose}>เนื้อ</Modal>);
         await user.keyboard('{Escape}');
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    // มีคำขอค้างอยู่ (preventDismiss) ต้องปิดไม่ได้เลยไม่ว่าทางไหน -- ไม่งั้น error
+    // ที่กำลังจะโยนกลับมาทีหลังตกลงบนต้นไม้ที่ unmount ไปแล้ว กลายเป็นความเงียบสมบูรณ์
+    it('Escape ไม่ปิดโมดัลระหว่าง preventDismiss', async () => {
+        const onClose = vi.fn();
+        const user = userEvent.setup();
+        render(<Modal {...base} isOpen preventDismiss onClose={onClose}>เนื้อ</Modal>);
+        await user.keyboard('{Escape}');
         expect(onClose).not.toHaveBeenCalled();
     });
 
-    it('Escape กลับมาปิดโมดัลได้เมื่อ busy กลายเป็น false', async () => {
+    it('Escape กลับมาปิดโมดัลได้เมื่อ preventDismiss กลายเป็น false', async () => {
         const onClose = vi.fn();
         const user = userEvent.setup();
-        const { rerender } = render(<Modal {...base} isOpen busy onClose={onClose}>เนื้อ</Modal>);
-        rerender(<Modal {...base} isOpen busy={false} onClose={onClose}>เนื้อ</Modal>);
+        const { rerender } = render(
+            <Modal {...base} isOpen preventDismiss onClose={onClose}>เนื้อ</Modal>,
+        );
+        rerender(<Modal {...base} isOpen preventDismiss={false} onClose={onClose}>เนื้อ</Modal>);
         await user.keyboard('{Escape}');
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    it('คลิกพื้นหลังไม่ปิดระหว่าง busy แม้เปิด dismissOnBackdrop ไว้', async () => {
+    it('คลิกพื้นหลังไม่ปิดระหว่าง preventDismiss แม้เปิด dismissOnBackdrop ไว้', async () => {
         const onClose = vi.fn();
         const user = userEvent.setup();
-        render(<Modal {...base} isOpen busy dismissOnBackdrop onClose={onClose}>เนื้อ</Modal>);
+        render(
+            <Modal {...base} isOpen preventDismiss dismissOnBackdrop onClose={onClose}>
+                เนื้อ
+            </Modal>,
+        );
         await user.click(screen.getByTestId('modal-overlay'));
         expect(onClose).not.toHaveBeenCalled();
     });
 
-    it('ปุ่ม ✕ ถูก disabled ระหว่าง busy', () => {
-        render(<Modal {...base} isOpen busy>เนื้อ</Modal>);
+    it('ปุ่ม ✕ ถูก disabled ระหว่าง preventDismiss', () => {
+        render(<Modal {...base} isOpen preventDismiss>เนื้อ</Modal>);
         const closeButton = screen.getByRole('button', { name: 'ปิดหน้าต่าง' });
         expect(closeButton.hasAttribute('disabled')).toBe(true);
     });

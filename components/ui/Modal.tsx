@@ -23,13 +23,18 @@ export interface ModalProps {
     /** ปุ่มบนหัว สำหรับโมดัลที่เนื้อยาวจนปุ่มท้ายเลื่อนพ้นจอ */
     headerActions?: React.ReactNode;
     dismissOnBackdrop?: boolean;
-    /** มีคำขอค้างอยู่: วิ่งเส้นแบรนด์บนขอบบน "และ" ทำให้กล่องปิดไม่ได้ระหว่างนั้น --
-        Escape, ปุ่ม ✕, และคลิกพื้นหลัง (ถ้าเปิด dismissOnBackdrop) ถูกกันไว้ทั้งหมด
-        เดิม prop นี้มีความหมายแค่เชิงภาพ (วิ่งเส้นอย่างเดียว) แต่ถ้ากล่องยังปิดได้
-        ระหว่างคำขอค้าง แล้ว request นั้นถูกปฏิเสธหลังกล่องถูกปิด/unmount ไปแล้ว
-        ผลลัพธ์ (error state ของผู้เรียก) จะตกลงบนต้นไม้ที่ไม่มีใครเห็นอีกต่อไป --
-        ไม่มีทั้ง field error และ toast กลายเป็นความเงียบสมบูรณ์ */
+    /** วิ่งเส้นแบรนด์บนขอบบน (BrandHairline) เท่านั้น -- ผลเชิงภาพล้วน ๆ ไม่แตะ
+        ว่ากล่องปิดได้หรือไม่ ต้องการกันปิดด้วย ให้ใช้ `preventDismiss` แยกต่างหาก
+        (สองอย่างนี้เคยถูกรวมเป็น prop เดียวกัน แต่ `busy` ของ PalletDetailModal
+        คือ "กำลังโหลดประวัติ" ซึ่งเป็นแค่ read ไม่มีอะไรต้องป้องกัน -- ผลคือ
+        Escape/✕/คลิกพื้นหลังตายไปเฉย ๆ ระหว่างโหลดทั้งที่ไม่มีคำขอค้างอยู่เลย) */
     busy?: boolean;
+    /** มีคำขอค้างอยู่ (เขียน ไม่ใช่แค่โหลด): กันกล่องปิดไม่ว่าทางไหน -- Escape,
+        ปุ่ม ✕ (จะถูก disabled), และคลิกพื้นหลัง (ถ้าเปิด dismissOnBackdrop) ถ้ากล่อง
+        ยังปิดได้ระหว่างคำขอค้าง แล้ว request นั้นถูกปฏิเสธหลังกล่องถูกปิด/unmount
+        ไปแล้ว ผลลัพธ์ (error state ของผู้เรียก) จะตกลงบนต้นไม้ที่ไม่มีใครเห็นอีก
+        ต่อไป -- ไม่มีทั้ง field error และ toast กลายเป็นความเงียบสมบูรณ์ */
+    preventDismiss?: boolean;
     /** aria-label ของปุ่ม ✕ */
     closeLabel: string;
     /** 2 = โมดัลที่เปิดทับโมดัลอีกใบ */
@@ -112,7 +117,7 @@ function useDialog(
     isOpen: boolean,
     onClose: () => void,
     panelRef: React.RefObject<HTMLDivElement | null>,
-    busy: boolean,
+    preventDismiss: boolean,
 ) {
     // อัตลักษณ์ประจำอินสแตนซ์ ใช้หาตัวเองใน stack -- Symbol เพราะสองโมดัลที่เปิด
     // พร้อมกันต้องไม่ชนกันแม้จะมี props เหมือนกันทุกอย่าง
@@ -140,16 +145,16 @@ function useDialog(
             if (event.key !== 'Escape') return;
             // มีโมดัลที่อยู่ในกว่านี้เปิดอยู่ ปล่อยให้ตัวนั้นกิน Escape ไป
             if (stack[stack.length - 1] !== id) return;
-            // มีคำขอค้างอยู่: ปิดไม่ได้ตอนนี้ -- ดูคอมเมนต์ที่ prop `busy` ว่าทำไม
-            // `busy` อยู่ใน dependency array ข้างล่างด้วย ไม่ใช่แค่ปิดครอบตัวแปร:
-            // ต้องอ่านค่าปัจจุบันเสมอ ไม่ใช่ค่าที่ effect นี้เห็นตอน mount
-            if (busy) return;
+            // มีคำขอค้างอยู่: ปิดไม่ได้ตอนนี้ -- ดูคอมเมนต์ที่ prop `preventDismiss`
+            // ว่าทำไม `preventDismiss` อยู่ใน dependency array ข้างล่างด้วย ไม่ใช่แค่
+            // ปิดครอบตัวแปร: ต้องอ่านค่าปัจจุบันเสมอ ไม่ใช่ค่าที่ effect นี้เห็นตอน mount
+            if (preventDismiss) return;
             event.preventDefault();
             onClose();
         };
         document.addEventListener('keydown', onKeyDown);
         return () => document.removeEventListener('keydown', onKeyDown);
-    }, [isOpen, id, onClose, busy]);
+    }, [isOpen, id, onClose, preventDismiss]);
 
     // ไม่ต้อง stopPropagation ให้ SelectionBar: มันตรวจด้วย DOM ว่ามี
     // [role="dialog"] เปิดอยู่ไหม (SelectionBar.tsx:14) ไม่ใช่ด้วยลำดับ event
@@ -201,12 +206,13 @@ export const Modal: React.FC<ModalProps> = ({
     headerActions,
     dismissOnBackdrop = false,
     busy = false,
+    preventDismiss = false,
     closeLabel,
     level = 1,
 }) => {
     const titleId = useId();
     const panelRef = useRef<HTMLDivElement>(null);
-    useDialog(isOpen, onClose, panelRef, busy);
+    useDialog(isOpen, onClose, panelRef, preventDismiss);
 
     if (!isOpen) return null;
 
@@ -223,7 +229,7 @@ export const Modal: React.FC<ModalProps> = ({
                 dismissOnBackdrop
                     ? (event) => {
                           // มีคำขอค้างอยู่: กันเหมือน Escape ข้างบน -- เหตุผลเดียวกัน
-                          if (busy) return;
+                          if (preventDismiss) return;
                           if (event.target === event.currentTarget) onClose();
                       }
                     : undefined
@@ -279,7 +285,7 @@ export const Modal: React.FC<ModalProps> = ({
                         <button
                             type="button"
                             onClick={onClose}
-                            disabled={busy}
+                            disabled={preventDismiss}
                             aria-label={closeLabel}
                             className={
                                 'rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 ' +
