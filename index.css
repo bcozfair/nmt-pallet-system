@@ -197,8 +197,17 @@
     backdrop-filter: none !important;
   }
 
-  /* A sticky element repeats on every printed page in most engines. */
-  .sticky {
+  /* A sticky element repeats on every printed page in most engines.
+
+     Matched by substring, not as `.sticky`, for the same reason the
+     backdrop-blur rule above is: everything that actually sticks in this app is
+     responsive, and `xl:sticky` compiles to the selector `.xl\:sticky`. A class
+     attribute is a list of whitespace-separated tokens, so `.sticky` matches
+     the token `sticky` and nothing else -- it never matched `xl:sticky` at all.
+     The table head (DataTable.tsx) and the whole inventory header block
+     (StickyHeader.tsx) both use the responsive form, and both were repeating on
+     every printed page because of it. */
+  [class*="sticky"] {
     position: static !important;
   }
 

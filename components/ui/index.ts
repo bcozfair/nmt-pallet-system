@@ -82,3 +82,6 @@ export type { PageHeaderProps } from './PageHeader';
 
 export { SelectionBar } from './SelectionBar';
 export type { SelectionBarProps } from './SelectionBar';
+
+export { StickyHeader } from './StickyHeader';
+export type { StickyHeaderProps } from './StickyHeader';

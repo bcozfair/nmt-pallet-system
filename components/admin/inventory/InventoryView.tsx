@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Pallet } from '../../../types';
+import { StickyHeader } from '../../ui';
 
 // Sub-components
 import { InventoryFilters } from './InventoryFilters';
@@ -131,35 +132,46 @@ export const InventoryView = ({
                     : undefined
             }
         >
-            <InventoryHeader
-                onPrintQrAll={onPrintQrAll}
-                onExport={() => handleExportFiltered(processedPallets)}
-                onAddPallet={() => setIsAddModalOpen(true)}
-            />
+            {/* Everything above the rows travels together and stays pinned at
+                xl: the page header, the status strip and the filter bar. What
+                scrolls is the rows and the pagination under them. The table's
+                own head pins directly beneath this block -- see StickyHeader
+                and DataTable for how the two find each other.
 
-            <InventoryStatusStrip
-                counts={statusCounts}
-                statusFilter={statusFilter}
-                onSelect={setStatusFilter}
-                isLoading={isLoading}
-            />
+                The inner gap-4 is this page's own rhythm, repeated here because
+                these three are no longer direct children of the column that
+                sets it. */}
+            <StickyHeader className="flex flex-col gap-4">
+                <InventoryHeader
+                    onPrintQrAll={onPrintQrAll}
+                    onExport={() => handleExportFiltered(processedPallets)}
+                    onAddPallet={() => setIsAddModalOpen(true)}
+                />
 
-            <InventoryFilters
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
-                locationFilter={locationFilter}
-                setLocationFilter={(loc) => {
-                    setLocationFilter(loc);
-                    if (onLocationChange) onLocationChange(loc);
-                }}
-                onLocationChange={onLocationChange}
-                dateRange={dateRange}
-                setDateRange={setDateRange}
-                departments={departments}
-                activeFilterCount={activeFilterCount}
-                resultCount={processedPallets.length}
-                onClearFilters={handleClearFilters}
-            />
+                <InventoryStatusStrip
+                    counts={statusCounts}
+                    statusFilter={statusFilter}
+                    onSelect={setStatusFilter}
+                    isLoading={isLoading}
+                />
+
+                <InventoryFilters
+                    searchTerm={searchTerm}
+                    setSearchTerm={setSearchTerm}
+                    locationFilter={locationFilter}
+                    setLocationFilter={(loc) => {
+                        setLocationFilter(loc);
+                        if (onLocationChange) onLocationChange(loc);
+                    }}
+                    onLocationChange={onLocationChange}
+                    dateRange={dateRange}
+                    setDateRange={setDateRange}
+                    departments={departments}
+                    activeFilterCount={activeFilterCount}
+                    resultCount={processedPallets.length}
+                    onClearFilters={handleClearFilters}
+                />
+            </StickyHeader>
 
             <InventoryTable
                 paginatedPallets={paginatedPallets}

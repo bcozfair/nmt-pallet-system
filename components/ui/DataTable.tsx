@@ -149,7 +149,11 @@ export const DataTable: React.FC<DataTableProps> = ({
                     style={minWidth ? { minWidth } : undefined}
                 >
                     {caption && <caption className="sr-only">{caption}</caption>}
-                    <thead className="bg-slate-50 text-slate-500 xl:sticky xl:top-0 xl:z-10">
+                    {/* เกาะใต้กองหัวเพจที่ StickyHeader ตรึงไว้ ไม่ใช่ที่ยอดจอ --
+                        ค่าความสูงจริงของกองนั้นถูกวัดตอนรันไทม์แล้วประกาศไว้ที่
+                        <html> หน้าที่ไม่ได้ใช้ StickyHeader ก็ไม่มีตัวแปรนี้ จึงตกไป
+                        ใช้ 0px ซึ่งเท่ากับ top-0 เดิมพอดี */}
+                    <thead className="bg-slate-50 text-slate-500 xl:sticky xl:top-[var(--sticky-head-h,0px)] xl:z-10">
                         {head}
                     </thead>
                     {children}
