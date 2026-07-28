@@ -9,7 +9,6 @@ import { supabase } from '../../services/supabase';
 import { toast } from '../../services/toast';
 import { dict } from '../../services/i18n';
 import { formatDate, palletStatusLabel } from '../../components/admin/common/AdminHelpers';
-import { ConfirmActionType } from '../../components/admin/inventory/InventoryModals';
 import { describeAppError } from '../../services/appError';
 
 // Text here is read through dict() rather than useT(). Every string below is
@@ -17,6 +16,17 @@ import { describeAppError } from '../../services/appError';
 // time, or fired from a toast after an await -- so it has to be looked up when
 // the handler runs, not when the hook last rendered. useT() would also make the
 // whole inventory view re-render on a language change for no visible gain.
+
+// ย้ายมาจาก InventoryModals.tsx ตอนที่ ConfirmModal ที่นั่นถูกยุบเข้า
+// ui/ConfirmDialog -- type นี้อธิบายสิ่งที่ hook นี้ "สร้างขึ้น" ไม่ใช่สิ่งที่
+// คอมโพเนนต์ตัวใดตัวหนึ่งรับ จึงควรอยู่ที่ต้นทางของมัน
+export type ConfirmActionType = {
+    title: string;
+    message: string;
+    confirmLabel: string;
+    isDestructive?: boolean;
+    onConfirm: () => Promise<void>;
+};
 
 export const useInventoryActions = (
     onRefresh: () => void,

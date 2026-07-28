@@ -1,12 +1,12 @@
-import React, { useId, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { AlertTriangle, CheckCircle, X, Save, FileText, PackagePlus } from 'lucide-react';
+import React, { useEffect, useId, useState } from 'react';
+import { MapPin, PackagePlus, Save, SquarePen } from 'lucide-react';
 import { createPallet } from '../../../services/palletService';
 import { toast } from '../../../services/toast';
 import { useT } from '../../../hooks/useT';
 
 import { Department } from '../../../types';
 import { describeAppError } from '../../../services/appError';
+import { Button, Field, Modal, SelectField, TextArea, TextInput } from '../../ui';
 
 interface AddPalletModalProps {
     isOpen: boolean;
@@ -15,183 +15,119 @@ interface AddPalletModalProps {
     departments: Department[];
 }
 
-export const AddPalletModal: React.FC<AddPalletModalProps> = ({ isOpen, onClose, onSuccess, departments }) => {
+export const AddPalletModal: React.FC<AddPalletModalProps> = ({
+    isOpen,
+    onClose,
+    onSuccess,
+    departments,
+}) => {
     const t = useT();
-    // Names the dialog for a screen reader, which announces the labelled
-    // element on entry instead of an anonymous group. It is also what makes
-    // this modal findable by SelectionBar's Escape guard -- see the panel
-    // element below and the note there.
-    const titleId = useId();
+    // useId ให้ id ที่ไม่ชนกันแม้จะเปิดสองโมดัลพร้อมกัน -- Field ใช้ค่านี้เดินสาย
+    // label/aria ทั้งชุด
+    const fieldId = useId();
     const [newId, setNewId] = useState('');
     const [newLocation, setNewLocation] = useState('Warehouse');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [idError, setIdError] = useState<string | null>(null);
+
+    const close = () => {
+        setIdError(null);
+        onClose();
+    };
 
     const handleAddPallet = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
+        setIdError(null);
         try {
             await createPallet(newId, newLocation);
             toast.success(t.inventory.palletCreated(newId));
             setNewId('');
-            // Reset to default
             setNewLocation('Warehouse');
             onSuccess();
-            onClose();
+            close();
         } catch (error: any) {
-            toast.error(describeAppError(error));
+            // ใต้ช่อง ไม่ใช่ toast: รหัสซ้ำเป็นความผิดพลาดของช่องใดช่องหนึ่งเสมอ
+            // toast เด้งอยู่บนสุดของจอขณะที่สายตาอยู่ที่ช่องกรอก แล้วหายเองใน
+            // ไม่กี่วินาทีทั้งที่ช่องยังผิดอยู่
+            setIdError(describeAppError(error));
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    if (!isOpen) return null;
+    const locationOptions = [
+        { value: 'Warehouse', label: 'Warehouse' },
+        // ชื่อแผนกเป็นข้อมูลที่ผู้ใช้พิมพ์เองในหน้าสถานที่ ไม่ใช่ข้อความ UI
+        // จึงแสดงตามที่บันทึกไว้ ไม่แปล -- เหมือนที่ InventoryFilters ทำ
+        ...departments.filter((d) => d.name !== 'Warehouse').map((d) => ({ value: d.name, label: d.name })),
+    ];
 
-    return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            {/* role/aria-modal go on the PANEL, not the overlay: the overlay is
-                the dimmed backdrop and includes everything behind the card, so
-                naming it the dialog would tell a screen reader the dialog is
-                the whole screen. Beyond being correct on its own, this is what
-                SelectionBar's Escape guard looks for -- an open modal has to be
-                findable in the document for the floating selection bar to know
-                it is no longer the innermost dismissible thing and to stop
-                claiming Escape. Without it, Escape over this modal wiped the
-                row selection sitting behind it. */}
-            <div
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={titleId}
-                className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 overflow-hidden"
-            >
-                <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 id={titleId} className="font-bold text-gray-800 text-lg flex items-center gap-2">
-                        <PackagePlus className="text-blue-600" size={20} />{t.inventory.addPalletTitle}
-                    </h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
-                        <X size={20} />
-                    </button>
-                </div>
-
-                <form onSubmit={handleAddPallet} className="p-5 space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1">{t.inventory.palletIdHint}</label>
-                        <input
+    return (
+        <Modal
+            isOpen={isOpen}
+            onClose={close}
+            title={t.inventory.addPalletTitle}
+            icon={PackagePlus}
+            size="md"
+            busy={isSubmitting}
+            closeLabel={t.common.closeDialog}
+            footer={
+                <>
+                    <Button variant="secondary" onClick={close} disabled={isSubmitting}>
+                        {t.common.cancel}
+                    </Button>
+                    {/* form="…" ผูกปุ่มที่อยู่นอก <form> (มันอยู่ในท้ายกล่องซึ่งเป็น
+                        พี่น้องของเนื้อ) เข้ากับฟอร์ม เพื่อให้ Enter ในช่องกรอกยัง
+                        ส่งฟอร์มได้ตามปกติ */}
+                    <Button
+                        type="submit"
+                        form={`${fieldId}-form`}
+                        variant="primary"
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? t.inventory.creating : t.inventory.createPallet}
+                    </Button>
+                </>
+            }
+        >
+            <form id={`${fieldId}-form`} onSubmit={handleAddPallet} className="space-y-4">
+                <Field
+                    label={t.common.palletId}
+                    htmlFor={`${fieldId}-id`}
+                    required
+                    hint={t.inventory.palletIdHint}
+                    error={idError ?? undefined}
+                >
+                    {(aria) => (
+                        <TextInput
+                            {...aria}
+                            mono
                             required
                             autoFocus
-                            className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm uppercase font-mono"
                             value={newId}
-                            onChange={(e) => setNewId(e.target.value.toUpperCase())}
+                            onChange={(e) => {
+                                setNewId(e.target.value.toUpperCase());
+                                setIdError(null);
+                            }}
                         />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1">{t.inventory.initialLocation}</label>
-                        <div className="relative">
-                            <select
-                                className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white text-sm"
-                                value={newLocation}
-                                onChange={(e) => setNewLocation(e.target.value)}
-                            >
-                                <option value="Warehouse">Warehouse</option>
-                                {departments
-                                    .filter(d => d.name !== 'Warehouse')
-                                    .map(d => (
-                                        <option key={d.id} value={d.name}>{d.name}</option>
-                                    ))
-                                }
-                            </select>
-                        </div>
-                    </div>
-                    <div className="pt-2">
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 text-sm"
-                        >
-                            {isSubmitting ? t.inventory.creating : t.inventory.createPallet}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>,
-        document.body
-    );
-};
+                    )}
+                </Field>
 
-export type ConfirmActionType = {
-    title: string;
-    message: string;
-    confirmLabel: string;
-    isDestructive?: boolean;
-    onConfirm: () => Promise<void>;
-};
-
-interface ConfirmModalProps {
-    action: ConfirmActionType | null;
-    onClose: () => void;
-}
-
-export const ConfirmModal: React.FC<ConfirmModalProps> = ({ action, onClose }) => {
-    const t = useT();
-    // Before the early return: hooks cannot sit behind a conditional.
-    const titleId = useId();
-    const [isConfirming, setIsConfirming] = useState(false);
-
-    if (!action) return null;
-
-    // onConfirm throws for real: scrapPallet() rejects a pallet that is not
-    // damaged, and any of these can fail on RLS or the network. Without the
-    // catch the rejection was unhandled and the modal simply sat there open
-    // with no message, looking like a dead button.
-    const handleConfirm = async () => {
-        setIsConfirming(true);
-        try {
-            await action.onConfirm();
-            onClose();
-        } catch (error: any) {
-            console.error("Confirm action failed", error);
-            toast.error(describeAppError(error));
-        } finally {
-            setIsConfirming(false);
-        }
-    };
-
-    return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            {/* On the panel, not the overlay -- see AddPalletModal above. */}
-            <div
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={titleId}
-                className="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 overflow-hidden transform"
-            >
-                <div className="p-6">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${action.isDestructive ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                        {action.isDestructive ? <AlertTriangle size={24} /> : <CheckCircle size={24} />}
-                    </div>
-                    <h3 id={titleId} className="text-lg font-bold text-gray-900 mb-2">{action.title}</h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">
-                        {action.message}
-                    </p>
-                </div>
-                <div className="bg-gray-50 px-6 py-4 flex gap-3 justify-end border-t border-gray-100">
-                    <button
-                        onClick={onClose}
-                        disabled={isConfirming}
-                        className="px-4 py-2 bg-white text-gray-700 font-bold rounded-lg hover:bg-gray-100 border border-gray-200 transition disabled:opacity-50"
-                    >
-                        {t.common.cancel}
-                    </button>
-                    <button
-                        onClick={handleConfirm}
-                        disabled={isConfirming}
-                        className={`px-4 py-2 text-white font-bold rounded-lg shadow-sm transition disabled:opacity-70 disabled:cursor-not-allowed ${action.isDestructive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
-                    >
-                        {isConfirming ? t.inventory.working : action.confirmLabel}
-                    </button>
-                </div>
-            </div>
-        </div>,
-        document.body
+                <Field label={t.inventory.initialLocation} htmlFor={`${fieldId}-location`}>
+                    {(aria) => (
+                        <SelectField
+                            id={aria.id}
+                            icon={MapPin}
+                            ariaLabel={t.inventory.initialLocation}
+                            value={newLocation}
+                            onChange={setNewLocation}
+                            options={locationOptions}
+                        />
+                    )}
+                </Field>
+            </form>
+        </Modal>
     );
 };
 
@@ -202,103 +138,107 @@ interface EditPalletModalProps {
     onSave: (id: string, updates: { pallet_id: string; pallet_remark: string }) => Promise<void>;
 }
 
-export const EditPalletModal: React.FC<EditPalletModalProps> = ({ isOpen, pallet, onClose, onSave }) => {
+export const EditPalletModal: React.FC<EditPalletModalProps> = ({
+    isOpen,
+    pallet,
+    onClose,
+    onSave,
+}) => {
     const t = useT();
-    const titleId = useId();
+    const fieldId = useId();
     const [id, setId] = useState(pallet.id);
     const [remark, setRemark] = useState(pallet.remark);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
 
-    // Reset state when pallet changes
-    React.useEffect(() => {
+    useEffect(() => {
         if (isOpen) {
             setId(pallet.id);
             setRemark(pallet.remark);
+            setSaveError(null);
         }
     }, [isOpen, pallet]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
+        setSaveError(null);
         try {
             await onSave(pallet.id, { pallet_id: id, pallet_remark: remark });
             onClose();
-        } catch (error) {
-            console.error(error);
-            // Error handling usually done in parent
+        } catch (error: any) {
+            // ไม่ปิดกล่อง
+            //
+            // ของเดิม onSave กลืน error ไว้เองแล้ว resolve เสมอ บรรทัด onClose()
+            // ข้างบนจึงวิ่งทุกครั้งแม้บันทึกไม่สำเร็จ -- รหัสซ้ำหนึ่งครั้งเท่ากับ
+            // ข้อความที่พิมพ์มาทั้งหมดหายไป useInventoryActions โยน error ที่มี
+            // ข้อความพร้อมแสดงมาให้แล้ว (ดู catch ในไฟล์นั้น)
+            setSaveError(error?.message ?? describeAppError(error));
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    if (!isOpen) return null;
-
-    return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            {/* On the panel, not the overlay -- see AddPalletModal above. */}
-            <div
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={titleId}
-                className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
-            >
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                    <h3 id={titleId} className="font-bold text-gray-800 text-lg">{t.inventory.editTitle}</h3>
-                    <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition text-gray-500 hover:text-gray-700">
-                        <X size={20} />
-                    </button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            {t.common.palletId}
-                        </label>
-                        <input
+    return (
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={t.inventory.editTitle}
+            icon={SquarePen}
+            size="md"
+            busy={isSubmitting}
+            closeLabel={t.common.closeDialog}
+            footer={
+                <>
+                    <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+                        {t.common.cancel}
+                    </Button>
+                    <Button
+                        type="submit"
+                        form={`${fieldId}-form`}
+                        variant="primary"
+                        icon={Save}
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? t.common.saving : t.inventory.saveChanges}
+                    </Button>
+                </>
+            }
+        >
+            <form id={`${fieldId}-form`} onSubmit={handleSubmit} className="space-y-4">
+                <Field
+                    label={t.common.palletId}
+                    htmlFor={`${fieldId}-id`}
+                    required
+                    warning={t.inventory.idChangeWarning}
+                    error={saveError ?? undefined}
+                >
+                    {(aria) => (
+                        <TextInput
+                            {...aria}
+                            mono
                             required
-                            className="w-full p-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none uppercase font-mono bg-white text-gray-900 transition"
                             value={id}
-                            onChange={(e) => setId(e.target.value.toUpperCase())}
+                            onChange={(e) => {
+                                setId(e.target.value.toUpperCase());
+                                setSaveError(null);
+                            }}
                         />
-                        <p className="text-xs text-yellow-600 mt-1 flex items-center gap-1">
-                            <AlertTriangle size={12} />
-                            {t.inventory.idChangeWarning}
-                        </p>
-                    </div>
+                    )}
+                </Field>
 
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <FileText size={16} className="text-orange-500" /> {t.common.remark}
-                        </label>
-                        <textarea
+                <Field label={t.common.remark} htmlFor={`${fieldId}-remark`}>
+                    {(aria) => (
+                        <TextArea
+                            {...aria}
                             rows={3}
-                            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none bg-white text-gray-900 resize-none transition"
                             placeholder={t.inventory.remarkPlaceholder}
                             value={remark}
                             onChange={(e) => setRemark(e.target.value)}
                         />
-                    </div>
-
-                    <div className="pt-4 flex justify-end gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-lg transition"
-                        >
-                            {t.common.cancel}
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition disabled:opacity-70 disabled:cursor-not-allowed"
-                        >
-                            <Save size={18} />
-                            {isSubmitting ? t.common.saving : t.inventory.saveChanges}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>,
-        document.body
+                    )}
+                </Field>
+            </form>
+        </Modal>
     );
 };

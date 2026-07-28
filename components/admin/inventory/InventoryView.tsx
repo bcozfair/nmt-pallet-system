@@ -1,7 +1,10 @@
 
 import React from 'react';
 import { Pallet } from '../../../types';
-import { StickyHeader } from '../../ui';
+import { ConfirmDialog, StickyHeader } from '../../ui';
+import { toast } from '../../../services/toast';
+import { describeAppError } from '../../../services/appError';
+import { useT } from '../../../hooks/useT';
 
 // Sub-components
 import { InventoryFilters } from './InventoryFilters';
@@ -9,7 +12,7 @@ import { InventoryHeader } from './InventoryHeader';
 import { InventorySelectionBar } from './InventorySelectionBar';
 import { InventoryStatusStrip } from './InventoryStatusStrip';
 import { InventoryTable } from './InventoryTable';
-import { AddPalletModal, ConfirmModal, EditPalletModal } from './InventoryModals';
+import { AddPalletModal, EditPalletModal } from './InventoryModals';
 import { BulkTransactionModal } from './BulkTransactionModal';
 
 // Hooks
@@ -41,6 +44,7 @@ export const InventoryView = ({
     // `case 'inventory':` for what it is wired to.
     isLoading: boolean
 }) => {
+    const t = useT();
 
     // 1. Filtering & Data Logic
     const {
@@ -234,10 +238,24 @@ export const InventoryView = ({
                 />
             )}
 
-            <ConfirmModal
-                action={confirmAction}
-                onClose={() => setConfirmAction(null)}
-            />
+            {/* เรนเดอร์เฉพาะตอนมี action จริง เพื่อให้ state ภายใน (กำลังทำงาน)
+                ถูกล้างทุกครั้งที่เปิดกล่องใหม่ -- ของเดิม ConfirmModal ทำแบบเดียวกัน
+                ด้วย `if (!action) return null` ข้างใน */}
+            {confirmAction && (
+                <ConfirmDialog
+                    isOpen
+                    title={confirmAction.title}
+                    message={confirmAction.message}
+                    confirmLabel={confirmAction.confirmLabel}
+                    cancelLabel={t.common.cancel}
+                    closeLabel={t.common.closeDialog}
+                    workingLabel={t.inventory.working}
+                    isDestructive={confirmAction.isDestructive}
+                    onConfirm={confirmAction.onConfirm}
+                    onCancel={() => setConfirmAction(null)}
+                    onError={(error) => toast.error(describeAppError(error))}
+                />
+            )}
         </div>
     );
 };
