@@ -88,3 +88,12 @@ export type { StickyHeaderProps } from './StickyHeader';
 
 export { Modal, MODAL_PANEL } from './Modal';
 export type { ModalProps, ModalSize, ModalTone } from './Modal';
+
+export { Field } from './Field';
+export type { FieldProps, FieldControlProps } from './Field';
+
+export { TextInput } from './TextInput';
+export type { TextInputProps } from './TextInput';
+
+export { TextArea } from './TextArea';
+export type { TextAreaProps } from './TextArea';
