@@ -84,7 +84,7 @@ export const InventorySelectionBar: React.FC<InventorySelectionBarProps> = ({
                             {t.inventory.transaction}
                         </Button>
                     )}
-                    <Button variant="inverseGhost" icon={QrCode} onClick={onPrintQrSelected}>
+                    <Button variant="inverseAccent" icon={QrCode} onClick={onPrintQrSelected}>
                         {t.inventory.printQr}
                     </Button>
                     {/* A real toggle, so it carries `aria-pressed` rather than

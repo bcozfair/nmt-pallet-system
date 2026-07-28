@@ -161,7 +161,7 @@ export const QRPrintModal = ({ pallets, onClose }: { pallets: Pallet[], onClose:
             // ต้องเห็นตลอดโดยไม่ต้องเลื่อนลงไปสุด -- นี่เป็นโมดัลตัวเดียวในแอปที่
             // ใช้ headerActions
             headerActions={
-                <Button variant="primary" icon={Printer} onClick={handlePrint}>
+                <Button variant="accent" icon={Printer} onClick={handlePrint}>
                     {t.modals.printPdf}
                 </Button>
             }
@@ -192,9 +192,12 @@ export const QRPrintModal = ({ pallets, onClose }: { pallets: Pallet[], onClose:
                                 <p className="truncate text-[10px] font-semibold text-slate-400">
                                     {t.modals.propertyMarkShort}
                                 </p>
+                                {/* สีเดียวกับปุ่ม "เพิ่มพาเลท" บนหัวหน้าคลัง (`primary`)
+                                    ปุ่มนี้อยู่บนการ์ดทุกใบในกริด จึงยังเป็น `size="sm"`
+                                    เหมือนเดิม -- เปลี่ยนแค่สี ไม่ใช่ขนาด */}
                                 <Button
                                     size="sm"
-                                    variant="ghost"
+                                    variant="primary"
                                     icon={ImageDown}
                                     onClick={() => handleDownloadImage(p.pallet_id)}
                                     aria-label={t.modals.downloadPng}

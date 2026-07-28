@@ -33,7 +33,7 @@ export const InventoryHeader: React.FC<InventoryHeaderProps> = ({
                     <Button variant="secondary" icon={Download} onClick={onExport}>
                         {t.inventory.exportList}
                     </Button>
-                    <Button variant="secondary" icon={QrCode} onClick={onPrintQrAll}>
+                    <Button variant="accentSoft" icon={QrCode} onClick={onPrintQrAll}>
                         {t.inventory.printAllQr}
                     </Button>
                     <Button variant="primary" icon={Plus} onClick={onAddPallet}>

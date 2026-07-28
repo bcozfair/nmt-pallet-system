@@ -297,9 +297,14 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                             </button>
                                         </>
                                     )}
+                                    {/* เขียวน้ำทะเลเหมือนปุ่มพิมพ์ QR ที่เหลือทั้งแอป (ดู variant
+                                        `accent` ใน components/ui/Button.tsx) เริ่มที่ `accent-600`
+                                        ไม่ใช่ `accent-400` ให้เท่ากับ `brand-400` ของไอคอนข้าง ๆ:
+                                        `accent-400` บนพื้นขาวได้คอนทราสต์แค่ 1.9:1 ซึ่งต่ำกว่าเกณฑ์
+                                        3:1 ของกราฟิกที่สื่อความหมาย ส่วน `accent-600` ได้ 3.6:1 */}
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onPrintQr([p]); }}
-                                        className="rounded-full p-1.5 text-brand-400 transition hover:bg-brand-50 hover:text-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                                        className="rounded-full p-1.5 text-accent-600 transition hover:bg-accent-50 hover:text-accent-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                                         title={t.inventory.printQrTitle}
                                         aria-label={t.inventory.printQrTitle}
                                     >

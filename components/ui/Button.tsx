@@ -7,8 +7,11 @@ export type ButtonVariant =
     | 'danger'
     | 'dangerSolid'
     | 'ghost'
+    | 'accent'
+    | 'accentSoft'
     | 'inverse'
     | 'inverseGhost'
+    | 'inverseAccent'
     | 'inverseDanger';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -63,6 +66,24 @@ export const BUTTON_VARIANT: Record<ButtonVariant, string> = {
         'bg-red-600 text-white shadow-lg shadow-red-600/20 hover:bg-red-700 ' +
         'active:scale-[0.99] disabled:hover:bg-red-600',
     ghost: 'text-slate-600 hover:bg-slate-100 active:scale-[0.99] disabled:hover:bg-transparent',
+    // สองตัวนี้เป็นสีเขียวน้ำทะเลของโลโก้ (`accent-*` ใน index.css คือสีตัวที่สองของ
+    // NMT wordmark) ใช้กับตระกูลปุ่ม "พิมพ์ QR" ทั้งหมด เพื่อให้ทุกทางเข้าสู่การพิมพ์ QR
+    // -- หัวหน้าคลัง แถบเลือกหลายรายการ ไอคอนท้ายแถว และปุ่มพิมพ์ในโมดัล -- เป็นสีเดียวกัน
+    //
+    // ฐานเป็น `accent-700` (#037777) ไม่ใช่ `accent-500` (#01b5b4) ที่สดกว่า เพราะป้ายปุ่ม
+    // เป็น text-sm ซึ่งนับเป็นตัวอักษรปกติ ต้องได้คอนทราสต์ 4.5:1 ขึ้นไป: ตัวอักษรขาวบน
+    // `accent-500` ได้แค่ 2.4:1 บน `accent-600` ได้ 3.6:1 -- ตกทั้งคู่ ส่วน `accent-700`
+    // ได้ 5.4:1 ผ่าน (เทียบกับ `primary` ที่ 7.6:1) อย่าเลื่อนกลับขึ้นไปหาเฉดที่สดกว่านี้
+    // โดยไม่เปลี่ยนสีตัวอักษร
+    accent:
+        'bg-accent-700 text-white shadow-lg shadow-accent-700/20 hover:bg-accent-800 ' +
+        'active:scale-[0.99] disabled:hover:bg-accent-700',
+    // ทรงเดียวกับ `secondary` เป๊ะ เปลี่ยนแค่ hue: ใช้ตรงที่ปุ่มพิมพ์ QR ต้องนั่งข้าง
+    // ปุ่ม `primary` ของหน้า (เช่น "เพิ่มพาเลท" บนหัวหน้าคลัง) -- ถ้าใช้ `accent` ทึบตรงนั้น
+    // หน้าเดียวจะมีปุ่มทึบสองสีแย่งความสนใจกัน และปุ่มหลักของหน้าจะไม่ใช่ปุ่มที่เด่นที่สุดอีก
+    accentSoft:
+        'border border-accent-200 bg-white text-accent-700 hover:bg-accent-50 ' +
+        'active:scale-[0.99] disabled:hover:bg-white',
     // สองตัวล่างสำหรับพื้นเข้มเท่านั้น (SelectionBar) -- brand-600 บน brand-900
     // คอนทราสต์ต่ำเกินอ่าน และการส่ง className ไปทับจากข้างนอกใช้ไม่ได้
     // เพราะลำดับคลาส Tailwind ตัดสินที่ CSS ที่ build ออกมา ไม่ใช่ลำดับในสตริง
@@ -70,6 +91,17 @@ export const BUTTON_VARIANT: Record<ButtonVariant, string> = {
     inverseGhost:
         'border border-white/25 bg-white/10 text-white hover:bg-white/20 active:scale-[0.99] ' +
         'disabled:hover:bg-white/10 focus-visible:outline-white',
+    // คู่ของ `accent` สำหรับพื้นเข้ม (SelectionBar ที่เป็น `bg-brand-900`) ด้วยเหตุผล
+    // เดียวกับ `inverseDanger`: `accent-700` บน `brand-900` เป็นสีเข้มบนสีเข้ม แทบไม่ต่างจาก
+    // แถบที่มันนั่งอยู่ ตัวนี้จึงยืมทรงของ `inverseGhost` มาแล้วย้อมเป็นเขียวน้ำทะเลแทน
+    // ตัวอักษรใช้ `accent-200` ซึ่งได้คอนทราสต์ ~11:1 บนแถบ
+    //
+    // `focus-visible:outline-white` ทับ `outline-brand-500` ของ BUTTON_BASE ด้วยกลไก
+    // เดียวกับที่ `inverseGhost` ใช้ (ดูคอมเมนต์ข้างล่าง)
+    inverseAccent:
+        'border border-accent-300/40 bg-accent-400/15 text-accent-200 hover:bg-accent-400/25 ' +
+        'hover:text-accent-100 active:scale-[0.99] disabled:hover:bg-accent-400/15 ' +
+        'focus-visible:outline-white',
     // `danger` is built for a white card and is unreadable here -- red-600 text
     // on brand-900 is barely darker than the bar it sits on. This is the same
     // shape as inverseGhost with the tint carried over to red, which is enough
