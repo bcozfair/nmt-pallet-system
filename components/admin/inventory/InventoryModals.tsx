@@ -50,7 +50,16 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({
             // ใต้ช่อง ไม่ใช่ toast: รหัสซ้ำเป็นความผิดพลาดของช่องใดช่องหนึ่งเสมอ
             // toast เด้งอยู่บนสุดของจอขณะที่สายตาอยู่ที่ช่องกรอก แล้วหายเองใน
             // ไม่กี่วินาทีทั้งที่ช่องยังผิดอยู่
-            setIdError(describeAppError(error));
+            //
+            // เช็ครหัส 23505 เองตรงนี้ (ไม่ผ่าน describeAppError อย่างเดียว): createPallet
+            // (services/palletService.ts) โยน PostgrestError ดิบออกมาตรง ๆ ไม่ได้ห่อเป็น
+            // AppError เหมือนที่ updatePallet ทำให้ useInventoryActions ใช้ต่อ
+            // describeAppError เห็น error ที่ไม่ใช่ AppError แล้วตอบ errors.unknown เสมอ
+            // ("มีบางอย่างผิดพลาด") ซึ่งไม่บอกอะไรเรื่องรหัสซ้ำเลย ทั้งที่ EditPalletModal
+            // (ผ่าน handleSavePalletEdit) ตอบข้อความเป๊ะสำหรับเคสเดียวกัน สองกล่องนี้จึง
+            // ต้องพูดตรงกัน -- ที่นี่เป็นชั้นเดียวที่เห็น error ดิบจาก createPallet
+            const message = error?.code === '23505' ? t.inventory.idExists : describeAppError(error);
+            setIdError(message);
         } finally {
             setIsSubmitting(false);
         }
