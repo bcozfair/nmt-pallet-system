@@ -442,8 +442,12 @@ toast เด้งอยู่บนสุดของจอขณะที่�
 | ไฟล์ | คีย์ | en | th |
 |---|---|---|---|
 | `locales/en.ts` + `th.ts` (`common`) | `closeDialog` | `'Close dialog'` | `'ปิดหน้าต่าง'` |
-| `locales/admin/inventory.ts` | `palletIdFormatHint` | รูปแบบรหัสที่รับ | เดียวกัน |
 | `locales/admin/inventory.ts` | `invalidDateTime` | `'Enter a valid date and time'` | `'กรุณาระบุวันที่และเวลาให้ถูกต้อง'` |
+
+คีย์ที่เคยร่างไว้ว่าต้องเพิ่มชื่อ `palletIdFormatHint` **ไม่ต้องเพิ่ม** — `inventory.palletIdHint`
+มีอยู่แล้วทั้งสองภาษา (`inventory.ts:63` / `:196` — `'Pallet ID (e.g., P105)'`)
+ของเดิมเอามาใช้เป็น *ป้าย* ของช่อง ซึ่งผิดหน้าที่ ของใหม่ใช้ `common.palletId` เป็นป้าย
+แล้วยกคีย์นี้ไปเป็น `hint` ใต้ช่องตามความหมายเดิมของมัน
 
 **ที่นำมาใช้ซ้ำได้เลยไม่ต้องเพิ่ม:** `t.common.cancel`, `t.common.confirm`, `t.common.close`,
 `t.common.save`, `t.common.saving`, `t.inventory.working`, `t.inventory.processing`,
