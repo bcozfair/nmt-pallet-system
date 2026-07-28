@@ -1,8 +1,8 @@
 import React from 'react';
-import { MapPin, AlarmClock } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { Department } from '../../../types';
 import { useT } from '../../../hooks/useT';
-import { FilterBar, SearchInput, SelectField, DateRangeField, ToggleChip } from '../../ui';
+import { FilterBar, SearchInput, SelectField, DateRangeField } from '../../ui';
 
 interface InventoryFiltersProps {
     searchTerm: string;
@@ -12,8 +12,6 @@ interface InventoryFiltersProps {
     onLocationChange?: (loc: string) => void;
     dateRange: { start: string; end: string };
     setDateRange: (range: { start: string; end: string }) => void;
-    showOverdueOnly: boolean;
-    setShowOverdueOnly: (show: boolean) => void;
     departments: Department[];
     // How many of the filters below are not at their default value. Drives
     // both whether FilterBar shows its result row and whether the status
@@ -34,8 +32,6 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
     onLocationChange,
     dateRange,
     setDateRange,
-    showOverdueOnly,
-    setShowOverdueOnly,
     departments,
     activeFilterCount,
     resultCount,
@@ -108,15 +104,14 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
                     endLabel={t.inventory.endDate}
                     clearLabel={t.common.clearFilters}
                 />
+                {/* The "Overdue only" chip that used to sit here is gone the
+                    same way the status <select> above it went: it is the fifth
+                    tile on InventoryStatusStrip now. As a chip it was a second
+                    axis crossed with the status tiles, which is what made
+                    turning it on drive the other tiles' counts to 0 -- as a
+                    tile it is one of five exclusive choices and every count
+                    stays independent. See useInventoryFilters.ts. */}
             </div>
-
-            <ToggleChip
-                tone="critical"
-                icon={AlarmClock}
-                pressed={showOverdueOnly}
-                onChange={setShowOverdueOnly}
-                label={t.inventory.overdueOnly}
-            />
         </FilterBar>
     );
 };

@@ -45,7 +45,6 @@ export const InventoryView = ({
     const {
         searchTerm, setSearchTerm,
         statusFilter, setStatusFilter,
-        showOverdueOnly, setShowOverdueOnly,
         locationFilter, setLocationFilter,
         dateRange, setDateRange,
         departments,
@@ -156,8 +155,6 @@ export const InventoryView = ({
                 onLocationChange={onLocationChange}
                 dateRange={dateRange}
                 setDateRange={setDateRange}
-                showOverdueOnly={showOverdueOnly}
-                setShowOverdueOnly={setShowOverdueOnly}
                 departments={departments}
                 activeFilterCount={activeFilterCount}
                 resultCount={processedPallets.length}

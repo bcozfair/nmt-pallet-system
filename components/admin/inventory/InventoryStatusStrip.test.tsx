@@ -8,12 +8,14 @@ import { InventoryStatusStrip } from './InventoryStatusStrip';
 // ป้ายที่เทสต์อ้างถึงจึงเป็นไทยตรง ๆ (locales/admin/inventory.ts)
 const VIEW_SCRAPPED = 'ดูรายการ';
 
+// เกินกำหนดซ้อนอยู่ใน in_use ตัวเลขชุดนี้จึงจงใจบวกกันไม่เท่ากับ all
 const counts = (scrapped: number) => ({
     all: 10,
     available: 6,
     in_use: 3,
     damaged: 1,
     scrapped,
+    overdue: 2,
 });
 
 describe('InventoryStatusStrip -- แถวเชิงอรรถของ "ตัดออกจากระบบแล้ว"', () => {
@@ -62,7 +64,7 @@ describe('InventoryStatusStrip -- แถวเชิงอรรถของ "�
         expect(onSelect).toHaveBeenCalledWith('all');
     });
 
-    it('ไทล์ทั้งสี่ไม่มีตัวไหนถูกเลือกตอนกรองด้วย scrapped แถวเชิงอรรถจึงต้องรับหน้าที่นั้นแทน', () => {
+    it('ไทล์ทั้งห้าไม่มีตัวไหนถูกเลือกตอนกรองด้วย scrapped แถวเชิงอรรถจึงต้องรับหน้าที่นั้นแทน', () => {
         render(
             <InventoryStatusStrip counts={counts(4)} statusFilter="scrapped" onSelect={() => {}} />,
         );
@@ -71,5 +73,34 @@ describe('InventoryStatusStrip -- แถวเชิงอรรถของ "�
             .filter((el) => el.getAttribute('aria-pressed') === 'true');
         expect(pressed).toHaveLength(1);
         expect(pressed[0].textContent).toContain(VIEW_SCRAPPED);
+    });
+});
+
+describe('InventoryStatusStrip -- ไทล์เกินกำหนด', () => {
+    it('แสดงจำนวนเกินกำหนด และกดแล้วกรองเป็น overdue', async () => {
+        const onSelect = vi.fn();
+        const user = userEvent.setup();
+        render(
+            <InventoryStatusStrip counts={counts(0)} statusFilter="all" onSelect={onSelect} />,
+        );
+
+        const tile = screen.getByRole('button', { name: /เกินกำหนด/ });
+        expect(tile.textContent).toContain('2');
+
+        await user.click(tile);
+        expect(onSelect).toHaveBeenCalledWith('overdue');
+    });
+
+    // เดิมเกินกำหนดเป็นชิป toggle อยู่ในแถบกรอง แยกแกนกับไทล์สถานะ ตอนนี้เป็น
+    // หนึ่งในห้าตัวเลือกที่ตัดกันเอง จึงต้องมีไทล์ถูกเลือกได้ทีละตัวเท่านั้น
+    it('เลือกได้ทีละไทล์ -- กรองด้วย overdue แล้วต้องไม่มีไทล์อื่นถูกเลือกด้วย', () => {
+        render(
+            <InventoryStatusStrip counts={counts(0)} statusFilter="overdue" onSelect={() => {}} />,
+        );
+        const pressed = screen
+            .getAllByRole('button')
+            .filter((el) => el.getAttribute('aria-pressed') === 'true');
+        expect(pressed).toHaveLength(1);
+        expect(pressed[0].textContent).toContain('เกินกำหนด');
     });
 });

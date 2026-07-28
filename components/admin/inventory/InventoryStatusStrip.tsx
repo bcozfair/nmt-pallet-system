@@ -1,19 +1,30 @@
 import React from 'react';
-import { Activity, AlertTriangle, Boxes, CircleCheck } from 'lucide-react';
+import { Activity, AlarmClock, AlertTriangle, Boxes, CircleCheck } from 'lucide-react';
 import { SkeletonTile, StatTile } from '../../ui';
 import { useT } from '../../../hooks/useT';
 
 export interface InventoryStatusStripProps {
-    counts: { all: number; available: number; in_use: number; damaged: number; scrapped: number };
+    counts: {
+        all: number;
+        available: number;
+        in_use: number;
+        damaged: number;
+        scrapped: number;
+        // A subset of in_use, not a sixth status -- so the tiles deliberately
+        // do not sum to `all`. See useInventoryFilters.ts.
+        overdue: number;
+    };
     statusFilter: string;
     onSelect: (status: string) => void;
     isLoading?: boolean;
 }
 
-// Same grid as the dashboard's KpiRow: 2 x 2 up to xl, because at 1024px the
-// sidebar has already taken 256px and four-across would leave each tile too
-// narrow for a two-line Thai label.
-const GRID = 'grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4';
+// Two across on phones, three at lg, all five at xl. It was 2 / 4 while there
+// were four tiles; the overdue tile made four-then-one an orphan row, and five
+// across below 1280 is too narrow for a two-line Thai label once the sidebar
+// has taken its 256px. Three at lg splits 5 as 3 + 2, which reads as a block
+// rather than as a row with a straggler.
+const GRID = 'grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5';
 
 // The scrapped footnote's two states. Complete class sets picked between by one
 // ternary rather than a base plus an appended override: both carry the same
@@ -74,6 +85,7 @@ export const InventoryStatusStrip: React.FC<InventoryStatusStripProps> = ({
                     <SkeletonTile />
                     <SkeletonTile />
                     <SkeletonTile />
+                    <SkeletonTile />
                 </div>
             </div>
         );
@@ -113,6 +125,20 @@ export const InventoryStatusStrip: React.FC<InventoryStatusStripProps> = ({
                     tone="warning"
                     onClick={() => onSelect('damaged')}
                     selected={statusFilter === 'damaged'}
+                />
+                {/* Last, and the only tile that is not a status: it counts the
+                    in_use pallets that have been out past the configured
+                    threshold. It sits here rather than in the filter bar
+                    because it is the same kind of question as the four beside
+                    it -- "show me this slice of the fleet" -- and because the
+                    dashboard's overdue KPI links straight to it. */}
+                <StatTile
+                    label={t.inventory.overdue}
+                    value={counts.overdue}
+                    icon={AlarmClock}
+                    tone="critical"
+                    onClick={() => onSelect('overdue')}
+                    selected={statusFilter === 'overdue'}
                 />
             </div>
 

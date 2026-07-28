@@ -64,14 +64,36 @@ describe('useInventoryFilters — statusCounts', () => {
         expect(result.current.statusCounts.in_use).toBe(0);
     });
 
-    it('เปิดเฉพาะเกินกำหนดแล้ว พร้อมใช้ กับ เสียหาย เป็น 0 -- ตั้งใจ ไม่ใช่บั๊ก', async () => {
+    it('นับเกินกำหนดถูก และเป็นสับเซ็ตของถูกเบิกออก ไม่ใช่สถานะที่หก', () => {
         const { result } = renderHook(() => useInventoryFilters(FLEET));
-        result.current.setShowOverdueOnly(true);
-        // เกินกำหนดได้ต้องเป็น in_use เท่านั้น P-04 ตัวเดียวที่เกิน 7 วัน
-        await waitFor(() => expect(result.current.statusCounts.in_use).toBe(1));
-        expect(result.current.statusCounts.available).toBe(0);
-        expect(result.current.statusCounts.damaged).toBe(0);
-        expect(result.current.statusCounts.all).toBe(1);
+        // เกินกำหนดต้องเป็น in_use เท่านั้น P-04 เบิกไป 30 วัน (เกิน 7)
+        // ส่วน P-03 เพิ่งเบิก 2 วัน จึงยังไม่เกิน
+        expect(result.current.statusCounts.overdue).toBe(1);
+        expect(result.current.statusCounts.in_use).toBe(2);
+        // ห้าตัวเลขนี้จงใจบวกกันไม่เท่ากับ all เพราะเกินกำหนดซ้อนอยู่ในถูกเบิกออก
+        expect(result.current.statusCounts.all).toBe(5);
+    });
+
+    // เดิมเกินกำหนดเป็น toggle แยกที่กรองก่อนชั้นนับ พอเปิดแล้วช่องอื่นเหลือ 0
+    // หมดทั้งแถว -- ตอนนั้นล็อกไว้ว่า "ตั้งใจ" เพราะแก้ไม่ได้ในโครงนั้น
+    // พอย้ายมาเป็นไทล์ที่ห้าในชั้นเดียวกับสถานะอื่น อาการนั้นหายไปเอง
+    // เทสต์นี้แทนที่ตัวเดิม และยืนยันสิ่งที่ตรงกันข้ามกับที่ตัวเดิมล็อกไว้
+    it('เลือกไทล์เกินกำหนดแล้ว ตัวเลขช่องอื่นต้องไม่กลายเป็น 0', async () => {
+        const { result } = renderHook(() => useInventoryFilters(FLEET));
+        result.current.setStatusFilter('overdue');
+        await waitFor(() => expect(result.current.processedPallets).toHaveLength(1));
+        expect(result.current.processedPallets[0].pallet_id).toBe('P-04');
+        expect(result.current.statusCounts.available).toBe(2);
+        expect(result.current.statusCounts.damaged).toBe(1);
+        expect(result.current.statusCounts.all).toBe(5);
+    });
+
+    // เส้นทางที่ KPI "เกินกำหนด" บนแดชบอร์ดกดแล้วเด้งมาหน้านี้
+    it('initialFilter=overdue เลือกไทล์เกินกำหนดให้ตั้งแต่เข้าหน้า', async () => {
+        const { result } = renderHook(() => useInventoryFilters(FLEET, 'overdue'));
+        await waitFor(() => expect(result.current.statusFilter).toBe('overdue'));
+        expect(result.current.processedPallets).toHaveLength(1);
+        expect(result.current.activeFilterCount).toBe(1);
     });
 
     it('ค้นหาแล้วตัวเลขขยับตาม', async () => {
@@ -95,7 +117,8 @@ describe('useInventoryFilters — activeFilterCount', () => {
         await waitFor(() => expect(result.current.activeFilterCount).toBe(1));
         result.current.setLocationFilter('Line A');
         await waitFor(() => expect(result.current.activeFilterCount).toBe(2));
-        result.current.setShowOverdueOnly(true);
+        // เกินกำหนดนับผ่าน statusFilter ไม่ใช่พจน์แยก -- ถ้ามีสองที่จะนับซ้ำเป็น 4
+        result.current.setStatusFilter('overdue');
         await waitFor(() => expect(result.current.activeFilterCount).toBe(3));
     });
 
@@ -110,7 +133,7 @@ describe('useInventoryFilters — activeFilterCount', () => {
     it('handleClearFilters ล้างกลับเป็น 0', async () => {
         const { result } = renderHook(() => useInventoryFilters(FLEET));
         result.current.setSearchTerm('P-0');
-        result.current.setShowOverdueOnly(true);
+        result.current.setStatusFilter('overdue');
         await waitFor(() => expect(result.current.activeFilterCount).toBe(2));
         result.current.handleClearFilters();
         await waitFor(() => expect(result.current.activeFilterCount).toBe(0));
