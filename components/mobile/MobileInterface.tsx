@@ -44,6 +44,9 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
 
   const [mode, setModeState] = useState<MobileMode>(initialMode);
   const [departments, setDepartments] = useState<Department[]>([]);
+  // หน้าเลือกปลายทางเคยเห็นเฉพาะ `departments` ซึ่งเป็น [] ทั้งตอน "ยังโหลดไม่เสร็จ"
+  // และตอน "ไม่มีแผนกที่เปิดใช้งาน" -- สองสถานะที่ต้องบอกผู้ใช้คนละอย่าง
+  const [isLoadingDepts, setIsLoadingDepts] = useState(true);
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
 
   // Batch Scanning State
@@ -94,13 +97,17 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
 
   useEffect(() => {
     const loadDepts = async () => {
-      const depts = await fetchDepartments();
-      setDepartments(depts);
+      try {
+        const depts = await fetchDepartments();
+        setDepartments(depts);
 
-      // Restore selected dept if present in URL
-      if (initialDeptId) {
-        const found = depts.find(d => d.id === initialDeptId);
-        if (found) setSelectedDept(found);
+        // Restore selected dept if present in URL
+        if (initialDeptId) {
+          const found = depts.find(d => d.id === initialDeptId);
+          if (found) setSelectedDept(found);
+        }
+      } finally {
+        setIsLoadingDepts(false);
       }
     };
     loadDepts();
@@ -291,6 +298,7 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
     return (
       <LocationSelector
         departments={departments.filter(d => d.is_active)}
+        isLoading={isLoadingDepts}
         onSelect={(dept) => {
           setSelectedDept(dept);
           startMode('checkout_scanning', dept.id);
