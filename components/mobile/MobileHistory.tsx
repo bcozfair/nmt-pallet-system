@@ -84,6 +84,19 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
         return Array.from(set).sort();
     }, [transactions]);
 
+    // ตัวกรองสถานที่ได้ตัวเลือกมาจากรายการที่โหลดอยู่ ซึ่งเปลี่ยนทุกครั้งที่เปลี่ยนวัน
+    // ถ้าไม่ล้างค่าที่ค้างอยู่ จะเกิดทางตันที่ไม่มีทางออก: เลือกวัน A -> กรอง "คลังกลาง"
+    // -> เปลี่ยนเป็นวัน B ที่ไม่มีรายการไปคลังกลาง -> หน้าขึ้น "ไม่พบรายการ" ทั้งที่วันนั้น
+    // มีรายการอยู่ และตัวกรองที่เป็นต้นเหตุก็หายไปจากรายการในเมนูแล้ว เหลือแต่ป้ายบนปุ่ม
+    //
+    // เช็คว่า "ค่าที่เลือกยังมีอยู่ไหม" ไม่ใช่ "วันเปลี่ยนหรือยัง" -- ถ้าสถานที่นั้นยังมี
+    // รายการในวันใหม่ด้วย ตัวกรองก็ควรอยู่ต่อ ไม่ใช่ถูกล้างทิ้งทุกครั้งที่เลื่อนวัน
+    useEffect(() => {
+        if (selectedDept && !availableDepts.includes(selectedDept)) {
+            setSelectedDept('');
+        }
+    }, [availableDepts, selectedDept]);
+
     // 3. Client-side Filtering (Search, Location & Action)
     const filteredTransactions = useMemo(() => {
         return transactions.filter(tx => {
@@ -130,6 +143,11 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
     };
 
     // Helper to format date for display in selector (e.g. "29-Jul").
+    //
+    // ปักหมุด 'en-GB' ไว้ ห้ามเปลี่ยนเป็น `undefined` เด็ดขาด -- `undefined` แปลว่า
+    // "ใช้ locale ของเบราว์เซอร์" ซึ่งเคยเป็นบั๊กจริงมาแล้ว: มือถือที่ตั้งภาษาไทยจะ
+    // แสดงวันที่ตรงนี้คนละฟอร์แมตกับวันที่ทุกที่ในแอป ทั้งแอปตั้งใจให้วันที่มีฟอร์แมต
+    // เดียวไม่ว่าผู้ใช้ตั้งเครื่องไว้ยังไง (ดูหมายเหตุใน AdminHelpers.tsx)
     const formatDateChip = (dateStr: string) => {
         if (!dateStr) return t.history.recent;
         const date = new Date(dateStr);
@@ -275,20 +293,22 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                                     </span>
                                 </div>
 
-                                {/* แถวที่ 2: ปลายทาง / หมายเหตุ (ถ้ามี) */}
+                                {/* แถวที่ 2: ปลายทาง / หมายเหตุ (ถ้ามี)
+                                    เรียงลงเป็นบรรทัด ไม่ใช่วางเรียงกันในแถวเดียว: ตอนที่
+                                    ทั้งสองอย่างแย่งพื้นที่บรรทัดเดียวกัน หมายเหตุเหลือที่
+                                    ครึ่งเดียวแล้วโดน truncate ตัดทิ้ง -- และหมายเหตุคือ
+                                    เหตุผลที่พาเลทถูกแจ้งชำรุด ส่วนฝั่งพนักงานไม่มีหน้า
+                                    รายละเอียดให้กดดูต่อ ข้อความที่ถูกตัดจึงหายไปเลย */}
                                 {(tx.department_dest || tx.transaction_remark) && (
-                                    <div className="flex min-w-0 items-center gap-2 pl-9 text-xs text-slate-500">
+                                    <div className="flex min-w-0 flex-col gap-0.5 pl-9 text-xs">
                                         {tx.department_dest && (
                                             <span className="truncate font-medium text-slate-700">
                                                 <span className="mr-1 text-slate-400">{t.history.to}</span>
                                                 {tx.department_dest}
                                             </span>
                                         )}
-                                        {tx.department_dest && tx.transaction_remark && (
-                                            <span className="text-slate-300">•</span>
-                                        )}
                                         {tx.transaction_remark && (
-                                            <span className="truncate italic text-slate-500">
+                                            <span className="italic leading-relaxed text-slate-500">
                                                 "{tx.transaction_remark}"
                                             </span>
                                         )}
