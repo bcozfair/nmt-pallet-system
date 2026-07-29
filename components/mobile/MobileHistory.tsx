@@ -1,10 +1,24 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { ArrowLeft, Clock, ArrowRightCircle, ArrowLeftCircle, AlertTriangle, Wrench, Search, Calendar, Filter, X, Ban } from 'lucide-react';
+import {
+    Clock, ArrowRightCircle, ArrowLeftCircle, AlertTriangle, Wrench, Calendar, Filter, Ban,
+} from 'lucide-react';
 import { Transaction } from '../../types';
 import { fetchUserTransactions, fetchUserTransactionDates } from '../../services/transactionService';
 import { formatDateTime } from '../admin/common/AdminHelpers';
 import { useT } from '../../hooks/useT';
 import { ActionType } from '../../types';
+import { StaffHeader } from './StaffHeader';
+import { SearchInput } from '../ui/SearchInput';
+import { SegmentedControl } from '../ui/SegmentedControl';
+import { Menu } from '../ui/Menu';
+import type { MenuItem } from '../ui/Menu';
+import { Card } from '../ui/Card';
+import { EmptyState } from '../ui/EmptyState';
+import { Skeleton } from '../ui/Skeleton';
+import { Button } from '../ui/Button';
+
+/** ตัวกรองประเภทรายการ -- เลือกได้ทีละอัน จึงเป็นชนิด union ไม่ใช่ string เปล่า */
+type HistoryFilter = 'all' | 'check_out' | 'check_in' | 'damage';
 
 interface MobileHistoryProps {
     userId: string;
@@ -20,8 +34,7 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
     // Filters
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterAction, setFilterAction] = useState<string>('all');
-    const [showDateSelect, setShowDateSelect] = useState(false);
+    const [filterAction, setFilterAction] = useState<HistoryFilter>('all');
 
     // 1. Load Dates on Mount
     useEffect(() => {
@@ -69,7 +82,6 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                 if (filterAction === 'check_out' && tx.action_type !== 'check_out') return false;
                 if (filterAction === 'check_in' && tx.action_type !== 'check_in') return false;
                 if (filterAction === 'damage' && tx.action_type !== 'report_damage') return false;
-                if (filterAction === 'repair' && tx.action_type !== 'repair') return false;
             }
 
             // Search Filter
@@ -85,191 +97,165 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
         });
     }, [transactions, filterAction, searchQuery]);
 
-    const getActionIcon = (action: string) => {
-        switch (action) {
-            case 'check_out': return <ArrowRightCircle size={20} className="text-blue-500" />;
-            case 'check_in': return <ArrowLeftCircle size={20} className="text-green-500" />;
-            case 'report_damage': return <AlertTriangle size={20} className="text-red-500" />;
-            case 'repair': return <Wrench size={20} className="text-orange-500" />;
-            case 'scrap': return <Ban size={20} className="text-gray-500" />;
-            default: return <Clock size={20} className="text-gray-400" />;
-        }
+    // สีชุดเดียวกับกราฟของแอดมิน (--color-series-* ใน index.css) ประวัติของพนักงาน
+    // กับกราฟของแอดมินจึงพูดสีเดียวกัน
+    //
+    // ปลอดภัยกับคนตาบอดสีเพราะแต่ละแถวมีทั้งไอคอนคนละรูปและป้ายข้อความกำกับ
+    // สีจึงไม่ใช่ช่องทางเดียวที่แยกความต่าง -- เงื่อนไขที่ index.css:62-75 ระบุไว้
+    const ACTION_ICON = {
+        check_out: { Icon: ArrowRightCircle, color: 'text-[var(--color-series-checkout)]' },
+        check_in: { Icon: ArrowLeftCircle, color: 'text-[var(--color-series-checkin)]' },
+        report_damage: { Icon: AlertTriangle, color: 'text-[var(--color-series-damage)]' },
+        repair: { Icon: Wrench, color: 'text-[var(--color-series-repair)]' },
+        scrap: { Icon: Ban, color: 'text-[var(--color-series-scrap)]' },
+    } as const;
+
+    const renderActionIcon = (action: string) => {
+        const entry = ACTION_ICON[action as keyof typeof ACTION_ICON];
+        const Icon = entry?.Icon ?? Clock;
+        return <Icon size={20} className={entry?.color ?? 'text-slate-400'} aria-hidden="true" />;
     };
 
-    // The switch this replaces duplicated the same five labels that the admin
-    // side spells out separately; both now read the one table in the dictionary.
-    const getActionLabel = (action: string) =>
-        t.action[action as ActionType] ?? action.replace('_', ' ');
-
     // Helper to format date for display in selector.
-    //
-    // Pinned to en-GB. It used to pass `undefined`, meaning the *browser's*
-    // locale -- so a phone set to Thai already rendered these chips in a
-    // different format from every other date in the app. Dates are deliberately
-    // one fixed format everywhere; see the note in AdminHelpers.tsx.
     const formatDateChip = (dateStr: string) => {
         if (!dateStr) return t.history.recent;
         const date = new Date(dateStr);
         return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
     };
 
+    const dateItems: MenuItem[] = [
+        {
+            label: t.history.recentLast50,
+            icon: Clock,
+            tone: selectedDate === '' ? 'brand' : 'neutral',
+            onClick: () => setSelectedDate(''),
+        },
+        ...availableDates.map((date) => ({
+            label: formatDateChip(date),
+            icon: Calendar,
+            tone: (selectedDate === date ? 'brand' : 'neutral') as MenuItem['tone'],
+            onClick: () => setSelectedDate(date),
+        })),
+    ];
+
+    const filterOptions = [
+        { value: 'all', label: t.history.filterAll },
+        { value: 'check_out', label: t.history.filterOut },
+        { value: 'check_in', label: t.history.filterIn },
+        { value: 'damage', label: t.history.filterDamage },
+    ] as const satisfies readonly { value: HistoryFilter; label: string }[];
+
+    const hasFilters = searchQuery !== '' || filterAction !== 'all';
+
     return (
-        <div className="flex flex-col h-screen bg-gray-50">
-            {/* Header */}
-            <div className="bg-white px-4 py-3 shadow-sm z-20 shrink-0 flex flex-col gap-3">
+        <div className="app-canvas flex min-h-dvh flex-col">
+            <StaffHeader title={t.history.title} onBack={onBack} />
+
+            <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-3 p-4">
+                <SearchInput
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder={t.history.searchPlaceholder}
+                    ariaLabel={t.history.searchAria}
+                    clearLabel={t.common.clearFilters}
+                />
+
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={onBack}
-                        className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full transition"
-                    >
-                        <ArrowLeft size={24} />
-                    </button>
-                    <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <input
-                            type="text"
-                            placeholder={t.history.searchPlaceholder}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-gray-100 pl-9 pr-4 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition"
+                    <Menu
+                        label={selectedDate ? formatDateChip(selectedDate) : t.history.recentOnly}
+                        items={dateItems}
+                        icon={Calendar}
+                        align="left"
+                        variant="secondary"
+                        className="w-40 shrink-0"
+                        matchTriggerWidth
+                    />
+                    <div className="min-w-0 flex-1 overflow-x-auto no-scrollbar">
+                        <SegmentedControl
+                            value={filterAction}
+                            options={filterOptions}
+                            onChange={setFilterAction}
+                            ariaLabel={t.history.filterAria}
+                            size="sm"
                         />
-                        {searchQuery && (
-                            <button
-                                onClick={() => setSearchQuery('')}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            >
-                                <X size={14} />
-                            </button>
-                        )}
                     </div>
                 </div>
 
-                {/* Filters Row */}
-                <div className="flex items-center gap-2 pb-1 relative z-30">
-                    {/* Date Selector Trigger - Fixed on Left */}
-                    <div className="relative shrink-0">
-                        <button
-                            onClick={() => setShowDateSelect(!showDateSelect)}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${selectedDate ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600'
-                                }`}
-                        >
-                            <Calendar size={14} />
-                            {selectedDate ? formatDateChip(selectedDate) : t.history.recentOnly}
-                        </button>
-
-                        {/* Date Dropdown */}
-                        {showDateSelect && (
-                            <>
-                                <div className="fixed inset-0 z-10" onClick={() => setShowDateSelect(false)} />
-                                <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-20 max-h-60 overflow-y-auto py-1 animate-in fade-in zoom-in-95 duration-100">
-                                    <button
-                                        onClick={() => { setSelectedDate(''); setShowDateSelect(false); }}
-                                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${!selectedDate ? 'text-indigo-600 font-bold bg-indigo-50' : 'text-gray-600'}`}
-                                    >
-                                        {t.history.recentLast50}
-                                    </button>
-                                    {availableDates.map(date => (
-                                        <button
-                                            key={date}
-                                            onClick={() => { setSelectedDate(date); setShowDateSelect(false); }}
-                                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${selectedDate === date ? 'text-indigo-600 font-bold bg-indigo-50' : 'text-gray-600'}`}
-                                        >
-                                            {formatDateChip(date)}
-                                        </button>
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                    </div>
-
-                    <div className="w-[1px] h-6 bg-gray-200 shrink-0" />
-
-                    {/* Action Chips - Scrollable */}
-                    <div className="flex-1 overflow-x-auto no-scrollbar flex items-center gap-2">
-                        {[
-                            { id: 'all', label: t.history.filterAll },
-                            { id: 'check_out', label: t.history.filterOut },
-                            { id: 'check_in', label: t.history.filterIn },
-                            { id: 'damage', label: t.history.filterDamage }
-                        ].map(action => (
-                            <button
-                                key={action.id}
-                                onClick={() => setFilterAction(action.id)}
-                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap border shrink-0 ${filterAction === action.id
-                                    ? 'bg-gray-800 text-white border-gray-800'
-                                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                                    }`}
-                            >
-                                {action.label}
-                            </button>
+                {loading ? (
+                    <div className="flex flex-col gap-3" role="status" aria-label={t.history.loading}>
+                        {[0, 1, 2, 3, 4].map((i) => (
+                            <Skeleton key={i} className="h-24 rounded-3xl" />
                         ))}
                     </div>
-                </div>
-            </div>
-
-            {/* List */}
-            <div className="flex-1 overflow-y-auto p-4 pt-2">
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center h-48 gap-3 text-gray-400">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-                        <span className="text-sm">{t.history.loading}</span>
-                    </div>
                 ) : filteredTransactions.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-64 text-gray-400 gap-2">
-                        <Filter size={48} className="opacity-20" />
-                        <p>{t.history.empty}</p>
-                        {(searchQuery || filterAction !== 'all') && (
-                            <button
-                                onClick={() => { setSearchQuery(''); setFilterAction('all'); }}
-                                className="text-xs text-indigo-500 font-bold mt-2"
-                            >
-                                {t.history.clearFilters}
-                            </button>
-                        )}
-                    </div>
+                    <EmptyState
+                        icon={Filter}
+                        title={t.history.empty}
+                        hint={t.history.emptyHint}
+                        action={
+                            hasFilters ? (
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        setFilterAction('all');
+                                    }}
+                                >
+                                    {t.history.clearFilters}
+                                </Button>
+                            ) : undefined
+                        }
+                    />
                 ) : (
-                    <div className="space-y-3">
+                    <div className="flex flex-col gap-3">
                         {filteredTransactions.map((tx) => (
-                            <div key={tx.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col gap-2">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="shrink-0 p-2 bg-gray-50 rounded-full">
-                                            {getActionIcon(tx.action_type)}
-                                        </div>
-                                        <div>
-                                            <span className="block font-bold text-gray-800">{getActionLabel(tx.action_type)}</span>
-                                            <span className="text-xs text-gray-500 font-mono">ID: {tx.pallet_id}</span>
+                            <Card key={tx.id} className="flex flex-col gap-2 p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <span className="shrink-0 rounded-full bg-slate-50 p-2">
+                                            {renderActionIcon(tx.action_type)}
+                                        </span>
+                                        <div className="min-w-0">
+                                            <span className="block truncate font-semibold text-slate-900">
+                                                {t.action[tx.action_type as ActionType] ??
+                                                    tx.action_type.replace('_', ' ')}
+                                            </span>
+                                            <span className="font-mono text-xs text-slate-500">
+                                                {t.common.palletId}: {tx.pallet_id}
+                                            </span>
                                         </div>
                                     </div>
-                                    <span className="text-[10px] text-gray-400 font-medium bg-gray-50 px-2 py-1 rounded-md">
+                                    <span className="shrink-0 rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-500">
                                         {formatDateTime(tx.timestamp)}
                                     </span>
                                 </div>
 
                                 {(tx.department_dest || tx.transaction_remark) && (
-                                    <div className="ml-11 text-sm border-l-2 border-gray-100 pl-3 py-1">
+                                    <div className="ml-11 border-l-2 border-slate-100 py-1 pl-3 text-sm">
                                         {tx.department_dest && (
-                                            <div className="text-gray-600">
-                                                <span className="text-gray-400 text-xs mr-1">{t.history.to}</span>
+                                            <div className="text-slate-600">
+                                                <span className="mr-1 text-xs text-slate-400">
+                                                    {t.history.to}
+                                                </span>
                                                 {tx.department_dest}
                                             </div>
                                         )}
                                         {tx.transaction_remark && (
-                                            <div className="text-gray-500 italic text-xs mt-1">
+                                            <div className="mt-1 text-xs italic text-slate-500">
                                                 "{tx.transaction_remark}"
                                             </div>
                                         )}
                                     </div>
                                 )}
-                            </div>
+                            </Card>
                         ))}
 
-                        <div className="text-center py-4 text-xs text-gray-400">
+                        <p className="py-4 text-center text-xs text-slate-400">
                             {t.history.showing(filteredTransactions.length)}
-                        </div>
+                        </p>
                     </div>
                 )}
-            </div>
+            </main>
         </div>
     );
 };
