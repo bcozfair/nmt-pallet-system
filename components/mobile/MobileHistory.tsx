@@ -129,11 +129,13 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
         return <Icon size={20} className={entry?.color ?? 'text-slate-400'} aria-hidden="true" />;
     };
 
-    // Helper to format date for display in selector.
+    // Helper to format date for display in selector (e.g. "29-Jul").
     const formatDateChip = (dateStr: string) => {
         if (!dateStr) return t.history.recent;
         const date = new Date(dateStr);
-        return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+        const day = date.toLocaleDateString('en-GB', { day: 'numeric' });
+        const month = date.toLocaleDateString('en-GB', { month: 'short' });
+        return `${day}-${month}`;
     };
 
     const dateItems: MenuItem[] = [
