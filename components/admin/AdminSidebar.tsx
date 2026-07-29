@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Package, Users, Settings, LogOut, X, History, MapPinned } from 'lucide-react';
+import { LayoutDashboard, Package, Users, Settings, LogOut, X, History, MapPinned, User as UserIcon, Shield } from 'lucide-react';
 import { User } from '../../types';
 import { useT } from '../../hooks/useT';
 import { BrandMark } from '../auth/BrandMark';
@@ -127,31 +127,33 @@ export const AdminSidebar = ({
                     <NavItem id="settings" label={t.nav.settings} icon={<Settings size={20} />} />
                 </div>
 
-                <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-                    <div className="flex items-center gap-3 mb-4 px-2">
-                        {/* The indigo here belonged to no palette in the app; the
-                            avatar is now the quietest tint of the brand. */}
-                        <div className="w-10 h-10 rounded-full bg-brand-50 flex items-center justify-center text-brand-700 font-bold">
-                            {currentUser?.full_name?.charAt(0) || 'U'}
+                <div className="p-4 border-t border-slate-100 bg-white">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
+                                <UserIcon size={20} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-slate-900 truncate">
+                                    {currentUser?.full_name || t.common.user}
+                                </p>
+                                <div className="flex items-center gap-1 text-[11px] font-medium text-slate-400 uppercase tracking-wider truncate mt-0.5">
+                                    <Shield size={12} className="shrink-0 text-slate-400" />
+                                    <span className="truncate">
+                                        {currentUser ? (t.role[currentUser.role] || currentUser.role).toUpperCase() : 'ADMIN'}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-slate-900 truncate">{currentUser?.full_name || t.common.user}</p>
-                            {/* Was currentUser.role raw, i.e. the literal "admin"/"staff"
-                                enum value. It now goes through the role table. */}
-                            <p className="text-xs text-slate-500 truncate">{currentUser ? t.role[currentUser.role] : '-'}</p>
-                        </div>
+                        <button
+                            onClick={onLogout}
+                            aria-label={t.nav.signOut}
+                            title={t.nav.signOut}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 shrink-0"
+                        >
+                            <LogOut size={20} className="shrink-0" />
+                        </button>
                     </div>
-                    <button
-                        onClick={onLogout}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-                    >
-                        <LogOut size={16} className="shrink-0" />
-                        {/* Same reason as the nav labels: Thai breaks on
-                            syllables, and "ออกจากระบบ" splitting into
-                            "ออกจาก / ระบบ" turns one button into two lines of
-                            fragments. */}
-                        <span className="whitespace-nowrap">{t.nav.signOut}</span>
-                    </button>
                 </div>
             </div>
         </>
