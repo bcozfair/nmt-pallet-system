@@ -9,7 +9,7 @@
 // Shared wording (Save, Cancel, Search, Status, Location, ...) belongs in
 // `common` in locales/en.ts -- do not restate it here.
 //
-// Product names (LINE, Supabase, Channel Access Token, Target ID) are left in
+// Product names (LINE, Supabase, Channel Access Token, Your user ID) are left in
 // English on both sides: they are what the LINE developer console calls them,
 // so translating them would only make the admin's two screens disagree.
 
@@ -68,7 +68,12 @@ export const settingsEn = {
     // exactly the wrong conclusion from a test that "worked".
     // --- LINE Messaging API card ---
     lineTitle: 'LINE Messaging API',
-    lineSubtitle: 'Where the system delivers its reports',
+    // The subtitle names the source once, so neither field below has to repeat
+    // "LINE Developers Console" in full -- each only has to say which screen
+    // inside it. Without this sentence an admin has no idea the two values come
+    // from a developer console at all, and "Your user ID" reads like the LINE ID
+    // used to add friends in the app, which the Messaging API does not accept.
+    lineSubtitle: 'Where the system delivers its reports -- copy both values from the LINE Developers Console',
     // The chip on this card used to read "Active" no matter what was stored --
     // it was a literal, not a reading of anything. Reading the two secrets below
     // was no better: RLS hides them from the browser, so the chip then said "Not
@@ -78,11 +83,20 @@ export const settingsEn = {
     lineConfigured: 'Configured',
     lineNotConfigured: 'Not configured',
     lineStatusUnknown: 'Status unavailable',
+    // Both hints name the console tab the value sits on rather than describing
+    // the value. "(Long-lived)" described a property of the token that an admin
+    // can neither check nor act on; the tab name is the one thing they need in
+    // order to go and find it.
     channelToken: 'Channel Access Token',
-    channelTokenHint: '(Long-lived)',
+    channelTokenHint: '(LINE Developers Console -> Messaging API)',
     channelTokenPlaceholder: '•••••••••••••••• (Hidden) - Type to Change',
-    targetId: 'Target ID',
-    targetIdHint: '(User ID or Group ID)',
+    // The label is the exact string the console prints above this value. The
+    // field is still line_target_id in the database and still accepts a group ID
+    // -- naming it after the console is a deliberate trade: an admin copying
+    // from that screen can match the words letter for letter, which "Target ID"
+    // never let them do.
+    targetId: 'Your user ID',
+    targetIdHint: '(LINE Developers Console -> Basic settings)',
     targetIdPlaceholder: '•••••••• (Hidden) - Type to Change',
 
     // --- Danger zone ---
@@ -148,15 +162,18 @@ export const settingsTh: SettingsDict = {
     testSendTitle: 'ทดสอบ',
 
     lineTitle: 'LINE Messaging API',
-    lineSubtitle: 'ปลายทางที่ระบบจะส่งรายงานไปให้',
+    lineSubtitle: 'ปลายทางที่ระบบจะส่งรายงานไปให้ คัดลอกค่าทั้งสองช่องจาก LINE Developers Console',
     lineConfigured: 'ตั้งค่าแล้ว',
     lineNotConfigured: 'ยังไม่ได้ตั้งค่า',
     lineStatusUnknown: 'ตรวจสอบสถานะไม่ได้',
+    // ทั้งป้ายและชื่อเมนูในวงเล็บไม่แปล -- คอนโซล LINE มีแต่ภาษาอังกฤษ แอดมิน
+    // ต้องกวาดตาหาคำที่ตรงกับบนหน้าจอจริงตัวต่อตัว ไม่ใช่คำแปลที่หาไม่เจอ
+    // ฝั่งไทยจึงเหมือนฝั่งอังกฤษทุกตัวอักษรตรงสองบรรทัดนี้ ไม่ใช่การลืมแปล
     channelToken: 'Channel Access Token',
-    channelTokenHint: '(Long-lived)',
+    channelTokenHint: '(LINE Developers Console -> Messaging API)',
     channelTokenPlaceholder: '•••••••••••••••• (ซ่อนไว้) - พิมพ์เพื่อเปลี่ยน',
-    targetId: 'Target ID',
-    targetIdHint: '(User ID หรือ Group ID)',
+    targetId: 'Your user ID',
+    targetIdHint: '(LINE Developers Console -> Basic settings)',
     targetIdPlaceholder: '•••••••• (ซ่อนไว้) - พิมพ์เพื่อเปลี่ยน',
 
     adminEmailBase: 'อีเมลหลักของผู้ดูแลระบบ',

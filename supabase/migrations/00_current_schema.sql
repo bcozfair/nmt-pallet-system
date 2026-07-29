@@ -423,6 +423,48 @@ returns jsonb language sql security definer stable set search_path = public as $
 $$;
 
 
+-- The only way to write those same two rows. A plain upsert from the browser
+-- cannot: PostgREST turns it into `insert ... on conflict do update`, and on
+-- that path Postgres applies the SELECT policy to the existing conflicting row
+-- as well. That policy is `is_secret = false`, so the row being updated is
+-- invisible and the statement fails with 42501 -- "new row violates row-level
+-- security policy (USING expression)". Every attempt to save the LINE
+-- credentials from the Settings screen returned 403 until this existed.
+--
+-- Widening the SELECT policy would fix the write by giving up the only thing
+-- is_secret buys: that the channel token never reaches a browser. This runs as
+-- the owner instead, which bypasses RLS, and is_admin() is the real gate.
+create or replace function public.update_secret_setting(
+    setting_key   text,
+    setting_value text
+)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+    if not public.is_admin() then
+        raise exception 'Only an admin may change this setting'
+            using errcode = '42501';
+    end if;
+
+    -- Without this list the function is an RLS-free write to any settings row,
+    -- including admin_email_base -- whose own RPC also rewrites every user's
+    -- login alias. Reaching it through here would change the key and strand
+    -- every account on the old domain.
+    if setting_key not in ('line_channel_token', 'line_target_id') then
+        raise exception 'Not a secret setting: %', setting_key
+            using errcode = '22023';
+    end if;
+
+    insert into public.system_settings (key, value, updated_at, updated_by, is_secret)
+    values (setting_key, setting_value, now(), auth.uid(), true)
+    on conflict (key) do update
+        set value      = excluded.value,
+            updated_at = excluded.updated_at,
+            updated_by = excluded.updated_by,
+            is_secret  = true;
+end;
+$$;
+
+
 -- =============================================================================
 -- 4. TRIGGERS
 -- =============================================================================
@@ -555,6 +597,7 @@ revoke execute on function public.get_active_admins()                       from
 revoke execute on function public.get_users_with_auth()                     from public, anon;
 revoke execute on function public.update_admin_email_base(text)             from public, anon;
 revoke execute on function public.get_line_config_status()                  from public, anon;
+revoke execute on function public.update_secret_setting(text, text)         from public, anon;
 
 grant execute on function public.is_admin()                                 to authenticated;
 grant execute on function public.admin_set_role(uuid, text)                 to authenticated;
@@ -564,6 +607,7 @@ grant execute on function public.get_active_admins()                        to a
 grant execute on function public.get_users_with_auth()                      to authenticated;
 grant execute on function public.update_admin_email_base(text)              to authenticated;
 grant execute on function public.get_line_config_status()                   to authenticated;
+grant execute on function public.update_secret_setting(text, text)          to authenticated;
 
 
 -- =============================================================================

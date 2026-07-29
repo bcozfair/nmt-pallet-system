@@ -53,13 +53,32 @@ export const isAppError = (e: unknown): e is AppError =>
 //
 // Anything that is not an AppError -- a Supabase/network/programming error --
 // returns the generic message rather than its own English text. That is the same
-// call translateAuthError() makes on the login screen: the real message is
-// already on the console for whoever is debugging, and leaking an internal
+// call translateAuthError() makes on the login screen: leaking an internal
 // string into the UI is worse than saying "something went wrong" honestly.
 export const describeAppError = (e: unknown): string => {
     const t = dict().errors;
 
-    if (!isAppError(e)) return t.unknown;
+    if (!isAppError(e)) {
+        // This line used to say the real message was "already on the console for
+        // whoever is debugging". It was not. Of the call sites, only a third
+        // log the error themselves -- every `onError={e => toast.error(
+        // describeAppError(e))}` on a ConfirmDialog, and the settings save, drop
+        // it entirely. So the branch that throws the detail away is the branch
+        // that has to keep a copy.
+        //
+        // What that cost, concretely: saving the LINE credentials failed with
+        // Postgres 42501, "new row violates row-level security policy (USING
+        // expression)" -- a message that names the cause outright. The screen
+        // showed "เกิดข้อผิดพลาด" and the console showed nothing, so the only
+        // surviving evidence was a bare 403 in the network tab. See
+        // 20260729_02_update_secret_setting.sql for what it took to find it.
+        //
+        // Deliberately only this branch: an AppError is one we raised on
+        // purpose, its message is already displayed in full, and logging those
+        // would bury the ones nobody expected.
+        console.error('[unhandled error]', e);
+        return t.unknown;
+    }
 
     const { palletId = '-', status = '-', reason = '' } = e.params;
 

@@ -92,12 +92,41 @@ export const fetchSystemSetting = async (key: string): Promise<string | null> =>
     return data?.value || null;
 };
 
+/**
+ * The rows RLS hides from the browser. They cannot be written with the upsert
+ * below -- see the comment inside updateSystemSetting.
+ */
+const SECRET_KEYS = new Set(['line_channel_token', 'line_target_id']);
+
 export const updateSystemSetting = async (key: string, value: string): Promise<boolean> => {
     // Special case for Admin Email Base -> Use RPC for atomic migration
     if (key === 'admin_email_base') {
         const { data, error } = await supabase.rpc('update_admin_email_base', { new_email_base: value });
         if (error) throw error;
         return data?.success || false;
+    }
+
+    // The two LINE rows are flagged is_secret and the SELECT policy on
+    // system_settings is `using (is_secret = false)`, so they are invisible to
+    // this client -- which is the point: the channel token must never reach a
+    // browser. The side effect is that the upsert below cannot write them
+    // either. PostgREST turns .upsert() into `insert ... on conflict do
+    // update`, and Postgres applies the SELECT policy to the existing
+    // conflicting row on that path as well; an invisible row cannot be the
+    // target of the update. Saving either key returned 403 with 42501, "new row
+    // violates row-level security policy (USING expression)".
+    //
+    // update_secret_setting is SECURITY DEFINER, so the row is visible to it,
+    // and it checks is_admin() itself. Same arrangement as admin_email_base
+    // above: the writes that RLS cannot express go through an RPC rather than
+    // through a policy loosened until the write fits.
+    if (SECRET_KEYS.has(key)) {
+        const { error } = await supabase.rpc('update_secret_setting', {
+            setting_key: key,
+            setting_value: value,
+        });
+        if (error) throw error;
+        return true;
     }
 
     // Normal update for other keys
