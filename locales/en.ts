@@ -283,6 +283,7 @@ export const en = {
         addedToList: 'Added to List',
         actionFailed: 'Action Failed',
         continueScanning: 'CONTINUE SCANNING',
+        closeScanner: 'Close scanner',
     },
 
     // Short by necessity: these render at text-4xl inside the full-screen
@@ -308,11 +309,15 @@ export const en = {
         checkedOut: (count: number) => `Successfully Checked Out ${count} pallets.`,
         returned: (count: number) => `Successfully Returned ${count} pallets.`,
         failed: 'Error processing batch. Please try again.',
+        removeItem: (id: string) => `Remove ${id} from list`,
     },
 
     location: {
         selectDestination: 'Select Destination',
         whereGoing: 'Where are the pallets going?',
+        loading: 'Loading locations...',
+        emptyTitle: 'No active locations',
+        emptyHint: 'Ask an admin to activate a location first.',
     },
 
     damage: {
@@ -328,14 +333,19 @@ export const en = {
         manualTitle: 'Report Damage',
         manualSubtitle: 'Scan QR code to identify pallet',
         manualHint: 'If the QR code is damaged or unreadable, you can enter the ID manually below.',
-        enterIdManually: 'Enter ID Manually',
-        promptEnterId: 'Enter Pallet ID Manually (e.g., P001):',
+        idLabel: 'Pallet ID',
+        idPlaceholder: 'e.g. P001',
+        idHint: 'Use this when the QR code is torn or unreadable.',
     },
 
     history: {
+        title: 'My History',
         searchPlaceholder: 'Search ID, Location...',
+        searchAria: 'Search my history',
+        filterAria: 'Filter by action type',
+        allLocations: 'All Locations',
         recent: 'Recent',
-        recentOnly: 'Recent Only',
+        recentOnly: 'Recent',
         recentLast50: 'Recent (Last 50)',
         filterAll: 'All',
         filterOut: 'Out',
@@ -343,6 +353,7 @@ export const en = {
         filterDamage: 'Damage',
         loading: 'Loading history...',
         empty: 'No transactions found',
+        emptyHint: 'Try a different date or clear the filters.',
         clearFilters: 'Clear filters',
         to: 'To:',
         showing: (count: number) => `Showing ${count} items`,

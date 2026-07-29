@@ -1,8 +1,10 @@
 import React from 'react';
-import { LogOut, ArrowRightCircle, ArrowLeftCircle, AlertTriangle, User as UserIcon, History } from 'lucide-react';
+import { ArrowRightCircle, ArrowLeftCircle, AlertTriangle, History } from 'lucide-react';
 import { User } from '../../types';
 import { MobileMode } from './MobileInterface';
 import { useT } from '../../hooks/useT';
+import { StaffHeader } from './StaffHeader';
+import { ActionTile } from './ActionTile';
 
 interface MobileHomeProps {
     user: User;
@@ -12,93 +14,60 @@ interface MobileHomeProps {
 
 export const MobileHome = ({ user, onLogout, onSetMode }: MobileHomeProps) => {
     const t = useT();
+
     return (
-        <div className="flex flex-col h-[calc(100vh-56px)] bg-gray-100">
-            {/* Header */}
-            <div className="bg-white p-4 shadow-sm flex justify-between items-center z-10 shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 shadow-inner">
-                        <UserIcon size={20} />
-                    </div>
-                    <div>
-                        <h2 className="font-bold text-gray-800 leading-tight">{user.full_name}</h2>
-                        {/* Department names are typed in by an admin and may well be
-                            Thai, so this cannot keep wide tracking even though it is
-                            DB data rather than a translated string. */}
-                        <span className="text-xs text-gray-500">{user.department}</span>
-                    </div>
-                </div>
-                <button onClick={onLogout} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition">
-                    <LogOut size={24} />
-                </button>
-            </div>
+        // `min-h-dvh` ไม่ใช่ `h-[calc(100vh-56px)]` ของเดิม: 56px นั้นหักให้แถบที่
+        // ไม่มีอยู่จริง -- App.tsx เรนเดอร์ MobileInterface ตรง ๆ ไม่มี chrome อะไร
+        // อยู่เหนือมัน ที่ผ่านมาจึงมีที่ว่างตาย 56px ก้นจอทุกครั้งที่เปิดหน้านี้
+        //
+        // และ `dvh` ไม่ใช่ `vh` เพราะ 100vh บนมือถือรวมพื้นที่แถบ URL เข้าไปด้วย
+        <div className="app-canvas flex min-h-dvh flex-col">
+            <StaffHeader user={user} onLogout={onLogout} />
 
-            {/* Main Actions */}
-            <div className="flex-1 p-6 flex flex-col justify-center gap-6 overflow-y-auto">
-
-                {/* Check Out Card */}
-                <button
+            {/* max-w-md เพราะหน้านี้ถูกเลือกจาก role ไม่ใช่จากขนาดจอ (App.tsx:43)
+                เปิดบนโน้ตบุ๊กแล้วเลย์เอาต์มือถือเคยยืดเต็ม 1920px */}
+            <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-3 p-4">
+                <ActionTile
+                    icon={ArrowRightCircle}
+                    title={t.mobileHome.checkOut}
+                    subtitle={t.mobileHome.checkOutSub}
+                    tone="brand"
+                    layout="stack"
+                    className="flex-1"
                     onClick={() => onSetMode('checkout_select_dept')}
-                    className="flex-1 bg-white rounded-3xl shadow-sm border border-gray-200 p-6 flex flex-col items-center justify-center gap-4 hover:shadow-xl hover:border-blue-400 transition active:scale-95 group relative overflow-hidden min-h-[160px]"
-                >
-                    <div className="absolute inset-0 bg-blue-50 opacity-0 group-hover:opacity-100 transition duration-500"></div>
-                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition shadow-sm z-10">
-                        <ArrowRightCircle size={40} />
-                    </div>
-                    <div className="text-center z-10">
-                        <h3 className="text-2xl font-bold text-gray-800 mb-1">{t.mobileHome.checkOut}</h3>
-                        <p className="text-sm text-gray-500 font-medium">{t.mobileHome.checkOutSub}</p>
-                    </div>
-                </button>
-
-                {/* Check In Card */}
-                <button
+                />
+                <ActionTile
+                    icon={ArrowLeftCircle}
+                    title={t.mobileHome.checkIn}
+                    subtitle={t.mobileHome.checkInSub}
+                    tone="accent"
+                    layout="stack"
+                    className="flex-1"
                     onClick={() => onSetMode('checkin_scanning')}
-                    className="flex-1 bg-white rounded-3xl shadow-sm border border-gray-200 p-6 flex flex-col items-center justify-center gap-4 hover:shadow-xl hover:border-green-400 transition active:scale-95 group relative overflow-hidden min-h-[160px]"
-                >
-                    <div className="absolute inset-0 bg-green-50 opacity-0 group-hover:opacity-100 transition duration-500"></div>
-                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 group-hover:bg-green-600 group-hover:text-white transition shadow-sm z-10">
-                        <ArrowLeftCircle size={40} />
-                    </div>
-                    <div className="text-center z-10">
-                        <h3 className="text-2xl font-bold text-gray-800 mb-1">{t.mobileHome.checkIn}</h3>
-                        <p className="text-sm text-gray-500 font-medium">{t.mobileHome.checkInSub}</p>
-                    </div>
-                </button>
-
-                {/* My History Card */}
-                <button
+                />
+                <ActionTile
+                    icon={History}
+                    title={t.mobileHome.myHistory}
+                    subtitle={t.mobileHome.myHistorySub}
+                    tone="neutral"
+                    layout="row"
                     onClick={() => onSetMode('history')}
-                    className="h-24 bg-indigo-50 rounded-2xl border border-indigo-100 flex items-center justify-between px-8 hover:bg-indigo-100 hover:shadow-md active:scale-95 transition group shrink-0"
-                >
-                    <div className="flex flex-col text-left">
-                        <span className="font-bold text-indigo-700 text-lg group-hover:text-indigo-800">{t.mobileHome.myHistory}</span>
-                        <span className="text-xs text-indigo-500 group-hover:text-indigo-600 font-medium">{t.mobileHome.myHistorySub}</span>
-                    </div>
-                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-indigo-500">
-                        <History size={24} />
-                    </div>
-                </button>
-
-                {/* Damage Report Card */}
-                <button
+                />
+                <ActionTile
+                    icon={AlertTriangle}
+                    title={t.mobileHome.reportDamage}
+                    subtitle={t.mobileHome.reportDamageSub}
+                    tone="danger"
+                    layout="row"
                     onClick={() => onSetMode('damage_scanning')}
-                    className="h-24 bg-red-50 rounded-2xl border border-red-100 flex items-center justify-between px-8 hover:bg-red-100 hover:shadow-md active:scale-95 transition group shrink-0"
-                >
-                    <div className="flex flex-col text-left">
-                        <span className="font-bold text-red-700 text-lg group-hover:text-red-800">{t.mobileHome.reportDamage}</span>
-                        <span className="text-xs text-red-500 group-hover:text-red-600 font-medium">{t.mobileHome.reportDamageSub}</span>
-                    </div>
-                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
-                        <AlertTriangle className="text-red-500" size={24} />
-                    </div>
-                </button>
+                />
+            </main>
 
-            </div>
-
-            <div className="p-4 text-center text-[10px] text-gray-400 uppercase tracking-widest font-semibold shrink-0">
+            {/* uppercase + tracking-widest ของเดิมหายไป: uppercase ไม่มีผลกับภาษาไทย
+                และ letter-spacing ค่าบวกดันวรรณยุกต์ออกจากตัวอักษรฐาน */}
+            <p className="shrink-0 p-4 text-center text-[10px] font-semibold text-slate-400">
                 Pallet Management System v1.1
-            </div>
+            </p>
         </div>
     );
 };

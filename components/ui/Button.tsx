@@ -18,7 +18,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
     variant?: ButtonVariant;
     icon?: LucideIcon;
     iconRight?: LucideIcon;
-    size?: 'sm' | 'md';
+    size?: 'sm' | 'md' | 'lg';
 }
 
 // ยกมาจาก components/admin/dashboard/sections/PageHeader.tsx ทั้งชุด ที่นั่นเคยเป็น
@@ -37,9 +37,16 @@ export const BUTTON_BASE =
     'transition duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 ' +
     'focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-60';
 
-export const BUTTON_SIZE: Record<'sm' | 'md', string> = {
+// `min-h-*` ไม่ใช่ `h-*` เด็ดขาด -- เหตุผลอยู่ในคอมเมนต์เหนือ BUTTON_BASE
+//
+// `lg` เพิ่มเข้ามาสำหรับหน้าฝั่งพนักงาน ซึ่งกดบนมือถือกลางโกดัง บ่อยครั้งใส่ถุงมือ
+// ปุ่มเดิมที่นั่นเป็น `py-4` (~56px) ประกอบเองทีละที่ การบังคับให้ใช้ `md` (40px)
+// คือการลดเป้ากดลงเพื่อความสม่ำเสมอ ส่วนการปล่อยให้ส่ง className ทับก็คือการ
+// กระจายขนาดออกไปหลายที่อีกครั้ง ซึ่งเป็นปัญหาที่ตารางนี้มีอยู่เพื่อแก้ตั้งแต่แรก
+export const BUTTON_SIZE: Record<'sm' | 'md' | 'lg', string> = {
     sm: 'min-h-8 px-2.5 py-1 text-xs',
     md: 'min-h-10 px-3.5 py-2 text-sm',
+    lg: 'min-h-14 px-5 py-3.5 text-base',
 };
 
 export const BUTTON_VARIANT: Record<ButtonVariant, string> = {
@@ -131,7 +138,7 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
     // ไอคอนเป็นของตกแต่งที่ทวนสิ่งที่ป้ายพูดอยู่แล้ว จึง aria-hidden เสมอ
     // ปุ่มที่มีไอคอนอย่างเดียวต้องส่ง aria-label มาเอง
-    const iconSize = size === 'sm' ? 14 : 16;
+    const iconSize = size === 'sm' ? 14 : size === 'lg' ? 18 : 16;
     return (
         <button
             type={type}

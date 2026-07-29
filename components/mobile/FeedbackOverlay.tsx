@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle, XCircle, ArrowRightCircle } from 'lucide-react';
 import { useT } from '../../hooks/useT';
+import { Button } from '../ui/Button';
 
 interface FeedbackOverlayProps {
     status: 'success' | 'error';
@@ -11,35 +12,64 @@ interface FeedbackOverlayProps {
 
 export const FeedbackOverlay: React.FC<FeedbackOverlayProps> = ({ status, text, onDismiss }) => {
     const t = useT();
+    const isError = status === 'error';
+
     return (
-        <div className={`fixed inset-0 z-[70] flex items-center justify-center ${status === 'error' ? 'pointer-events-auto bg-black/60 backdrop-blur-sm' : 'pointer-events-none'}`}>
-            <div className={`
-          px-10 py-8 rounded-3xl shadow-2xl transform transition-all scale-100 flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-200
-          min-w-[300px] max-w-sm text-center
-          ${status === 'success' ? 'bg-green-600/95 text-white' : 'bg-red-600 text-white border-4 border-white/20'}
-        `}>
-                {status === 'success' ? <CheckCircle size={64} strokeWidth={3} /> : <XCircle size={64} strokeWidth={3} className="animate-bounce" />}
+        <div
+            // z-[70] คือชั้นบนสุดของกองหน้าจอสแกน (กล้อง 50 / แผ่นล่าง 60 / ตัวนี้ 70)
+            className={
+                'fixed inset-0 z-[70] flex items-center justify-center ' +
+                (isError ? 'pointer-events-auto bg-black/60 backdrop-blur-sm' : 'pointer-events-none')
+            }
+        >
+            <div
+                // role และ aria-live: ก่อนหน้านี้ผลการสแกนเป็นข้อความที่โผล่มาเฉย ๆ
+                // screen reader ไม่ได้ยินอะไรเลยไม่ว่าสแกนติดหรือพลาด
+                // alert = ขัดจังหวะทันที (ความผิดพลาดต้องหยุดมือคนสแกน)
+                // status = รอจังหวะว่าง (สำเร็จไม่ต้องขัด)
+                role={isError ? 'alert' : 'status'}
+                aria-live={isError ? 'assertive' : 'polite'}
+                className={
+                    'flex min-w-[300px] max-w-sm flex-col items-center gap-4 rounded-3xl px-10 py-8 ' +
+                    'text-center shadow-2xl animate-pop-in ' +
+                    (isError
+                        ? 'border-4 border-white/20 bg-red-600 text-white'
+                        : 'bg-green-600/95 text-white')
+                }
+            >
+                {isError ? (
+                    <XCircle size={64} strokeWidth={3} aria-hidden="true" />
+                ) : (
+                    <CheckCircle size={64} strokeWidth={3} aria-hidden="true" />
+                )}
+
                 <div className="text-center">
-                    {/* Success shows a pallet id -- monospace-ish, wide tracking reads
-                        well. Error shows a sentence, and in Thai wide tracking pushes
-                        the combining vowels and tone marks away from their base
-                        letters, so it gets normal spacing and a smaller size. */}
-                    <span className={`block font-black break-words ${status === 'success' ? 'text-4xl tracking-widest' : 'text-2xl'}`}>
+                    {/* สำเร็จแสดงรหัสพาเลท -- ตัวโต ระยะห่างกว้าง อ่านง่ายในระยะแขน
+                        ผิดพลาดแสดงประโยค และ tracking กว้างในภาษาไทยจะดันสระกับ
+                        วรรณยุกต์ออกจากตัวอักษรฐาน จึงได้ระยะห่างปกติและขนาดเล็กกว่า */}
+                    <span
+                        className={
+                            'block break-words font-black ' +
+                            (isError ? 'text-2xl' : 'text-4xl tracking-widest')
+                        }
+                    >
                         {text}
                     </span>
-                    <span className="block text-sm font-bold mt-2 opacity-90">
-                        {status === 'success' ? t.scanner.addedToList : t.scanner.actionFailed}
+                    <span className="mt-2 block text-sm font-bold opacity-90">
+                        {isError ? t.scanner.actionFailed : t.scanner.addedToList}
                     </span>
                 </div>
 
-                {/* Dismiss Button for Errors */}
-                {status === 'error' && onDismiss && (
-                    <button
+                {isError && onDismiss && (
+                    <Button
+                        variant="inverse"
+                        size="lg"
+                        icon={ArrowRightCircle}
                         onClick={onDismiss}
-                        className="mt-6 px-8 py-3 bg-white text-red-600 font-black text-lg rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center gap-2"
+                        className="mt-2 rounded-full text-red-600"
                     >
-                        <ArrowRightCircle size={24} /> {t.scanner.continueScanning}
-                    </button>
+                        {t.scanner.continueScanning}
+                    </Button>
                 )}
             </div>
         </div>

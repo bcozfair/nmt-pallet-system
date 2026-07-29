@@ -250,6 +250,7 @@ export const th: Dictionary = {
         addedToList: 'เพิ่มเข้ารายการแล้ว',
         actionFailed: 'ทำรายการไม่สำเร็จ',
         continueScanning: 'สแกนต่อ',
+        closeScanner: 'ปิดกล้อง',
     },
 
     scanError: {
@@ -273,11 +274,15 @@ export const th: Dictionary = {
         checkedOut: (count: number) => `เบิกออกสำเร็จ ${count} พาเลท`,
         returned: (count: number) => `รับคืนสำเร็จ ${count} พาเลท`,
         failed: 'บันทึกรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+        removeItem: (id: string) => `นำ ${id} ออกจากรายการ`,
     },
 
     location: {
         selectDestination: 'เลือกปลายทาง',
         whereGoing: 'จะส่งพาเลทไปที่แผนกใด?',
+        loading: 'กำลังโหลดสถานที่...',
+        emptyTitle: 'ไม่มีสถานที่ที่เปิดใช้งาน',
+        emptyHint: 'ติดต่อผู้ดูแลระบบให้เปิดใช้งานสถานที่ก่อน',
     },
 
     damage: {
@@ -293,14 +298,19 @@ export const th: Dictionary = {
         manualTitle: 'แจ้งชำรุด',
         manualSubtitle: 'สแกน QR เพื่อระบุพาเลท',
         manualHint: 'หาก QR ชำรุดหรือสแกนไม่ติด สามารถกรอกรหัสพาเลทเองได้ที่ปุ่มด้านล่าง',
-        enterIdManually: 'กรอกรหัสพาเลทเอง',
-        promptEnterId: 'กรอกรหัสพาเลท (เช่น P001):',
+        idLabel: 'รหัสพาเลท',
+        idPlaceholder: 'เช่น P001',
+        idHint: 'ใช้เมื่อ QR ขาดหรือสแกนไม่ติด',
     },
 
     history: {
+        title: 'ประวัติของฉัน',
         searchPlaceholder: 'ค้นหารหัสพาเลท, สถานที่...',
+        searchAria: 'ค้นหาประวัติของฉัน',
+        filterAria: 'กรองตามประเภทรายการ',
+        allLocations: 'ทุกสถานที่',
         recent: 'ล่าสุด',
-        recentOnly: 'เฉพาะล่าสุด',
+        recentOnly: 'ล่าสุด',
         recentLast50: 'ล่าสุด (50 รายการ)',
         filterAll: 'ทั้งหมด',
         filterOut: 'เบิกออก',
@@ -308,6 +318,7 @@ export const th: Dictionary = {
         filterDamage: 'ชำรุด',
         loading: 'กำลังโหลดประวัติ...',
         empty: 'ไม่พบรายการ',
+        emptyHint: 'ลองเปลี่ยนวันที่ หรือล้างตัวกรอง',
         clearFilters: 'ล้างตัวกรอง',
         to: 'ไปยัง:',
         showing: (count: number) => `แสดง ${count} รายการ`,

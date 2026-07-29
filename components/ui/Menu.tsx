@@ -52,8 +52,21 @@ const CHIP = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg';
 // ไม่ใช่เอา w-full ไปต่อท้ายสตริงที่มี w-64 อยู่แล้ว สองคลาสที่ตั้งค่าเดียวกันบน
 // element เดียวตัดสินผู้ชนะที่ลำดับใน CSS ที่ build ออกมา ไม่ใช่ลำดับในสตริง
 // (กับดักเดียวกับที่ Card.tsx และ Button.tsx บันทึกไว้)
+// `max-h-[60vh] overflow-y-auto` ไม่ใช่ของตกแต่ง มันคือสิ่งที่ทำให้เมนูที่มีรายการ
+// เยอะยังใช้งานได้: พาเนลเป็น `absolute` ซึ่งไม่เพิ่มความสูงให้เอกสาร รายการที่ล้น
+// ออกนอกจอจึงเลื่อนไปหาไม่ได้เลย -- ไม่ใช่ "ต้องเลื่อนเยอะ" แต่คือกดไม่ได้ถาวร
+//
+// อาการที่ปิดไป: ตัวเลือกวันที่ในหน้าประวัติของพนักงาน (MobileHistory.tsx) ยัด
+// ทุกวันที่มีรายการลงเป็นเมนู และ fetchUserTransactionDates ดึงมาถึง 2000 รายการ
+// พนักงานที่สแกนวันละ 10 ครั้งจะมีวันที่ไม่ซ้ำ ~200 วัน -- วันเก่า ๆ เข้าไม่ถึงทั้งหมด
+// ดรอปดาวน์ที่เขียนเองตัวเดิมมี `max-h-60 overflow-y-auto` อยู่ แล้วหายไปตอนย้ายมาใช้
+// primitive ตัวนี้ ซึ่งเป็นความสามารถที่หายเงียบ ๆ ไม่ใช่การตัดสินใจ
+//
+// `overscroll-contain` กันไม่ให้การเลื่อนที่สุดรายการไปลากหน้าข้างหลังเลื่อนตาม
+// ส่วน `styled-scrollbar` เป็นสกรอลล์บาร์ชุดเดียวกับที่ AdminSidebar ใช้
 const PANEL_SHAPE =
-    'absolute z-30 rounded-2xl border border-slate-200 ' +
+    'absolute z-30 max-h-[60vh] overflow-y-auto overscroll-contain styled-scrollbar ' +
+    'rounded-2xl border border-slate-200 ' +
     'bg-white p-1.5 shadow-[0_24px_60px_-32px_rgba(15,42,82,0.45)] animate-pop-in';
 
 // max-w กันพาเนลไม่ให้ล้นจอ 360px: มันเกาะกับปุ่มที่อาจอยู่ชิดขอบจอ w-64 เปล่า ๆ
@@ -199,8 +212,16 @@ export const Menu: React.FC<MenuProps> = ({
                 aria-label={iconOnly ? label : undefined}
                 className={triggerClassName}
             >
-                {Icon && <Icon size={16} aria-hidden="true" />}
-                {!iconOnly && label}
+                {Icon && <Icon size={16} className="shrink-0" aria-hidden="true" />}
+                {/* `min-w-0 truncate` มีผลเฉพาะตอนปุ่มถูกบังคับความกว้าง (เช่น
+                    `matchTriggerWidth` คู่กับ `className="w-36"`) -- ปุ่มที่ไม่มีความกว้าง
+                    จะกว้างตามเนื้อหาอยู่แล้ว จึงไม่มีอะไรให้ตัด call site เดิมทุกที่
+                    ไม่เปลี่ยนพฤติกรรม
+                    ที่ต้องมีเพราะ `label` อาจเป็นค่าจากฐานข้อมูล เช่นชื่อสถานที่ที่แอดมิน
+                    พิมพ์เอง ซึ่งยาวเท่าไรก็ได้ -- BUTTON_BASE ไม่มีทั้ง `truncate` และ
+                    `whitespace-nowrap` ชื่อยาวจึงตัดลงบรรทัดใหม่แล้วดันปุ่มให้สูงขึ้น
+                    (BUTTON_SIZE เป็น `min-h-*` ไม่ใช่ `h-*`) แถวตัวกรองก็เสียแนวทั้งแถว */}
+                {!iconOnly && <span className="min-w-0 truncate">{label}</span>}
                 {/* The chevron reads as "this button has more options"; an
                     icon-only trigger (e.g. a "..." row action) has no room for
                     it and the icon it does show already implies a menu. */}
@@ -214,7 +235,7 @@ export const Menu: React.FC<MenuProps> = ({
                         // justify-center ที่อยู่ใน BUTTON_BASE ซึ่งเป็นการวางคลาสสอง
                         // ตัวที่คุมคุณสมบัติเดียวกันบน element เดียว
                         className={
-                            `transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ` +
+                            `shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ` +
                             (matchTriggerWidth ? 'ml-auto' : '')
                         }
                     />
