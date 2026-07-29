@@ -182,9 +182,9 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                 </div>
 
                 {loading ? (
-                    <div className="flex flex-col gap-3" role="status" aria-label={t.history.loading}>
-                        {[0, 1, 2, 3, 4].map((i) => (
-                            <Skeleton key={i} className="h-24 rounded-3xl" />
+                    <div className="flex flex-col gap-2" role="status" aria-label={t.history.loading}>
+                        {[0, 1, 2, 3, 4, 5].map((i) => (
+                            <Skeleton key={i} className="h-16 rounded-2xl" />
                         ))}
                     </div>
                 ) : filteredTransactions.length === 0 ? (
@@ -207,50 +207,51 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                         }
                     />
                 ) : (
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-2">
                         {filteredTransactions.map((tx) => (
-                            <Card key={tx.id} className="flex flex-col gap-2 p-4">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex min-w-0 items-center gap-3">
-                                        <span className="shrink-0 rounded-full bg-slate-50 p-2">
+                            <Card key={tx.id} className="flex flex-col gap-1.5 p-3">
+                                {/* แถวที่ 1: ไอคอน + ชื่อการกระทำ + รหัสพาเลท (ซ้าย) / เวลา (ขวา) */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        <span className="shrink-0 rounded-full bg-slate-50 p-1.5">
                                             {renderActionIcon(tx.action_type)}
                                         </span>
-                                        <div className="min-w-0">
-                                            <span className="block truncate font-semibold text-slate-900">
-                                                {t.action[tx.action_type as ActionType] ??
-                                                    tx.action_type.replace('_', ' ')}
-                                            </span>
-                                            <span className="font-mono text-xs text-slate-500">
-                                                {t.common.palletId}: {tx.pallet_id}
-                                            </span>
-                                        </div>
+                                        <span className="truncate text-sm font-semibold text-slate-900">
+                                            {t.action[tx.action_type as ActionType] ??
+                                                tx.action_type.replace('_', ' ')}
+                                        </span>
+                                        <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-600">
+                                            {tx.pallet_id}
+                                        </span>
                                     </div>
-                                    <span className="shrink-0 rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-500">
+                                    <span className="shrink-0 text-[11px] font-medium text-slate-400">
                                         {formatDateTime(tx.timestamp)}
                                     </span>
                                 </div>
 
+                                {/* แถวที่ 2: ปลายทาง / หมายเหตุ (ถ้ามี) */}
                                 {(tx.department_dest || tx.transaction_remark) && (
-                                    <div className="ml-11 border-l-2 border-slate-100 py-1 pl-3 text-sm">
+                                    <div className="flex min-w-0 items-center gap-2 pl-9 text-xs text-slate-500">
                                         {tx.department_dest && (
-                                            <div className="text-slate-600">
-                                                <span className="mr-1 text-xs text-slate-400">
-                                                    {t.history.to}
-                                                </span>
+                                            <span className="truncate font-medium text-slate-700">
+                                                <span className="mr-1 text-slate-400">{t.history.to}</span>
                                                 {tx.department_dest}
-                                            </div>
+                                            </span>
+                                        )}
+                                        {tx.department_dest && tx.transaction_remark && (
+                                            <span className="text-slate-300">•</span>
                                         )}
                                         {tx.transaction_remark && (
-                                            <div className="mt-1 text-xs italic text-slate-500">
+                                            <span className="truncate italic text-slate-500">
                                                 "{tx.transaction_remark}"
-                                            </div>
+                                            </span>
                                         )}
                                     </div>
                                 )}
                             </Card>
                         ))}
 
-                        <p className="py-4 text-center text-xs text-slate-400">
+                        <p className="py-3 text-center text-xs text-slate-400">
                             {t.history.showing(filteredTransactions.length)}
                         </p>
                     </div>
