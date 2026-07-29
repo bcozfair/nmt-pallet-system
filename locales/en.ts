@@ -347,7 +347,7 @@ export const en = {
         locationAria: 'Filter by location',
         allLocations: 'All Locations',
         recent: 'Recent',
-        recentOnly: 'Recent Only',
+        recentOnly: 'Recent',
         recentLast50: 'Recent (Last 50)',
         filterAll: 'All',
         filterOut: 'Out',

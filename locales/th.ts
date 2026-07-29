@@ -312,7 +312,7 @@ export const th: Dictionary = {
         locationAria: 'กรองตามสถานที่',
         allLocations: 'ทุกสถานที่',
         recent: 'ล่าสุด',
-        recentOnly: 'เฉพาะล่าสุด',
+        recentOnly: 'ล่าสุด',
         recentLast50: 'ล่าสุด (50 รายการ)',
         filterAll: 'ทั้งหมด',
         filterOut: 'เบิกออก',
