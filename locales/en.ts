@@ -344,6 +344,8 @@ export const en = {
         searchAria: 'Search my history',
         dateAria: 'Filter by date',
         filterAria: 'Filter by action type',
+        locationAria: 'Filter by location',
+        allLocations: 'All Locations',
         recent: 'Recent',
         recentOnly: 'Recent Only',
         recentLast50: 'Recent (Last 50)',

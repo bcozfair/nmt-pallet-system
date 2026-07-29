@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
-    Clock, ArrowRightCircle, ArrowLeftCircle, AlertTriangle, Wrench, Calendar, Filter, Ban,
+    Clock, ArrowRightCircle, ArrowLeftCircle, AlertTriangle, Wrench, Calendar, Filter, Ban, MapPin,
 } from 'lucide-react';
 import { Transaction } from '../../types';
 import { fetchUserTransactions, fetchUserTransactionDates } from '../../services/transactionService';
@@ -33,6 +33,7 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
 
     // Filters
     const [selectedDate, setSelectedDate] = useState<string>('');
+    const [selectedDept, setSelectedDept] = useState<string>('');
     const [searchQuery, setSearchQuery] = useState('');
     const [filterAction, setFilterAction] = useState<HistoryFilter>('all');
 
@@ -74,7 +75,16 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
         loadHistory();
     }, [userId, selectedDate]);
 
-    // 3. Client-side Filtering (Search & Action)
+    // รายชื่อสถานที่ทั้งหมดที่มีในประวัติที่โหลดมา
+    const availableDepts = useMemo(() => {
+        const set = new Set<string>();
+        transactions.forEach((tx) => {
+            if (tx.department_dest) set.add(tx.department_dest);
+        });
+        return Array.from(set).sort();
+    }, [transactions]);
+
+    // 3. Client-side Filtering (Search, Location & Action)
     const filteredTransactions = useMemo(() => {
         return transactions.filter(tx => {
             // Action Filter
@@ -83,6 +93,9 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                 if (filterAction === 'check_in' && tx.action_type !== 'check_in') return false;
                 if (filterAction === 'damage' && tx.action_type !== 'report_damage') return false;
             }
+
+            // Location Filter
+            if (selectedDept && tx.department_dest !== selectedDept) return false;
 
             // Search Filter
             if (searchQuery) {
@@ -95,7 +108,7 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
 
             return true;
         });
-    }, [transactions, filterAction, searchQuery]);
+    }, [transactions, filterAction, selectedDept, searchQuery]);
 
     // สีชุดเดียวกับกราฟของแอดมิน (--color-series-* ใน index.css) ประวัติของพนักงาน
     // กับกราฟของแอดมินจึงพูดสีเดียวกัน
@@ -138,6 +151,21 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
         })),
     ];
 
+    const deptItems: MenuItem[] = [
+        {
+            label: t.history.allLocations,
+            icon: MapPin,
+            tone: selectedDept === '' ? 'brand' : 'neutral',
+            onClick: () => setSelectedDept(''),
+        },
+        ...availableDepts.map((dept) => ({
+            label: dept,
+            icon: MapPin,
+            tone: (selectedDept === dept ? 'brand' : 'neutral') as MenuItem['tone'],
+            onClick: () => setSelectedDept(dept),
+        })),
+    ];
+
     const filterOptions = [
         { value: 'all', label: t.history.filterAll },
         { value: 'check_out', label: t.history.filterOut },
@@ -145,21 +173,36 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
         { value: 'damage', label: t.history.filterDamage },
     ] as const satisfies readonly { value: HistoryFilter; label: string }[];
 
-    const hasFilters = searchQuery !== '' || filterAction !== 'all';
+    const hasFilters = searchQuery !== '' || filterAction !== 'all' || selectedDept !== '';
 
     return (
         <div className="app-canvas flex min-h-dvh flex-col">
             <StaffHeader title={t.history.title} onBack={onBack} />
 
             <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-3 p-4">
-                <SearchInput
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    placeholder={t.history.searchPlaceholder}
-                    ariaLabel={t.history.searchAria}
-                    clearLabel={t.common.clearFilters}
-                />
+                {/* แถวที่ 1: ช่องค้นหา (ซ้าย) + ปุ่มเลือกสถานที่ (ขวา) */}
+                <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                        <SearchInput
+                            value={searchQuery}
+                            onChange={setSearchQuery}
+                            placeholder={t.history.searchPlaceholder}
+                            ariaLabel={t.history.searchAria}
+                            clearLabel={t.common.clearFilters}
+                        />
+                    </div>
+                    <Menu
+                        label={selectedDept ? selectedDept : t.history.allLocations}
+                        items={deptItems}
+                        icon={MapPin}
+                        align="right"
+                        variant="secondary"
+                        className="w-36 shrink-0"
+                        matchTriggerWidth
+                    />
+                </div>
 
+                {/* แถวที่ 2: ปุ่มเลือกวันที่ (ซ้าย) + ปุ่มเลือกประเภทรายการ (ขวา) */}
                 <div className="flex items-center gap-2">
                     <Menu
                         label={selectedDate ? formatDateChip(selectedDate) : t.history.recentOnly}
@@ -199,6 +242,7 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                                     onClick={() => {
                                         setSearchQuery('');
                                         setFilterAction('all');
+                                        setSelectedDept('');
                                     }}
                                 >
                                     {t.history.clearFilters}

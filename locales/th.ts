@@ -309,6 +309,8 @@ export const th: Dictionary = {
         searchAria: 'ค้นหาประวัติของฉัน',
         dateAria: 'กรองตามวันที่',
         filterAria: 'กรองตามประเภทรายการ',
+        locationAria: 'กรองตามสถานที่',
+        allLocations: 'ทุกสถานที่',
         recent: 'ล่าสุด',
         recentOnly: 'เฉพาะล่าสุด',
         recentLast50: 'ล่าสุด (50 รายการ)',
