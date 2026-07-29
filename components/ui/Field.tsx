@@ -13,7 +13,7 @@ export interface FieldControlProps {
 
 export interface FieldProps {
     /** ป้ายที่มองเห็น -- ไม่ optional ช่องในฟอร์มต้องมีป้ายเสมอ */
-    label: string;
+    label: React.ReactNode;
     /** id ของ control ข้างใน Field เดินสาย aria ทั้งหมดจากค่านี้ */
     htmlFor: string;
     required?: boolean;

@@ -71,9 +71,15 @@ export const LineConfiguration: React.FC<LineConfigurationProps> = ({
                 monospace ยาว ๆ เริ่มอ่านไม่ออกถ้าอยู่ครึ่งความกว้าง */}
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field
-                    label={t.settings.channelToken}
+                    label={
+                        <>
+                            {t.settings.channelToken}{' '}
+                            <span className="text-xs font-normal text-slate-500">
+                                {t.settings.channelTokenHint}
+                            </span>
+                        </>
+                    }
                     htmlFor={`${fieldId}-token`}
-                    hint={t.settings.channelTokenHint}
                 >
                     {(aria) => (
                         <TextInput
@@ -89,9 +95,15 @@ export const LineConfiguration: React.FC<LineConfigurationProps> = ({
                 </Field>
 
                 <Field
-                    label={t.settings.targetId}
+                    label={
+                        <>
+                            {t.settings.targetId}{' '}
+                            <span className="text-xs font-normal text-slate-500">
+                                {t.settings.targetIdHint}
+                            </span>
+                        </>
+                    }
                     htmlFor={`${fieldId}-target`}
-                    hint={t.settings.targetIdHint}
                 >
                     {(aria) => (
                         <div className="relative">

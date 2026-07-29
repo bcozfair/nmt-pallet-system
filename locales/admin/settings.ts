@@ -94,7 +94,7 @@ export const settingsEn = {
     adminEmailBaseHint: '(for Employee ID Login)',
     updateEmail: 'Update Email',
     warningLabel: 'WARNING:',
-    adminEmailWarning: 'Changing this will require all users to log in with the new email domain.',
+    adminEmailWarning: 'This email is used for admin password resets and user registration. Changing this will require all users to log in with the new email domain.',
     // Saving this one key runs an RPC that rewrites every user's login alias in
     // a single transaction -- there is no per-user undo. The confirmation text
     // has to be alarming in both languages, not merely informative.
@@ -153,7 +153,7 @@ export const settingsTh: SettingsDict = {
     lineNotConfigured: 'ยังไม่ได้ตั้งค่า',
     lineStatusUnknown: 'ตรวจสอบสถานะไม่ได้',
     channelToken: 'Channel Access Token',
-    channelTokenHint: '(แบบอายุยาว)',
+    channelTokenHint: '(Long-lived)',
     channelTokenPlaceholder: '•••••••••••••••• (ซ่อนไว้) - พิมพ์เพื่อเปลี่ยน',
     targetId: 'Target ID',
     targetIdHint: '(User ID หรือ Group ID)',
@@ -163,7 +163,7 @@ export const settingsTh: SettingsDict = {
     adminEmailBaseHint: '(สำหรับเข้าสู่ระบบด้วยรหัสพนักงาน)',
     updateEmail: 'อัปเดตอีเมล',
     warningLabel: 'คำเตือน:',
-    adminEmailWarning: 'การเปลี่ยนค่านี้จะทำให้ผู้ใช้ทุกคนต้องเข้าสู่ระบบด้วยโดเมนอีเมลใหม่',
+    adminEmailWarning: 'อีเมลนี้ใช้สำหรับรีเซ็ตรหัสผ่านของผู้ดูแลระบบและลงทะเบียนผู้ใช้งาน การเปลี่ยนค่านี้จะทำให้ผู้ใช้ทุกคนต้องเข้าสู่ระบบด้วยโดเมนอีเมลใหม่',
     confirmEmailTitle: 'ยืนยันการเปลี่ยนอีเมลหลักของผู้ดูแลระบบ?',
     confirmEmailMessage:
         'คำเตือน: ระบบจะเปลี่ยนอีเมลสำหรับเข้าสู่ระบบของผู้ใช้ทุกคนพร้อมกัน ผู้ใช้ทั้งหมดจะต้องเข้าสู่ระบบด้วยโดเมนใหม่ และการเปลี่ยนแปลงนี้ย้อนกลับทีละคนไม่ได้ ยืนยันที่จะดำเนินการต่อหรือไม่?',
