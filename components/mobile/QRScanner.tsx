@@ -85,7 +85,7 @@ const QRScanner: React.FC<QRScannerProps> = ({
       {/* 1. Minimalist Header */}
       <div className="absolute top-0 left-0 w-full pt-3 pl-6 pr-6 flex justify-between items-start z-50">
         {/* Status Pill */}
-        <div className="bg-zinc-900/80 backdrop-blur-md border border-white/10 rounded-full pl-3 pr-4 py-2 flex items-center gap-3 shadow-lg">
+        <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-full pl-3 pr-4 py-2 flex items-center gap-3 shadow-lg">
           <div className="w-5 h-5 bg-black/50 rounded-full flex items-center justify-center border border-white/10 shadow-inner">
             <Camera className="w-5 h-5 text-green-400 animate-pulse" />
           </div>
@@ -94,10 +94,12 @@ const QRScanner: React.FC<QRScannerProps> = ({
 
         {/* Close Button */}
         <button
+          type="button"
           onClick={onClose}
-          className="w-10 h-10 bg-blue-600/80 hover:bg-blue-500 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white transition shadow-lg"
+          aria-label={t.scanner.closeScanner}
+          className="w-10 h-10 bg-brand-600/80 hover:bg-brand-500 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white transition shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         >
-          <X size={20} />
+          <X size={20} aria-hidden="true" />
         </button>
       </div>
 
@@ -110,10 +112,10 @@ const QRScanner: React.FC<QRScannerProps> = ({
         {/* Decorative Frame */}
         <div className="absolute z-10 w-64 h-64 border-2 border-white/20 rounded-xl pointer-events-none shadow-[0_0_100px_rgba(0,0,0,0.5)]">
           {/* Corners */}
-          <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div>
-          <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div>
-          <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div>
-          <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div>
+          <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-accent-400 rounded-tl-lg"></div>
+          <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-accent-400 rounded-tr-lg"></div>
+          <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-accent-400 rounded-bl-lg"></div>
+          <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-accent-400 rounded-br-lg"></div>
 
           {/* 2. Instructions: Centered inside the box */}
           <div className="absolute inset-0 flex items-center justify-center">
@@ -129,7 +131,10 @@ const QRScanner: React.FC<QRScannerProps> = ({
 
       {/* Error State */}
       {scanError && (
-        <div className="absolute bottom-32 left-6 right-6 px-6 py-4 bg-red-600/90 backdrop-blur text-white rounded-xl text-center shadow-lg font-medium z-50">
+        <div
+          role="alert"
+          className="absolute bottom-32 left-6 right-6 px-6 py-4 bg-red-600/90 backdrop-blur text-white rounded-xl text-center shadow-lg font-medium z-50"
+        >
           {scanError}
         </div>
       )}
