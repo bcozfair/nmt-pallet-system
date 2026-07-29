@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Upload, Info, Keyboard } from 'lucide-react';
 import { reportDamage } from '../../services/transactionService';
 import { toast } from '../../services/toast';
@@ -22,6 +22,16 @@ export const DamageForm = ({ palletId, userId, onSuccess, onCancel }: DamageForm
     const t = useT();
     const [damageFile, setDamageFile] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const previewUrl = useMemo(() => {
+        return damageFile ? URL.createObjectURL(damageFile) : null;
+    }, [damageFile]);
+
+    useEffect(() => {
+        return () => {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+        };
+    }, [previewUrl]);
 
     const submitReports = async () => {
         if (!palletId) return;
@@ -50,14 +60,14 @@ export const DamageForm = ({ palletId, userId, onSuccess, onCancel }: DamageForm
                 {/* tone="danger" ไม่ใช่การตกแต่ง: คอมเมนต์ของ Card บอกไว้ตรงตัวว่า
                     โทนนี้มีไว้สำหรับแผงที่เนื้อหาย้อนกลับไม่ได้ การแจ้งชำรุดเปลี่ยน
                     สถานะพาเลทถาวรจนกว่าจะมีคนซ่อม */}
-                <Card tone="danger" className="flex flex-1 flex-col p-4">
-                    {damageFile ? (
-                        <div className="flex h-full min-h-0 flex-col items-center gap-4">
-                            <div className="relative min-h-0 w-full flex-1">
+                <Card tone="danger" className="flex min-h-[280px] flex-1 flex-col p-4">
+                    {previewUrl ? (
+                        <div className="flex flex-1 flex-col items-center justify-between gap-4">
+                            <div className="relative min-h-[200px] w-full flex-1 overflow-hidden rounded-xl bg-black/5">
                                 <img
-                                    src={URL.createObjectURL(damageFile)}
+                                    src={previewUrl}
                                     alt={t.damage.uploadEvidence}
-                                    className="absolute inset-0 h-full w-full rounded-xl bg-black/5 object-contain"
+                                    className="absolute inset-0 h-full w-full object-contain"
                                 />
                             </div>
                             <Button variant="danger" onClick={() => setDamageFile(null)} className="shrink-0">
