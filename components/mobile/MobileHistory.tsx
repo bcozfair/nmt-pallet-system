@@ -210,7 +210,7 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                         icon={Calendar}
                         align="left"
                         variant="secondary"
-                        className="w-40 shrink-0"
+                        className="w-28 shrink-0"
                         matchTriggerWidth
                     />
                     <div className="min-w-0 flex-1 overflow-x-auto no-scrollbar">
