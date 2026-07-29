@@ -36,10 +36,14 @@ describe('ActionTile', () => {
         // rounded-3xl มาจาก CARD_SHELL_SHAPE -- ถ้าหายไปแปลว่ามีคนลอกคลาสมาเขียนเอง
         expect(tile().className).toContain('rounded-3xl');
         expect(tile().className).toContain('flex-col');
+        expect(tile().className).toContain('text-center');
+        expect(tile().className).not.toContain('text-left');
 
         rerender(<ActionTile {...base} layout="row" />);
         expect(tile().className).toContain('rounded-3xl');
         expect(tile().className).not.toContain('flex-col');
+        expect(tile().className).toContain('text-left');
+        expect(tile().className).not.toContain('text-center');
     });
 
     it('ไอคอนเป็นของตกแต่ง จึงไม่ถูกอ่านออกเสียง', () => {

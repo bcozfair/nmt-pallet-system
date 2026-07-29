@@ -49,14 +49,14 @@ const TONE_SUBTITLE: Record<ActionTileTone, string> = {
 // `border-slate-200/80` อยู่แล้ว -- คลาสที่มี variant นำหน้าชนะคลาสที่ไม่มีเสมอ
 // StatTile.tsx:102 ใช้คู่นี้อยู่ก่อนแล้ว นี่คือการทำตาม ไม่ใช่การเสี่ยง
 const SHELL =
-    `${CARD_SHELL_SHAPE} ${CARD_SURFACE} w-full text-left transition duration-200 ` +
+    `${CARD_SHELL_SHAPE} ${CARD_SURFACE} w-full transition duration-200 ` +
     'hover:border-brand-200 active:scale-[0.99] ' +
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500';
 
 // min-h ไม่ใช่ h: หัวเรื่องภาษาไทยตัดสองบรรทัดในการ์ดแคบ ความสูงตายตัวจะตัดคำบรรยายทิ้ง
 const LAYOUT: Record<ActionTileLayout, string> = {
     stack: 'flex min-h-[9.5rem] flex-col items-center justify-center gap-3 p-6 text-center',
-    row: 'flex items-center justify-between gap-4 p-4',
+    row: 'flex items-center justify-between gap-4 p-4 text-left',
 };
 
 export const ActionTile: React.FC<ActionTileProps> = ({
