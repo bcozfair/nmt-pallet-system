@@ -333,8 +333,6 @@ export const en = {
         manualTitle: 'Report Damage',
         manualSubtitle: 'Scan QR code to identify pallet',
         manualHint: 'If the QR code is damaged or unreadable, you can enter the ID manually below.',
-        enterIdManually: 'Enter ID Manually',
-        promptEnterId: 'Enter Pallet ID Manually (e.g., P001):',
         idLabel: 'Pallet ID',
         idPlaceholder: 'e.g. P001',
         idHint: 'Use this when the QR code is torn or unreadable.',

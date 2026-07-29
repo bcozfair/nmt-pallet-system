@@ -298,8 +298,6 @@ export const th: Dictionary = {
         manualTitle: 'แจ้งชำรุด',
         manualSubtitle: 'สแกน QR เพื่อระบุพาเลท',
         manualHint: 'หาก QR ชำรุดหรือสแกนไม่ติด สามารถกรอกรหัสพาเลทเองได้ที่ปุ่มด้านล่าง',
-        enterIdManually: 'กรอกรหัสพาเลทเอง',
-        promptEnterId: 'กรอกรหัสพาเลท (เช่น P001):',
         idLabel: 'รหัสพาเลท',
         idPlaceholder: 'เช่น P001',
         idHint: 'ใช้เมื่อ QR ขาดหรือสแกนไม่ติด',
