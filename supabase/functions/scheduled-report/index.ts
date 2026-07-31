@@ -236,6 +236,194 @@ Deno.serve(async (req) => {
     }
 })
 
+// --- Card presentation ------------------------------------------------------
+
+/**
+ * Every colour both cards use.
+ *
+ * Nothing is left to the renderer. LINE's dark theme does not adapt a Flex
+ * Message: it swaps the bubble ground and flips only the text that has no
+ * explicit `color`. The old cards set some greys and left others unset, so
+ * whichever way the ground went, half the card lost contrast -- the location
+ * rows (#666666) vanished into a dark ground while the untouched stat numbers
+ * survived. Pinning the ground AND every colour makes the card look the same
+ * in both themes, which is the point.
+ */
+const C = {
+    paper: '#FFFFFF',
+    ink: '#111827',
+    inkSoft: '#374151',
+    muted: '#6B7280',
+    faint: '#9CA3AF',
+    rule: '#E5E7EB',
+    red: '#DC2626',
+    redDeep: '#B91C1C',
+    blue: '#1D4ED8',
+    blueWash: '#D7E2FF',
+    // redWash is subtitle text on the red header; redPill is a fill behind dark
+    // red text, so it has to be lighter than redWash rather than the same tint.
+    redWash: '#FFD9D9',
+    redPill: '#FEE2E2',
+    green: '#16A34A',
+    greenText: '#15803D',
+    greenWash: '#DCFCE7',
+    amber: '#CA8A04',
+}
+
+/** Status wording is taken from locales/th.ts so the card and the app agree. */
+const STATUS_TH = {
+    available: 'พร้อมใช้งาน',
+    in_use: 'ถูกเบิกออก',
+    damaged: 'ชำรุด',
+    scrapped: 'ตัดออกจากระบบ',
+}
+
+const UNIT = 'ตัว'
+
+/**
+ * Date and time in Bangkok, as Thai text.
+ *
+ * The cards used to build this from getUTCDate(), which is only correct
+ * because the default send times (08:00 and 16:00 BKK) both land on the same
+ * UTC day. An admin moving the morning report to 06:00 would have stamped
+ * every card with yesterday's date.
+ *
+ * Forcing the gregorian calendar keeps the year as 2026 rather than the
+ * Buddhist 2569 that th-TH would otherwise produce -- the rest of the app
+ * shows CE years, and a report that disagrees with the app it reports on is
+ * worse than one in the less familiar era.
+ */
+function bkkStamp(): { date: string; time: string } {
+    const now = new Date()
+    const date = new Intl.DateTimeFormat('th-TH-u-ca-gregory', {
+        timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric',
+    }).format(now)
+    const time = new Intl.DateTimeFormat('th-TH-u-ca-gregory', {
+        timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(now)
+    return { date, time }
+}
+
+/** Deepens from amber to near-black red as a pallet runs further past the threshold. */
+function severityColor(days: number, threshold: number): string {
+    if (days > threshold * 3) return '#991B1B'
+    if (days > threshold * 2) return '#DC2626'
+    if (days > threshold * 1.5) return '#EA580C'
+    return '#D97706'
+}
+
+/**
+ * A coloured header block.
+ *
+ * Padding is spelled out at 20px rather than the `lg` keyword the cards used
+ * before. `lg` is 12px, but a body block pads to 20px by default, so the title
+ * sat 8px to the left of the text beneath it on every card ever sent.
+ */
+function cardHeader(background: string, title: string, subtitle: string, subtitleColor: string) {
+    return {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: background,
+        paddingTop: '16px',
+        paddingBottom: '16px',
+        paddingStart: '20px',
+        paddingEnd: '20px',
+        contents: [
+            { type: 'text', text: title, weight: 'bold', color: C.paper, size: 'xl', wrap: true },
+            { type: 'text', text: subtitle, color: subtitleColor, size: 'xs', margin: 'sm', wrap: true },
+        ],
+    }
+}
+
+function separator(margin = 'xl') {
+    return { type: 'separator', margin, color: C.rule }
+}
+
+/**
+ * The stacked fleet bar.
+ *
+ * Segments of zero are dropped rather than given `flex: 0`: in a horizontal
+ * box that value means "size to your content", not "take no width", so a
+ * status with nothing in it would still claim a slice of the bar.
+ */
+function fleetBar(segments: Array<{ value: number; color: string }>, height: string) {
+    const shown = segments.filter((s) => s.value > 0)
+    if (shown.length === 0) return null
+    return {
+        type: 'box',
+        layout: 'horizontal',
+        height,
+        margin: 'lg',
+        cornerRadius: height,
+        backgroundColor: C.rule,
+        contents: shown.map((s) => ({
+            type: 'box',
+            layout: 'vertical',
+            flex: s.value,
+            backgroundColor: s.color,
+            contents: [{ type: 'filler' }],
+        })),
+    }
+}
+
+/**
+ * The centred headline block both cards open with: caption, big percentage,
+ * then the raw counts on a tinted pill.
+ *
+ * The pill is wrapped in a horizontal box set to justifyContent: 'center'
+ * because a box cannot centre itself -- with the pill as the only child and
+ * flex: 0, the parent centres it. Putting the pill straight into the vertical
+ * stack would stretch it edge to edge instead.
+ */
+function heroBlock(caption: string, percent: number, detail: string, tone: string, pillBackground: string) {
+    return {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+            { type: 'text', text: caption, size: 'xs', color: C.muted, align: 'center', wrap: true },
+            { type: 'text', text: `${percent}%`, size: '4xl', weight: 'bold', color: tone, align: 'center', margin: 'xs' },
+            {
+                type: 'box',
+                layout: 'horizontal',
+                justifyContent: 'center',
+                margin: 'md',
+                contents: [
+                    {
+                        type: 'box',
+                        layout: 'vertical',
+                        flex: 0,
+                        backgroundColor: pillBackground,
+                        cornerRadius: 'md',
+                        paddingAll: 'sm',
+                        paddingStart: 'md',
+                        paddingEnd: 'md',
+                        contents: [
+                            { type: 'text', text: detail, size: 'sm', weight: 'bold', color: tone, align: 'center' },
+                        ],
+                    },
+                ],
+            },
+        ],
+    }
+}
+
+/** name on the left, "N ตัว" on the right. */
+function locationRow(name: string, count: number) {
+    return {
+        type: 'box',
+        layout: 'horizontal',
+        contents: [
+            { type: 'text', text: name, size: 'sm', color: C.inkSoft, flex: 5, wrap: true, gravity: 'center' },
+            { type: 'text', text: `${count} ${UNIT}`, size: 'sm', color: C.ink, weight: 'bold', flex: 2, align: 'end', gravity: 'center' },
+        ],
+    }
+}
+
+/** LINE truncates altText past 400 characters, so cut it cleanly ourselves. */
+function clampAlt(text: string): string {
+    return text.length <= 400 ? text : `${text.slice(0, 397)}...`
+}
+
 // --- Helper Functions ---
 
 async function sendMorningReport(supabase: any, settings: any) {
@@ -244,85 +432,176 @@ async function sendMorningReport(supabase: any, settings: any) {
     if (!token || !targetId) return
 
     const threshold = parseInt(settings.overdue_days || '7')
+    const stamp = bkkStamp()
 
-    // Logic: Overdue Items
-    const { data: pallets } = await supabase.from('pallets').select('*')
-    const overdue: any[] = []
-    const now = new Date()
-    const dateStr = `${String(now.getUTCDate()).padStart(2, '0')}/${String(now.getUTCMonth() + 1).padStart(2, '0')}/${now.getUTCFullYear()}`;
+    const { data: pallets } = await supabase
+        .from('pallets')
+        .select('pallet_id, status, current_location, last_checkout_date')
 
-    pallets.forEach((p: any) => {
-        if (p.status === 'in_use' && p.last_checkout_date) {
-            const d = new Date(p.last_checkout_date)
-            const diffTime = Math.abs(now.getTime() - d.getTime())
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-            if (diffDays > threshold) overdue.push(p)
-        }
-    })
+    // The difference is deliberately signed, unlike the Math.abs() this
+    // replaces: a checkout dated in the future is a clock or data problem, and
+    // abs() turned it into a pallet that looks weeks overdue.
+    const now = Date.now()
+    const overdue = (pallets ?? [])
+        .filter((p: any) => p.status === 'in_use' && p.last_checkout_date)
+        .map((p: any) => ({
+            palletId: p.pallet_id,
+            location: p.current_location || 'ไม่ระบุสถานที่',
+            days: Math.ceil((now - new Date(p.last_checkout_date).getTime()) / 86400000),
+        }))
+        .filter((p: any) => p.days > threshold)
 
-    if (overdue.length === 0) return
-
-    // Group by Location
-    const locationCounts: Record<string, number> = {};
-    overdue.forEach((p: any) => {
-        const loc = p.current_location || 'Unknown';
-        locationCounts[loc] = (locationCounts[loc] || 0) + 1;
-    });
-
-    // Rich Flex Message Construction
-    const flex = {
-        type: "bubble",
-        header: {
-            type: "box",
-            layout: "vertical",
-            backgroundColor: "#DC2626", // Red
-            paddingAll: "lg",
-            contents: [
-                { type: "text", text: "⚠️ OVERDUE ALERT", weight: "bold", color: "#FFFFFF", size: "xl" },
-                { type: "text", text: `Daily Report: ${dateStr} (Overdue > ${threshold} Days)`, color: "#FFDDDD", size: "xs", margin: "sm" }
-            ]
-        },
-        body: {
-            type: "box",
-            layout: "vertical",
-            contents: [
-                {
-                    type: "text",
-                    text: `Found ${overdue.length} overdue pallets.`,
-                    weight: "bold",
-                    size: "md",
-                    margin: "md"
-                },
-                { type: "separator", margin: "lg" },
-                // List of Locations
-                {
-                    type: "box",
-                    layout: "vertical",
-                    margin: "lg",
-                    spacing: "sm",
-                    contents: Object.entries(locationCounts).map(([loc, count]) => ({
-                        type: "box",
-                        layout: "horizontal",
-                        contents: [
-                            { type: "text", text: loc, size: "sm", color: "#555555", flex: 4, wrap: true },
-                            { type: "text", text: `${count} pcs`, size: "sm", weight: "bold", align: "end", flex: 2 }
-                        ]
-                    }))
-                },
-                { type: "separator", margin: "lg" },
-                {
-                    type: "text",
-                    text: "Please follow up immediately.",
-                    size: "xs",
-                    color: "#aaaaaa",
-                    margin: "lg",
-                    align: "center"
-                }
-            ]
-        }
+    // A silent morning is indistinguishable from a broken cron job, so the
+    // clear day gets its own small card rather than nothing at all.
+    if (overdue.length === 0) {
+        const inUse = (pallets ?? []).filter((p: any) => p.status === 'in_use').length
+        await sendLine(
+            token,
+            targetId,
+            `✅ ไม่มีพาเลทค้างเกิน ${threshold} วัน (ตรวจ ${stamp.date} ${stamp.time} น.)`,
+            allClearFlex(stamp, threshold, inUse),
+        )
+        return
     }
 
-    await sendLine(token, targetId, `Morning Report: ${overdue.length} Overdue`, flex)
+    // Group by location, keeping the worst age in each so a row can show both
+    // how many are stuck there and how long the oldest has been.
+    const byLocation = new Map<string, { count: number; maxDays: number }>()
+    for (const p of overdue) {
+        const row = byLocation.get(p.location) ?? { count: 0, maxDays: 0 }
+        row.count += 1
+        row.maxDays = Math.max(row.maxDays, p.days)
+        byLocation.set(p.location, row)
+    }
+
+    // Insertion order is whatever the query happened to return, which is not a
+    // priority order. Most pallets first, oldest breaking the tie.
+    const locations = [...byLocation.entries()]
+        .map(([name, row]) => ({ name, ...row }))
+        .sort((a, b) => b.count - a.count || b.maxDays - a.maxDays)
+
+    const worst = overdue.reduce((a: any, b: any) => (b.days > a.days ? b : a))
+
+    // The divisor is everything checked out, not the whole fleet: a pallet
+    // sitting in the warehouse cannot be overdue, so counting it would only
+    // flatter the number. Overdue pallets are a subset of in_use ones, so this
+    // is never zero here and never exceeds 100%.
+    const inUseTotal = (pallets ?? []).filter((p: any) => p.status === 'in_use').length
+    const overduePct = Math.round((overdue.length / inUseTotal) * 100)
+    const overdueBar = fleetBar([
+        { value: overdue.length, color: C.red },
+        { value: inUseTotal - overdue.length, color: C.amber },
+    ], '14px')
+
+    const flex = {
+        type: 'bubble',
+        styles: { body: { backgroundColor: C.paper } },
+        header: cardHeader(
+            C.red,
+            '⚠️ พาเลทค้างเกินกำหนด',
+            `${stamp.date} · ${stamp.time} น. · เกิน ${threshold} วัน`,
+            C.redWash,
+        ),
+        body: {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: C.paper,
+            contents: [
+                heroBlock(
+                    'ค้างเกินกำหนด',
+                    overduePct,
+                    `${overdue.length} จาก ${inUseTotal} ${UNIT}`,
+                    C.redDeep,
+                    C.redPill,
+                ),
+                ...(overdueBar ? [overdueBar] : []),
+                separator(),
+                {
+                    type: 'text',
+                    text: `ค้างนานสุด ${worst.days} วัน · ${worst.palletId} ที่ ${worst.location}`,
+                    size: 'xs',
+                    color: severityColor(worst.days, threshold),
+                    margin: 'lg',
+                    wrap: true,
+                },
+                separator(),
+                // Column labels, so each row can print a bare "23 วัน" instead
+                // of repeating "นานสุด" on every row. The 7px inset lines them
+                // up with the row text, past the 3px stripe and its 4px gap.
+                {
+                    type: 'box',
+                    layout: 'horizontal',
+                    spacing: 'sm',
+                    margin: 'lg',
+                    paddingStart: '7px',
+                    contents: [
+                        { type: 'text', text: 'สถานที่', size: 'xxs', color: C.faint, flex: 6 },
+                        { type: 'text', text: 'นานสุด', size: 'xxs', color: C.faint, flex: 3, align: 'end' },
+                        { type: 'text', text: 'จำนวน', size: 'xxs', color: C.faint, flex: 3, align: 'end' },
+                    ],
+                },
+                {
+                    type: 'box',
+                    layout: 'vertical',
+                    margin: 'md',
+                    spacing: 'md',
+                    contents: locations.map((l) => {
+                        const tone = severityColor(l.maxDays, threshold)
+                        return {
+                            type: 'box',
+                            layout: 'horizontal',
+                            spacing: 'sm',
+                            contents: [
+                                {
+                                    type: 'box',
+                                    layout: 'vertical',
+                                    flex: 0,
+                                    width: '3px',
+                                    cornerRadius: '2px',
+                                    backgroundColor: tone,
+                                    contents: [{ type: 'filler' }],
+                                },
+                                { type: 'text', text: l.name, size: 'sm', color: C.inkSoft, flex: 6, wrap: true, gravity: 'center' },
+                                { type: 'text', text: `${l.maxDays} วัน`, size: 'xs', color: tone, weight: 'bold', flex: 3, align: 'end', gravity: 'center' },
+                                { type: 'text', text: `${l.count} ${UNIT}`, size: 'sm', color: C.ink, weight: 'bold', flex: 3, align: 'end', gravity: 'center' },
+                            ],
+                        }
+                    }),
+                },
+            ],
+        },
+    }
+
+    // The notification preview is often all anyone reads, so it carries the
+    // whole headline rather than just a count. clampAlt is LINE's own 400
+    // character ceiling, not a limit of ours -- the card itself lists every
+    // location.
+    const altText = clampAlt(
+        `⚠️ พาเลทค้าง ${overdue.length} ${UNIT} (เกิน ${threshold} วัน) — `
+        + locations.map((l) => `${l.name} ${l.count}`).join(', '),
+    )
+
+    await sendLine(token, targetId, altText, flex)
+}
+
+/** The clear-day companion to the overdue card: small enough not to crowd the group. */
+function allClearFlex(stamp: { date: string; time: string }, threshold: number, inUse: number) {
+    return {
+        type: 'bubble',
+        size: 'micro',
+        styles: { body: { backgroundColor: '#F0FDF4' } },
+        body: {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#F0FDF4',
+            paddingAll: '16px',
+            contents: [
+                { type: 'text', text: '✅ ไม่มีพาเลทค้าง', size: 'sm', weight: 'bold', color: C.greenText, wrap: true },
+                { type: 'text', text: `ตรวจแล้ว ${stamp.date} ${stamp.time} น.`, size: 'xs', color: '#4D7C5F', margin: 'md', wrap: true },
+                { type: 'text', text: `เกณฑ์ ${threshold} วัน · ${STATUS_TH.in_use} ${inUse} ${UNIT}`, size: 'xs', color: '#4D7C5F', wrap: true },
+            ],
+        },
+    }
 }
 
 async function sendEveningReport(supabase: any, settings: any) {
@@ -342,111 +621,123 @@ async function sendEveningReport(supabase: any, settings: any) {
     const inUseItems = pallets.filter((p: any) => p.status === 'in_use')
     const inUse = inUseItems.length
 
-    // Group In Use by Location
+    // Group In Use by Location, busiest first.
     const locationCounts: Record<string, number> = {};
     inUseItems.forEach((p: any) => {
-        const loc = p.current_location || 'Unknown';
+        const loc = p.current_location || 'ไม่ระบุสถานที่';
         locationCounts[loc] = (locationCounts[loc] || 0) + 1;
     });
+    const locations = Object.entries(locationCounts)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'th'))
 
-    // Date for header
-    // Use BKK time if possible, or just UTC date string
-    const d = new Date();
-    // Shift to BKK roughly for display if needed, or just use UTC date
-    // d.setHours(d.getHours() + 7); 
-    const dateStr = `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
+    const stamp = bkkStamp()
+    const readyPct = total > 0 ? Math.round((available / total) * 100) : 0
+    const bar = fleetBar([
+        { value: available, color: C.green },
+        { value: inUse, color: C.amber },
+        { value: damaged, color: C.red },
+    ], '14px')
 
+    // One cell of the three-across status strip: caption over number, both
+    // centred, the number in the same colour as its slice of the bar above.
+    // The unit is a second span so it can stay small without knocking the
+    // number off its baseline.
+    //
+    // wrap is on because the cells are only about 86px wide and the longest
+    // caption, 'พร้อมใช้งาน', already runs to roughly 78px of that. Any future
+    // wording change would otherwise be truncated rather than wrapped.
+    const statusCell = (label: string, count: number, color: string) => ({
+        type: 'box',
+        layout: 'vertical',
+        flex: 1,
+        contents: [
+            { type: 'text', text: label, size: 'xs', color: C.muted, align: 'center', wrap: true },
+            {
+                type: 'text',
+                align: 'center',
+                margin: 'xs',
+                contents: [
+                    { type: 'span', text: `${count}`, size: 'xl', weight: 'bold', color },
+                    { type: 'span', text: ` ${UNIT}`, size: 'xs', color: C.muted },
+                ],
+            },
+        ],
+    })
 
     const flex = {
-        type: "bubble",
-        header: {
-            type: "box",
-            layout: "vertical",
-            backgroundColor: "#2563EB", // Blue
-            paddingAll: "lg",
-            contents: [
-                { type: "text", text: "📊 DAILY SUMMARY", weight: "bold", color: "#FFFFFF", size: "xl" },
-                { type: "text", text: `Daily Report: ${dateStr}`, color: "#DDDDFF", size: "xs", margin: "sm" }
-            ]
-        },
-        hero: {
-            type: "box",
-            layout: "vertical",
-            paddingAll: "xl",
-            backgroundColor: "#F3F4F6",
-            contents: [
-                { type: "text", text: "TOTAL PALLETS", color: "#888888", size: "xs", align: "center" },
-                { type: "text", text: `${total}`, color: "#1F2937", size: "4xl", weight: "bold", align: "center", margin: "sm" }
-            ]
-        },
+        type: 'bubble',
+        styles: { body: { backgroundColor: C.paper } },
+        header: cardHeader(
+            C.blue,
+            '📊 สรุปประจำวัน',
+            `${stamp.date} · ${stamp.time} น.`,
+            C.blueWash,
+        ),
         body: {
-            type: "box",
-            layout: "vertical",
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: C.paper,
             contents: [
-                // Stats Grid
+                // The headline is the share of the fleet that can actually be
+                // handed out, not the size of the fleet -- that is the question
+                // someone opens this card at the end of a shift to answer.
+                heroBlock(
+                    STATUS_TH.available,
+                    readyPct,
+                    `${available} จาก ${total} ${UNIT}`,
+                    C.greenText,
+                    C.greenWash,
+                ),
+                ...(bar ? [bar] : []),
+                separator(),
                 {
-                    type: "box",
-                    layout: "horizontal",
+                    type: 'box',
+                    layout: 'horizontal',
+                    margin: 'lg',
+                    spacing: 'sm',
                     contents: [
-                        {
-                            type: "box",
-                            layout: "vertical",
-                            contents: [
-                                { type: "text", text: "Available", size: "xs", color: "#16A34A", align: "center" },
-                                { type: "text", text: `${available}`, size: "xl", weight: "bold", align: "center" }
-                            ]
-                        },
-                        {
-                            type: "box",
-                            layout: "vertical",
-                            contents: [
-                                { type: "text", text: "Damaged", size: "xs", color: "#DC2626", align: "center" },
-                                { type: "text", text: `${damaged}`, size: "xl", weight: "bold", align: "center" }
-                            ]
-                        },
-                        {
-                            type: "box",
-                            layout: "vertical",
-                            contents: [
-                                { type: "text", text: "In Use", size: "xs", color: "#CA8A04", align: "center" },
-                                { type: "text", text: `${inUse}`, size: "xl", weight: "bold", align: "center" }
-                            ]
-                        }
-                    ]
+                        statusCell(STATUS_TH.available, available, C.green),
+                        statusCell(STATUS_TH.in_use, inUse, C.amber),
+                        statusCell(STATUS_TH.damaged, damaged, C.red),
+                    ],
                 },
-                // One line rather than a fourth cell in the grid above: four
-                // columns crowd the Flex layout, and scrapped is not a peer of
-                // the other three -- it sits outside the total they sum to.
-                ...(scrapped > 0 ? [{
-                    type: "text",
-                    text: `Scrapped (excluded): ${scrapped}`,
-                    size: "xs",
-                    color: "#9CA3AF",
-                    align: "center",
-                    margin: "lg"
-                }] : []),
-                { type: "separator", margin: "xl" },
-                { type: "text", text: "Active Locations (In Use)", weight: "bold", size: "sm", margin: "lg", color: "#555555" },
-                // Location Breakdown
+                separator(),
+                // Always rendered, including at zero. Hiding the row made a
+                // clean day look identical to a report that never counted, and
+                // it is the one number on the card that sits outside the total
+                // above -- so it says so, below the rule rather than among the
+                // three statuses that add up.
                 {
-                    type: "box",
-                    layout: "vertical",
-                    margin: "md",
-                    spacing: "sm",
-                    contents: Object.entries(locationCounts).length > 0 ? Object.entries(locationCounts).map(([loc, count]) => ({
-                        type: "box",
-                        layout: "horizontal",
-                        contents: [
-                            { type: "text", text: loc, size: "sm", color: "#666666", flex: 4, wrap: true },
-                            { type: "text", text: `${count}`, size: "sm", weight: "bold", align: "end", flex: 1 }
-                        ]
-                    })) : [{ type: "text", text: "No items currently in use.", size: "sm", color: "#aaaaaa", align: "center" }]
-                }
-            ]
-        }
+                    type: 'box',
+                    layout: 'horizontal',
+                    margin: 'lg',
+                    contents: [
+                        { type: 'text', text: `${STATUS_TH.scrapped} (ไม่นับในยอดรวม)`, size: 'xs', color: C.faint, flex: 1, wrap: true },
+                        { type: 'text', text: `${scrapped} ${UNIT}`, size: 'xs', color: C.faint, flex: 0, align: 'end' },
+                    ],
+                },
+                separator(),
+                { type: 'text', text: 'จุดที่มีพาเลทถูกเบิกใช้งานอยู่', weight: 'bold', size: 'sm', margin: 'lg', color: C.inkSoft },
+                {
+                    type: 'box',
+                    layout: 'vertical',
+                    margin: 'lg',
+                    spacing: 'md',
+                    contents: locations.length > 0
+                        ? locations.map((l) => locationRow(l.name, l.count))
+                        : [{ type: 'text', text: 'ไม่มีพาเลทถูกเบิกออกอยู่', size: 'sm', color: C.faint, align: 'center' }],
+                },
+            ],
+        },
     }
 
-    await sendLine(token, targetId, `Daily Summary: ${total} Total`, flex)
+    const altText = clampAlt(
+        `📊 สรุปประจำวัน ${stamp.date} · ${STATUS_TH.available} ${available} จาก ${total} ${UNIT} (${readyPct}%)`
+        + ` · ${STATUS_TH.in_use} ${inUse} · ${STATUS_TH.damaged} ${damaged} · ${STATUS_TH.scrapped} ${scrapped}`,
+    )
+
+    await sendLine(token, targetId, altText, flex)
 }
 
 async function sendLine(token: string, targetId: string, altText: string, flexContents: any) {
