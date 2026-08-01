@@ -23,6 +23,14 @@ import {
     bandPlotHeight,
 } from '../../charts/chartTheme';
 import { formatDuration } from '../../common/AdminHelpers';
+import {
+    BAND_KEYS,
+    bandIndexForDays,
+    bandTotal,
+    dwellBands,
+    overdueBands,
+} from '../bands';
+import type { BandRow } from '../bands';
 import { AsOfNowChip, RangeMenu } from '../RangeMenu';
 import type { DashboardRange } from '../../../../hooks/dashboard/useDashboardData';
 import { useReducedMotion } from '../../../../hooks/useReducedMotion';
@@ -30,10 +38,7 @@ import { useLang, useT } from '../../../../hooks/useT';
 import type {
     AgingStats,
     DashboardAnalytics,
-    DwellBucketKey,
-    DwellHistogramBin,
     DwellStats,
-    OverdueHistogramBin,
 } from '../../../../services/analytics/dashboardAnalytics';
 
 // =============================================================================
@@ -180,74 +185,12 @@ export interface LifecycleSectionProps {
 }
 
 // --- BAND PLUMBING ----------------------------------------------------------
-
-// The six day-bands, in the order dashboardAnalytics.ts emits them. Kept as a
-// local list rather than imported because the reducer does not export its key
-// array -- and because the ORDER is what rule 6 depends on, so it should be
-// visible at the point of use.
-const BAND_KEYS: readonly DwellBucketKey[] = ['0_1d', '2_3d', '4_7d', '8_14d', '15_30d', '30d_plus'];
-
-type BandLabelKey = 'b0_1' | 'b2_3' | 'b4_7' | 'b8_14' | 'b15_30' | 'b30plus';
-
-// One lookup serves both charts. `agingOverdue` repeats the same six keys as
-// `dwell` on purpose (the dictionary says so where they are defined), so a
-// single map from reducer key -> dictionary key covers the pair.
-const BAND_LABEL_KEY: Record<DwellBucketKey, BandLabelKey> = {
-    '0_1d': 'b0_1',
-    '2_3d': 'b2_3',
-    '4_7d': 'b4_7',
-    '8_14d': 'b8_14',
-    '15_30d': 'b15_30',
-    '30d_plus': 'b30plus',
-};
-
-/** Either dictionary group; both carry the same six band labels. */
-type BandLabels = Record<BandLabelKey, string>;
-
-interface BandRow {
-    key: DwellBucketKey;
-    label: string;
-    count: number;
-    isBreach: boolean;
-}
-
-// Inclusive upper bound of each band in whole days -- the same edges as
-// DAY_BUCKET_MAX in services/analytics/dashboardAnalytics.ts. Duplicated (not
-// imported: the reducer keeps it private) for exactly one job, placing the
-// median marker in the band the reducer would have counted it into. If those
-// edges ever move, this list moves with them.
-const BAND_MAX_DAYS: readonly number[] = [1, 3, 7, 14, 30, Infinity];
-
-const bandIndexForDays = (days: number): number => {
-    const d = days < 0 ? 0 : days;
-    for (let i = 0; i < BAND_MAX_DAYS.length; i++) {
-        if (d <= BAND_MAX_DAYS[i]) return i;
-    }
-    return BAND_MAX_DAYS.length - 1;
-};
-
-// Built from BAND_KEYS, never from the histogram: that is what guarantees six
-// bands in a stable order even if a future reducer emits a subset (rule 6).
-const dwellBands = (histogram: readonly DwellHistogramBin[], labels: BandLabels): BandRow[] =>
-    BAND_KEYS.map((key) => ({
-        key,
-        label: labels[BAND_LABEL_KEY[key]],
-        count: histogram.find((bin) => bin.bucket === key)?.count ?? 0,
-        isBreach: false,
-    }));
-
-const overdueBands = (histogram: readonly OverdueHistogramBin[], labels: BandLabels): BandRow[] =>
-    BAND_KEYS.map((key) => {
-        const bin = histogram.find((b) => b.bucket === key);
-        return {
-            key,
-            label: labels[BAND_LABEL_KEY[key]],
-            count: bin?.count ?? 0,
-            isBreach: bin?.isBreach ?? false,
-        };
-    });
-
-const bandTotal = (rows: readonly BandRow[]): number => rows.reduce((sum, row) => sum + row.count, 0);
+//
+// Moved to ../bands.ts. It used to live here as module-private code, which was
+// right while these two charts were its only readers. The printable report
+// (report/) now draws the same three histograms for paper, and a second copy of
+// BAND_KEYS would put the band ORDER in two files -- the one thing rule 6 above
+// is about. Nothing else changed: the functions are the same ones, imported.
 
 /**
  * A duration with its unit, in the active language.
@@ -630,8 +573,7 @@ export const LifecycleSection: React.FC<LifecycleSectionProps> = ({
     // takes 256px from that breakpoint up, which is why the measured content
     // width at 1024px (704px) is NARROWER than at 768px (736px). A second
     // column at `lg` would land in the tightest column on the whole ladder.
-    // `print-paper-grid` -- paper columns, not viewport columns. See index.css.
-    <div className="print-paper-grid grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2">
         <DwellCard
             dwell={analytics?.dwell ?? null}
             isLoading={isLoading}

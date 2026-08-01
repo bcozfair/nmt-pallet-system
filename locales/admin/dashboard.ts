@@ -38,6 +38,37 @@ export const dashboardEn = {
     reportGeneratedOn: (when: string) => `Generated on ${when}`,
     printedFooter: (when: string) => `Printed from Pallet Management System on ${when}`,
 
+    // --- The paginated A4 report (components/admin/dashboard/report/) ---
+    //
+    // Its own group because these strings describe the DOCUMENT rather than the
+    // screen: a page number, a running head, the sentence that admits a table
+    // was capped. None of them has a counterpart anywhere in the app, which is
+    // exactly why they are not reachable from `common`.
+    report: {
+        open: 'Report',
+        subtitle: 'Pallet fleet, movement, quality and workload',
+        // Says which window every range-scoped figure covers. The report has no
+        // range picker on it, so the sheet has to state the scope itself.
+        rangeLine: (range: string) => `Range: ${range}`,
+        asOfLine: (when: string) => `Fleet figures as of ${when}`,
+        pageOf: (page: number, total: number) => `Page ${page} of ${total}`,
+        // Printed under any table the report caps. A silently truncated list on
+        // paper is indistinguishable from a complete one.
+        showingTopOf: (shown: number, total: number) =>
+            `Showing the top ${shown} of ${total}`,
+        // The running head, page by page.
+        pages: {
+            summary: 'Fleet summary',
+            movement: 'Movement & dwell time',
+            quality: 'Damage & ageing',
+            workload: 'Workload & timing',
+        },
+        // Under the five movement strips. They share one date axis and NOT one
+        // value axis, and five strips of equal height read as one shared scale
+        // unless the sheet says otherwise.
+        stripScaleNote: 'Each series is scaled to its own maximum; the dates are shared',
+    },
+
     // --- Summary CSV ---
     // Row labels for the stats-only export in the header's dropdown. The three
     // status rows reuse `status` from locales/en.ts and are not repeated here.
@@ -131,6 +162,24 @@ export const dashboardTh: DashboardDict = {
     reportTitle: 'รายงานภาพรวม',
     reportGeneratedOn: (when: string) => `สร้างรายงานเมื่อ ${when}`,
     printedFooter: (when: string) => `พิมพ์จากระบบจัดการพาเลทเมื่อ ${when}`,
+
+    // --- รายงาน A4 ที่จัดหน้าเอง (components/admin/dashboard/report/) ---
+    report: {
+        open: 'รายงาน',
+        subtitle: 'ภาพรวมพาเลท ความเคลื่อนไหว คุณภาพ และภาระงาน',
+        rangeLine: (range: string) => `ช่วงเวลา: ${range}`,
+        asOfLine: (when: string) => `ตัวเลขสถานะพาเลท ณ ${when}`,
+        pageOf: (page: number, total: number) => `หน้า ${page} จาก ${total}`,
+        showingTopOf: (shown: number, total: number) =>
+            `แสดง ${shown} อันดับแรกจากทั้งหมด ${total} รายการ`,
+        pages: {
+            summary: 'สรุปภาพรวมพาเลท',
+            movement: 'ความเคลื่อนไหวและระยะเวลาใช้งาน',
+            quality: 'ความชำรุดและอายุค้าง',
+            workload: 'ภาระงานและรูปแบบตามเวลา',
+        },
+        stripScaleNote: 'แต่ละชุดใช้สเกลของตัวเอง ส่วนแกนวันที่ใช้ร่วมกัน',
+    },
 
     // --- Summary CSV ---
     summaryCsv: {

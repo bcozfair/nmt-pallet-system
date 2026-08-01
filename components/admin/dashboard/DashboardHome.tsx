@@ -2,13 +2,12 @@ import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react
 import { ChevronDown, CircleAlert, RefreshCw } from 'lucide-react';
 
 import { Pallet } from '../../../types';
-import { formatDateTime } from '../common/AdminHelpers';
 import { useT } from '../../../hooks/useT';
 import { useOverdueThreshold } from '../../../hooks/useOverdueThreshold';
 import { useDashboardData } from '../../../hooks/dashboard/useDashboardData';
-import { usePrintLayout } from '../../../hooks/dashboard/usePrintLayout';
-import type { PageOrientation } from '../../../hooks/usePageOrientation';
-import { PrintReportHeader, SkeletonCard } from '../../ui';
+import { SkeletonCard } from '../../ui';
+import { ReportPrintHost } from './report/ReportPrintHost';
+import { useReportPrint } from './report/useReportPrint';
 import {
     exportDashboardSummaryCSV,
     exportHistoryCSV,
@@ -33,9 +32,7 @@ import { PageHeader } from './sections/PageHeader';
  *    overflow-auto` -- three nested scroll containers, which is why the
  *    scrollbar never matched the page and why the wheel stopped dead at a
  *    boundary. The shell has since dropped its own, so the document is now the
- *    only scroll container in the app. It is also the precondition for
- *    printing: a box clamped to 100vh has nothing below the fold to send to
- *    the printer, so the report came out one screen long.
+ *    only scroll container in the app.
  *
  * 2. NO SERVICE CALL LIVES HERE. The previous version ran
  *    `fetchPalletHistory('')` in an effect -- an unbounded query that PostgREST
@@ -49,15 +46,16 @@ import { PageHeader } from './sections/PageHeader';
  */
 
 /**
- * `import()` kept as a named function per section so it can be called twice: once
- * by React.lazy when the section is rendered, and once by the print handler to
- * force the chunk down before the dialog opens. The module registry dedupes, so
- * the second call is free.
+ * Lazy for CHUNKING, not for laziness: vite.config.ts splits `recharts` into a
+ * chunk of its own, and that chunk is only referenced from these five modules. A
+ * static import here would pull all of Recharts into the entry bundle, so every
+ * admin who opens Inventory would pay for charts they never see.
  *
- * These are lazy for chunking, not for laziness: vite.config.ts splits `recharts`
- * into its own chunk, and that chunk is only referenced from these five modules.
- * A static import here would pull all of Recharts into the entry bundle, so
- * every admin who opens Inventory pays for charts they never see.
+ * They were named functions so the print handler could call each one a second
+ * time and force its chunk down before the dialog opened. `preloadAllSections`
+ * went with that handler: the A4 report reads the analytics object and draws its
+ * own figures in plain HTML, so it needs none of these modules loaded. The names
+ * stay because React.lazy reads better with them than with five inline arrows.
  */
 const importFleetSection = () =>
     import('./sections/FleetSection').then((m) => ({ default: m.FleetSection }));
@@ -76,22 +74,13 @@ const QualitySection = React.lazy(importQualitySection);
 const StaffSection = React.lazy(importStaffSection);
 const TimeSection = React.lazy(importTimeSection);
 
-const preloadAllSections = () =>
-    Promise.all([
-        importFleetSection(),
-        importLifecycleSection(),
-        importQualitySection(),
-        importStaffSection(),
-        importTimeSection(),
-    ]);
-
 /**
  * Section ids, in document order. The rail spies on these and the anchor buttons
  * scroll to them, so this array is the single source for both -- a section added
  * to one and not the other is the kind of drift that leaves a dead chip.
  *
- * `dashboard-` prefixed because these ids live in the same document as
- * `dashboard-printable-area` and every modal the shell can open.
+ * `dashboard-` prefixed because these ids share a document with every modal the
+ * shell can open, and while a report is printing, with its sheets too.
  */
 const SECTION_IDS = [
     'dashboard-fleet',
@@ -135,16 +124,19 @@ interface DeferredSectionProps {
     id: SectionId;
     /** Above the fold: skip the observer and mount on the first commit. */
     eager?: boolean;
-    /** Set while preparing a print, so nothing is missing from the report. */
-    forceMount: boolean;
     placeholder: React.ReactNode;
     children: React.ReactNode;
 }
 
+// `forceMount` is gone. It existed for one caller -- the print handler, which
+// had to mount every section before `window.print()` so the report would not
+// stop at whatever the reader had scrolled to. The report is a separate document
+// now and reads the analytics object directly, so nothing on this screen needs
+// mounting to produce it. A prop whose only argument was `false` is a lever with
+// nothing on the other end.
 const DeferredSection: React.FC<DeferredSectionProps> = ({
     id,
     eager = false,
-    forceMount,
     placeholder,
     children,
 }) => {
@@ -158,7 +150,7 @@ const DeferredSection: React.FC<DeferredSectionProps> = ({
         () => eager || typeof IntersectionObserver === 'undefined',
     );
 
-    const isMounted = inView || forceMount;
+    const isMounted = inView;
 
     useEffect(() => {
         if (isMounted) return;
@@ -237,18 +229,32 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
     // pallets were late.
     const { days: overdueDays } = useOverdueThreshold();
 
-    // One hook, not two. The orientation, the width the charts are laid out at
-    // and the call to window.print() are one sequence that has to happen in that
-    // order -- splitting it across two hooks is what let the print fire before
-    // the charts had re-measured. See the block at the top of usePrintLayout.ts.
-    const { ref: printRef, printForPaper } = usePrintLayout<HTMLDivElement>();
-
-    const [mountAllSections, setMountAllSections] = useState(false);
     // Collapsed by default. Not persisted: the point of the default is that
     // the page opens on what needs acting on today, and a preference that
     // survived a session would quietly undo that for whoever set it once.
     const [showDeep, setShowDeep] = useState(false);
-    const [isPreparingPrint, setIsPreparingPrint] = useState(false);
+
+    // THE A4 REPORT.
+    //
+    // `window.print()` on THIS page produced a document nobody wanted: cards
+    // sized for a scrolling viewport, cut into sheets by an engine that left a
+    // third of every page blank, and charts laid out at whatever width the
+    // reader's browser window happened to be. Three rounds of print CSS moved
+    // that defect around without removing it -- report/ReportPage.tsx carries
+    // the two reasons it cannot be removed from a stylesheet at all.
+    //
+    // So the report is a separate A4 document built from the same
+    // `DashboardAnalytics` object. The button mounts it and prints it; the
+    // browser's own print dialog is where the reader checks it.
+    //
+    // `mountAllSections` and `preloadAllSections` went with the old handler.
+    // They existed so a print would not stop at whatever the reader had
+    // scrolled to; the report reads the analytics object directly and does not
+    // care which sections happen to be on screen.
+    //
+    // `printingAt` is both the render flag and the instant the sheet claims to
+    // describe -- see the hook for why those are one value.
+    const { printingAt, print: printReport } = useReportPrint();
 
     // `error` from the hook is a raw Error.message -- a Supabase string, in
     // English, with a status code in it. It is useful to whoever is debugging
@@ -257,63 +263,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
     useEffect(() => {
         if (error) console.error('[DashboardHome] Failed to load dashboard analytics:', error);
     }, [error]);
-
-    /**
-     * Print.
-     *
-     * `window.print()` on the page itself, which is the entire point of the
-     * layout note at the top of this file. The version this replaces opened a
-     * blank window, injected `innerHTML` into it and loaded Tailwind v3 from a
-     * CDN -- a build that resolves none of this app's `brand-*` utilities, needs
-     * the network to print at all, and copied each chart's on-screen pixel width
-     * onto an A4 page.
-     *
-     * The two awaits are what a deferred-mount page owes the printer: sections
-     * the reader never scrolled to have neither their chunk nor their DOM, and
-     * `window.print()` is synchronous, so without them the report would stop at
-     * whatever the reader happened to have looked at.
-     *
-     * They stay here even though printForPaper waits again afterwards, and the
-     * two waits are for different things. THIS one is for the sections to exist
-     * at all -- a ResponsiveContainer that has never mounted has no box to
-     * measure, so pinning the paper width before this point would pin it around
-     * nothing. The one inside printForPaper is for those now-mounted charts to
-     * re-measure against the paper width.
-     */
-    const handlePrint = useCallback(
-        async (orientation: PageOrientation) => {
-            setMountAllSections(true);
-            setIsPreparingPrint(true);
-            try {
-                await preloadAllSections();
-                // Two frames, not one: the first lets React commit the newly mounted
-                // sections, the second lets each ResponsiveContainer measure the box
-                // that commit created.
-                await new Promise<void>((resolve) => {
-                    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-                });
-                // Rewrites `@page`, pins the paper width, WAITS for every chart to
-                // re-lay-out at it, and only then opens the dialog. The wait is the
-                // point: without it the charts print at the width they last had on
-                // screen, inside cards the print grid has already resized -- which
-                // is what put the fleet donut's total outside its own hole.
-                await printForPaper(orientation);
-            } finally {
-                setIsPreparingPrint(false);
-            }
-        },
-        [printForPaper],
-    );
-
-    // Best effort for Ctrl+P, which cannot be intercepted usefully: the chunks
-    // are async, so this cannot complete in time for the print job that fired
-    // it. It does mean everything is mounted for the second attempt, and for
-    // every print after that.
-    useEffect(() => {
-        const onBeforePrint = () => setMountAllSections(true);
-        window.addEventListener('beforeprint', onBeforePrint);
-        return () => window.removeEventListener('beforeprint', onBeforePrint);
-    }, []);
 
     const handleExportSummary = useCallback(() => {
         // Nothing to summarise before the first computation lands. The button is
@@ -339,33 +288,26 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
         // carries `animate-surface-in`, and the `animate-in fade-in duration-500`
         // that used to be here is one of the 30 dead tailwindcss-animate classes
         // index.css:317 documents -- it never rendered a frame.
-        <div id="dashboard-printable-area" ref={printRef} className="flex flex-col gap-6">
-            {/* On paper only. The screen already has the sidebar, the tab and
-                the page header to say what this is; the printed sheet has none
-                of them and would otherwise start with an unlabelled KPI row.
-                Each chart still carries its own range chip onto the page, so a
-                printed report says which window every figure covers -- which is
-                why no `filters` prop is passed here.
-
-                The markup that used to be written out inline here is the
-                PrintReportHeader primitive now, shared with the inventory and
-                transaction screens. */}
-            <PrintReportHeader
-                title={t.dashboard.reportTitle}
-                generatedOn={t.dashboard.reportGeneratedOn(formatDateTime(new Date()))}
-            />
-
+        <div className="flex flex-col gap-6">
+            {/* No PrintReportHeader here any more, and no `print:` anything: this
+                screen is not what gets printed. The report is its own document
+                (report/DashboardReport.tsx) with its own masthead, and leaving a
+                second, hidden one on the dashboard would be a header nobody can
+                see, on a page nobody prints, that still has to be kept in step
+                with the one that is real. The primitive stays exported -- the
+                inventory and transaction screens do still print in place. */}
             {/* No range control here any more -- it lives on each card the
                 range actually scopes, and its static twin (AsOfNowChip) on each
                 card it does not. See the note at the top of RangeMenu.tsx: a
                 page-level picker governed one of the five blocks on screen and
                 needed a printed disclaimer to admit it. */}
             <PageHeader
-                onPrint={handlePrint}
+                onOpenReport={printReport}
                 onExportSummary={handleExportSummary}
                 onExportInventory={handleExportInventory}
                 onExportHistory={handleExportHistory}
-                isBusy={isLoading || isPreparingPrint}
+                isBusy={isLoading}
+                canOpenReport={!!analytics}
             />
 
             {error && (
@@ -421,7 +363,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                 // entirely -- waiting a frame for the first callback would flash
                 // a skeleton at the top of the page on every load.
                 eager
-                forceMount={mountAllSections}
                 placeholder={<SectionPlaceholder />}
             >
                 <FleetSection
@@ -478,7 +419,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                 <div id={DEEP_PANEL_ID} className="flex flex-col gap-6 animate-surface-in">
                     <DeferredSection
                         id="dashboard-lifecycle"
-                        forceMount={mountAllSections}
                         placeholder={<SectionPlaceholder cards={2} />}
                     >
                         <LifecycleSection
@@ -499,7 +439,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                         stacked. */}
                     <DeferredSection
                         id="dashboard-quality"
-                        forceMount={mountAllSections}
                         placeholder={<SectionPlaceholder cards={5} />}
                     >
                         <QualitySection
@@ -514,7 +453,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
 
                     <DeferredSection
                         id="dashboard-staff"
-                        forceMount={mountAllSections}
                         placeholder={<SectionPlaceholder cards={1} />}
                     >
                         <StaffSection
@@ -528,7 +466,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
 
                     <DeferredSection
                         id="dashboard-time"
-                        forceMount={mountAllSections}
                         placeholder={<SectionPlaceholder cards={1} />}
                     >
                         <TimeSection
@@ -542,16 +479,18 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                 </div>
             )}
 
-            {/* The colophon. slate-600 and a rule above it, not slate-400 and
-                nothing: slate-400 measures 2.56:1 on white -- this file's own
-                comments call that illegal for text elsewhere on the page -- and
-                on paper it is fainter still, so the one line that dates the
-                report was the least legible thing on the sheet. The rule is what
-                marks the end of the document; without it the sentence floated
-                under the last card and read as part of it. */}
-            <div className="hidden print:block border-t border-slate-300 pt-2 text-center text-xs text-slate-600">
-                {t.dashboard.printedFooter(formatDateTime(new Date()))}
-            </div>
+            {/* Mounted only while a print is in flight, and only once
+                `analytics` exists. It portals four sheets of figures into
+                <body>; building that on every dashboard load, for a reader who
+                never presses the button, would be pure cost. */}
+            {printingAt && analytics && (
+                <ReportPrintHost
+                    analytics={analytics}
+                    range={range}
+                    overdueDays={overdueDays}
+                    generatedAt={printingAt}
+                />
+            )}
         </div>
     );
 };

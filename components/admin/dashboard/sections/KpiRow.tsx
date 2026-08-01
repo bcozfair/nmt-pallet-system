@@ -24,14 +24,7 @@ export interface KpiRowProps {
 // 2 x 2 up to xl. At 1024px the content column is only 704px wide -- narrower than
 // at 768px, because the sidebar starts taking 256px at lg -- so four across would
 // give each tile 176px, which a two-line Thai label does not fit.
-//
-// `print-paper-tiles` is the paper's own answer to the same question, and it has
-// to be a separate class from the one the chart grids use: a tile is a label and
-// a figure, so four fit across a landscape sheet where two chart cards is the
-// limit. Without it the printed row was whatever `xl:` happened to say about the
-// reader's window -- two enormous tiles across a landscape page, or four squeezed
-// into 175px each on a portrait one. See the block in index.css.
-const GRID = 'print-paper-tiles grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4';
+const GRID = 'grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4';
 
 // What a figure reads as when there is no snapshot to read it from. Never `0`:
 // zero is a measurement, and painting one for "we do not know yet" is the exact

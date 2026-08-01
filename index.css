@@ -152,34 +152,74 @@
    it. So Ctrl+P on any screen in this app produced a blank sheet, silently,
    for as long as that rule existed.
 
-   The dashboard now prints itself in place instead of being cloned into a
-   popup that loaded Tailwind v3 from a CDN -- which could not resolve any
-   brand-* utility, needed the network, and copied the on-screen pixel width of
-   every chart onto A4. That only became possible once the nested
-   `h-screen overflow-hidden` / `h-[calc(100vh-70px)] overflow-hidden` boxes
-   were removed: a viewport-clamped element cannot paginate.
+   TWO SCREENS PRINT THEMSELVES IN PLACE and one does not.
 
-   `hooks/dashboard/usePrintLayout.ts` is the other half. Recharts sizes its
-   SVG from a measured width, so the hook pins a print-friendly width on
-   `beforeprint` and lets the ResizeObserver re-lay-out every chart for paper.
+   Inventory and transactions do: they are a header and a table, a table
+   paginates cleanly, and the rules below are enough to turn one into a document
+   -- hide the chrome, unfreeze the sticky header, repeat the <thead>, bring back
+   the rows pagination was hiding.
 
-   THREE things describe the sheet and all three are written by
-   setPageOrientation() in hooks/usePageOrientation.ts, because two of them
-   agreeing and the third not is a defect with no symptom on screen:
+   THE DASHBOARD DOES NOT, ANY MORE. It was tried three times and each attempt
+   moved the defect rather than removing it: card heights are JavaScript
+   constants CSS cannot reach, and the engine decides where pages break, so a
+   475px card meeting 460px of sheet moved whole and printed the 460px blank.
+   `hooks/dashboard/usePrintLayout.ts` -- which pinned a paper-shaped width on
+   `beforeprint` so Recharts would re-measure -- is deleted with that attempt,
+   along with the `.print-paper-grid` rules that forced a column count from the
+   sheet instead of from the viewport.
 
-     - this `@page` rule       -- how big the sheet actually is
-     - printableWidthPx()      -- how wide the charts are laid out
-     - `data-print-orientation` on <html> -- how many columns the grids break
-                                  into (the `.print-paper-grid` rules below)
+   What replaced it is a separate A4 document built from the same analytics:
+   `components/admin/dashboard/report/`. Its `.report-page` rules are above,
+   its full reasoning is at the top of ReportPage.tsx, and the block inside
+   `@media print` keyed on `data-report-open` is what makes it the only thing on
+   the paper while its preview is open.
 
-   The last of those exists because Tailwind's `md:`/`xl:` breakpoints measure
-   the VIEWPORT. On paper there is no viewport, so before it was added the
-   column count of a printed report was decided by how wide the reader's browser
-   window happened to be -- the same report came out differently from a laptop
-   and from a monitor. hooks/usePageOrientation.test.ts guards the agreement. */
+   The `@page` rule below and PAGE_MARGIN_MM in hooks/usePageOrientation.ts are
+   still two halves of one measurement -- the report's pages are boxes sized to
+   fit inside this margin exactly, and a box computed from a margin the printer
+   is not using either loses a column or spills a blank sheet after every real
+   one. hooks/usePageOrientation.test.ts guards the agreement. */
 @page {
   size: A4 landscape;
   margin: 12mm;
+}
+
+/* --- รายงาน A4 ที่จัดหน้าเอง -------------------------------------------
+   (components/admin/dashboard/report/)
+
+   หน้า dashboard พิมพ์ตรง ๆ ไม่สวยและแก้ด้วย CSS ไม่ได้ ด้วยเหตุผลสองข้อที่
+   บันทึกไว้เต็ม ๆ ใน ReportPage.tsx สรุปสั้น ๆ คือ ความสูงการ์ดเป็นค่าคงที่ใน
+   JavaScript ที่ CSS เอื้อมไม่ถึง และเอนจินเป็นคนตัดสินว่าหน้าจะแบ่งตรงไหน
+   ไม่ใช่เรา รายงานจึงประกาศหน้าของตัวเองเป็นกล่องขนาดคงที่
+
+   ประกาศเป็นมิลลิเมตร ไม่ใช่พิกเซล: พื้นที่พิมพ์จริงคือ 186 x 273mm ซึ่งเท่ากับ
+   703 x 1032px ที่ความละเอียดอ้างอิงของ CSS แต่การแปลงมีการปัดเศษ และหน้าที่สูง
+   เกินไปหนึ่งพิกเซลจะดันกระดาษเปล่าออกมาต่อท้ายทุกแผ่น -- มิลลิเมตรคือหน่วยที่
+   กระดาษถูกกำหนดมาจริง ๆ และ 1mm ที่เหลือไว้คือส่วนที่ดูดการปัดเศษ
+
+   `overflow: hidden` ไม่ใช่การซ่อนของ: มันแปลง "รายงานงอกหน้าเปล่าขึ้นมาเงียบ ๆ"
+   ให้กลายเป็นสิ่งที่เห็นได้ใน print preview ของเบราว์เซอร์ ซึ่งเป็นที่ที่ตรวจได้ */
+.report-page {
+  /* ขนาดหน้าไม่ได้อยู่ที่นี่ -- ReportPage.tsx เขียน width/height เป็น inline style
+     จาก PAGE_MARGIN_MM เพราะขนาดกล่องกับระยะขอบเป็นผลลัพธ์ของเลขตัวเดียวกัน
+     ถ้าเขียนซ้ำไว้ตรงนี้ วันที่ใครแก้ระยะขอบ สองที่นี้จะไม่ตรงกันโดยไม่มีอะไรเตือน */
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background: #ffffff;
+  color: #0f172a;
+  overflow: hidden;
+}
+
+/* บนจอไม่แสดงเลย -- รายงานถูก mount เฉพาะตอนกำลังพิมพ์ และกฎในบล็อก
+   `@media print` ข้างล่างคือตัวเปิดมัน (ดู report/ReportPrintHost.tsx) */
+.report-document {
+  display: none;
+}
+
+.report-sheet-stack {
+  display: block;
 }
 
 @media print {
@@ -191,6 +231,34 @@
     background: #ffffff;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+  }
+
+  /* --- ตอนหน้าพรีวิวรายงานเปิดอยู่ กระดาษคือสิ่งเดียวที่พิมพ์ ------------
+
+     `data-report-open` ถูกเขียนบน <html> โดย report/useReportPrint.ts ตอนเริ่มพิมพ์
+     และลบทิ้งเมื่อจบ กฎทั้งก้อนนี้จึงมีผลเฉพาะตอนที่รายงานถูก mount อยู่จริง --
+     Ctrl+P บนหน้า dashboard ปกติไม่โดนอะไรเลย
+
+     ตัวเลือก `body > *` เขียนแบบนี้ได้เพราะ ReportPrintHost portal กล่องรายงาน
+     ไปเป็นลูกตรงของ <body> ถ้ามันอยู่ในต้นไม้ของ dashboard มันจะโดนซ่อนไปพร้อมกัน */
+  html[data-report-open="true"] body>*:not(.report-document) {
+    display: none !important;
+  }
+
+  .report-document {
+    display: block !important;
+  }
+
+  /* หนึ่ง <article> = หนึ่งแผ่น ตัดหน้าที่นี่ ไม่ใช่ปล่อยให้เอนจินเดา
+     แผ่นสุดท้ายไม่ตัด ไม่งั้นจะได้กระดาษเปล่าต่อท้ายหนึ่งใบเสมอ */
+  .report-page {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .report-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
   }
 
   /* Cards must not be split across a page break. A stat tile or a plot cut in
@@ -304,9 +372,8 @@
      เท่าไหร่ขึ้นกับความกว้างหน้าต่างของคนสั่งพิมพ์ ขอบกระดาษจึงไม่เท่ากัน
      ระหว่างคนที่พิมพ์จากจอกว้างกับจอแคบ ทั้งที่เป็นรายงานฉบับเดียวกัน
 
-     `max-w-7xl` (1280px) เป็นเพดานของตัวครอบใน AdminDashboard ไม่ใช่ของ
-     `#dashboard-printable-area` -- usePrintLayout ปลดเพดานที่ตัวมันเองแล้ว แต่
-     ปลดที่ตัวครอบไม่ได้เพราะไม่ได้ถือ ref ไว้
+     `max-w-7xl` (1280px) เป็นเพดานของตัวครอบใน AdminDashboard ซึ่งแคบกว่าพื้นที่
+     พิมพ์แนวนอน (1032px ก็จริง แต่หน้าที่มีตารางกว้างจะโดนบีบ) จึงปลดตอนพิมพ์
 
      `min-h-dvh` ตอนพิมพ์คือความสูงหนึ่งหน้ากระดาษเต็ม ๆ รายงานสั้น ๆ จึงมี
      หน้าเปล่าต่อท้ายเสมอ */
@@ -368,107 +435,18 @@
     widows: 3;
   }
 
-  /* --- จำนวนคอลัมน์ต้องมาจากกระดาษ ไม่ใช่จากขนาดหน้าต่าง ---------------
+  /* กฎชุด `.print-paper-grid` / `.print-paper-tiles` / `.print-span-all` กับกฎบีบ
+     ระยะของหน้า dashboard เคยอยู่ตรงนี้ ทั้งหมดถูกถอดออกพร้อมกับความพยายาม
+     พิมพ์หน้า dashboard ตรง ๆ
 
-     นี่คือต้นเหตุตัวจริงของ "พิมพ์ออกมาแล้วยังไม่สวย"
+     มันเคยทำงานได้จริงเท่าที่ CSS ทำได้ -- บังคับจำนวนคอลัมน์จากขนาดกระดาษแทน
+     breakpoint ของ viewport -- แต่แก้สองข้อที่เป็นต้นเหตุจริงไม่ได้เลย คือความสูง
+     การ์ดที่เป็นค่าคงที่ใน JavaScript และการที่เอนจินเป็นคนตัดหน้า ไม่ใช่เรา
+     รายงานประกาศหน้าของตัวเองแทนแล้ว (ดู .report-page ข้างบน และบล็อกยาวใน
+     components/admin/dashboard/report/ReportPage.tsx)
 
-     breakpoint ของ Tailwind (`md:` `xl:`) วัดจาก VIEWPORT เสมอ ส่วนความกว้างที่
-     usePrintLayout pin ให้ตอน beforeprint มาจากขนาดกระดาษ สองอย่างนี้ไม่รู้จักกัน
-     เลย ผลคือรายงานฉบับเดียวกันออกมาคนละหน้าตาแล้วแต่ว่าสั่งพิมพ์จากจอไหน:
-
-       จอ 1440px + แนวตั้ง   -> `xl:grid-cols-6` ทำงาน แต่กระดาษกว้างแค่ 703px
-                               การ์ดโดนัทได้ 2/6 ราว 220px บีบจนอ่านไม่ออก
-       จอ 1280px ลงมา + แนวนอน -> ไม่มี `xl:` เลย ทุกการ์ดเรียงเดี่ยวบนกระดาษกว้าง
-                               1032px กลายเป็นแถบยาวโล่ง ๆ ใบละหนึ่งแถว
-
-     ทางแก้คือเลิกให้ breakpoint ตัดสินอะไรบนกระดาษ แล้วประกาศเลย์เอาต์ของกระดาษ
-     ตรง ๆ จาก `data-print-orientation` บน <html> -- เขียนโดย setPageOrientation()
-     ซึ่งเป็นตัวเดียวกับที่เขียนกฎ `@page` ทั้งสองจึงแยกกันเพี้ยนไม่ได้
-     (hooks/usePageOrientation.ts)
-
-       แนวนอน 1032px -> การ์ดกราฟสองใบต่อแถว ใบละ ~509px
-       แนวตั้ง   703px -> ใบเดียวต่อแถว สองใบจะเหลือใบละ ~345px ซึ่งกราฟแท่งนอน
-                         ของ FleetSection เสียให้แกน y ไป 128px ก่อนแล้ว
-
-     `> *` รีเซ็ตทุกลูกเป็นหนึ่งช่อง เพราะ `xl:col-span-*` บนลูกก็เป็น breakpoint
-     เหมือนกัน ถ้าไม่รีเซ็ต การ์ดที่ประกาศ span 4 ไว้จะกลืนทั้งแถวของกริดสองคอลัมน์
-     แล้วเหลือช่องว่างข้าง ๆ ใบอื่น */
-  .print-paper-grid,
-  .print-paper-tiles {
-    display: grid !important;
-    gap: 14px !important;
-  }
-
-  .print-paper-grid>*,
-  .print-paper-tiles>* {
-    grid-column: auto / span 1 !important;
-  }
-
-  /* ค่าตั้งต้นคือแนวนอน ตรงกับกฎ `@page` ที่ไฟล์นี้ ship ไปและตรงกับค่าเริ่มต้น
-     ของ currentOrientation -- ถ้า attribute หายไปด้วยเหตุใดก็ตาม กระดาษยังได้
-     เลย์เอาต์ที่ตรงกับขนาดจริงของมัน ไม่ใช่ตกกลับไปเป็นคอลัมน์เดียว */
-  .print-paper-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-
-  [data-print-orientation="portrait"] .print-paper-grid {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-
-  /* แถว KPI เป็นไทล์ตัวเลข ไม่ใช่กราฟ จึงอยู่ได้ที่ความกว้างน้อยกว่ากันมาก:
-     แนวนอน 1032/4 = ~250px, แนวตั้ง 703/2 = ~345px ทั้งคู่พอสำหรับป้ายไทย
-     สองบรรทัดบวกตัวเลข */
-  .print-paper-tiles {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  }
-
-  [data-print-orientation="portrait"] .print-paper-tiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-
-  /* --- ความหนาแน่นบนกระดาษ -------------------------------------------
-
-     A4 แนวนอนมีพื้นที่สูงแค่ 703px ส่วนการ์ดกราฟหนึ่งใบสูงราว 475px (การ์ด
-     ความเคลื่อนไหวคือตัวกำหนด: 5 แถบ x 52px + แกน 24px + หัว + ท้าย) หน้าแรก
-     ใส่หัวรายงานกับแถว KPI ไปแล้วเหลือที่ราว 460px -- ขาดอีกไม่กี่สิบพิกเซล
-     `break-inside: avoid` จึงผลักทั้งแถวไปขึ้นหน้าใหม่ แล้วทิ้งกระดาษหน้าแรก
-     ว่างไปสองในสาม นี่คือที่มาของรายงานแนวนอน 9 หน้าที่แต่ละหน้ามีการ์ดแถวเดียว
-
-     `p-5 sm:p-6` (20-24px) คือระยะหายใจของการ์ดบนจอที่เลื่อนได้ไม่จำกัด บนกระดาษ
-     ที่นับกันเป็นแผ่น 14px ให้ผลทางสายตาแบบเดียวกันและคืนที่ให้ ~20px ต่อใบ
-     รวมกับช่องไฟระหว่างเซคชันที่ลดจาก 24 เหลือ 16 แล้วพอให้แถวแรกขึ้นหน้าเดียว
-     กับ KPI ได้
-
-     ใช้ `~=` ไม่ใช่ `*=` เพราะ class attribute คือรายการ token ที่คั่นด้วยช่องว่าง
-     -- `[class*="p-5"]` จะไปโดน `top-5` กับ `sp-5` อะไรก็ตามที่มีสตริงนี้อยู่ข้างใน
-     ด้วย ส่วน `~=` แม็ตช์เฉพาะ token ที่เท่ากันเป๊ะ */
-  #dashboard-printable-area {
-    gap: 16px !important;
-  }
-
-  /* การ์ดทุกใบประกาศคู่กันเสมอ (`p-5 sm:p-6`) การจับที่ token แรกจึงคุมทั้งคู่
-     ได้ด้วย !important โดยไม่ต้องรู้ว่า breakpoint ไหนชนะบนกระดาษ */
-  #dashboard-printable-area [class~="p-5"] {
-    padding: 14px !important;
-  }
-
-  /* แถบท้ายการ์ด (legend + ตารางที่พับไว้) -- `px-5 py-3 sm:px-6` */
-  #dashboard-printable-area [class~="px-5"] {
-    padding-left: 14px !important;
-    padding-right: 14px !important;
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-  }
-
-  /* ทางออกสำหรับการ์ดที่กว้างโดยธรรมชาติ -- heatmap 24 คอลัมน์ของ TimeSection
-     ถ้าถูกบีบเหลือครึ่งแถวในแนวนอน ช่องจะเหลือกว้าง ~17px ทั้งที่สูง 24px
-     กลายเป็นตารางช่องผอมที่อ่านความเข้มไม่ได้
-     เขียนเป็น `> .print-span-all` ไม่ใช่ `.print-span-all` เฉย ๆ เพื่อให้
-     specificity ชนะกฎรีเซ็ตข้างบนด้วยตัวมันเอง ไม่ใช่ด้วยลำดับในไฟล์ */
-  .print-paper-grid>.print-span-all,
-  .print-paper-tiles>.print-span-all {
-    grid-column: 1 / -1 !important;
-  }
+     กฎที่เหลือในบล็อกนี้ยังจำเป็นอยู่: หน้าคลังพาเลทกับหน้ารายการยังพิมพ์ตัวเอง
+     ในที่ของมัน */
 
   /* <details> is collapsed on screen by design -- the chart is the primary
      reading, the table is the fallback. On paper there is no way to expand it,

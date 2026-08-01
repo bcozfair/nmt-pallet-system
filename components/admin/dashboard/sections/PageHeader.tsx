@@ -1,12 +1,21 @@
 import React from 'react';
-import { Clock, FileText, LayoutDashboard, Package, PieChart } from 'lucide-react';
-import { Menu, PageHeader as UiPageHeader, PrintMenu } from '../../../ui';
+import { Clock, FileText, LayoutDashboard, Package, PieChart, Printer } from 'lucide-react';
+import { Button, Menu, PageHeader as UiPageHeader } from '../../../ui';
 import type { MenuItem } from '../../../ui';
-import type { PageOrientation } from '../../../../hooks/usePageOrientation';
 import { useT } from '../../../../hooks/useT';
 
 export interface PageHeaderProps {
-    onPrint: (orientation: PageOrientation) => void;
+    /** Opens the A4 report preview. Not a print call: see the note on the button. */
+    onOpenReport: () => void;
+    /**
+     * The report needs the analytics snapshot; the exports mostly do not.
+     *
+     * Separate from `isBusy` for that reason. Folding the two together made the
+     * whole action strip go dead whenever the analytics fetch failed -- taking
+     * the inventory and history CSV exports with it, which fetch their own data
+     * and would have worked fine.
+     */
+    canOpenReport?: boolean;
     onExportSummary: () => void;
     onExportInventory: () => void;
     onExportHistory: () => void;
@@ -40,7 +49,8 @@ export interface PageHeaderProps {
 // reachable mid-scroll, a bar pinned to the top of the viewport was spending
 // ~64px of every screenful on two buttons.
 export const PageHeader: React.FC<PageHeaderProps> = ({
-    onPrint,
+    onOpenReport,
+    canOpenReport = true,
     onExportSummary,
     onExportInventory,
     onExportHistory,
@@ -65,17 +75,31 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             actionsBusy={isBusy}
             actions={
                 <>
-                    {/* Was a plain button that printed landscape and never said
-                        so. `t.common.print*` rather than `t.dashboard.*`: the
-                        inventory and transaction screens print through the same
-                        component and must not name the same action differently. */}
-                    <PrintMenu
-                        label={t.common.printReport}
-                        landscapeLabel={t.common.printLandscape}
-                        portraitLabel={t.common.printPortrait}
-                        onPrint={onPrint}
-                        disabled={isBusy}
-                    />
+                    {/* Opens the report, it does not print it -- which is why
+                        this is not the shared PrintMenu the inventory and
+                        transaction screens use.
+
+                        Those two screens print themselves in place, so their
+                        control is a print action with a paper orientation
+                        attached. This screen cannot: a dashboard laid out for a
+                        scrolling viewport does not survive being cut into A4
+                        (see components/admin/dashboard/report/ReportPage.tsx for
+                        the two reasons it cannot be fixed with print CSS). What
+                        it has instead is a separate A4 document built from the
+                        same analytics, and the honest control for that is one
+                        that shows it to you before anything reaches a printer.
+
+                        No orientation choice either: the report is designed at
+                        A4 portrait and its pages are boxes of that exact size.
+                        Offering landscape would offer to rotate them. */}
+                    <Button
+                        variant="secondary"
+                        icon={Printer}
+                        onClick={onOpenReport}
+                        disabled={isBusy || !canOpenReport}
+                    >
+                        {t.dashboard.report.open}
+                    </Button>
                     {/* `t.common.exportData`, the same key the inventory and
                         transaction headers read. See the note beside it. */}
                     <Menu label={t.common.exportData} icon={FileText} items={exportItems} disabled={isBusy} />

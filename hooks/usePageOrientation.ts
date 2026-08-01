@@ -5,28 +5,39 @@ export type PageOrientation = 'portrait' | 'landscape';
 /**
  * The page margin, in millimetres, on all four sides.
  *
- * It has to agree with the `@page` rule in index.css AND with the width the
- * dashboard pins for its charts (usePrintLayout). Exported so neither of those
- * can restate it as a literal and then drift: a pinned width computed from a
- * margin the printer is not using clips the right-hand column of every grid,
+ * It has to agree with the `@page` rule in index.css AND with the size of the
+ * A4 report's pages (report/ReportPage.tsx), which are boxes drawn to fit the
+ * printable area exactly. Exported so neither can restate it as a literal and
+ * then drift: a page box computed from a margin the printer is not using either
+ * clips its own right-hand column or spills a blank sheet after every real one,
  * silently, on paper only.
  */
 export const PAGE_MARGIN_MM = 12;
 
 /** A4, in millimetres, long edge first. */
-const A4_LONG_MM = 297;
-const A4_SHORT_MM = 210;
+export const A4_LONG_MM = 297;
+export const A4_SHORT_MM = 210;
 
 /**
- * How many CSS pixels wide the printable area is for a given orientation.
+ * The printable area for a given orientation, in millimetres.
  *
- * 25.4mm per inch, 96 CSS pixels per inch -- the CSS reference pixel, not the
- * printer's real DPI. That is the unit `width: 1032px` is measured in, so it is
- * the right one for a layout pin.
+ * Millimetres and not CSS pixels, deliberately. This used to return px, for a
+ * width pin that no longer exists -- the dashboard is not printed in place any
+ * more. Its one consumer now is a box that has to line up with a physical sheet,
+ * and the px conversion (25.4mm per inch, 96 px per inch) rounds: 273mm becomes
+ * 1032px, which converts back to 273.05mm. A page box a twentieth of a
+ * millimetre too tall spills a blank sheet after every real one, so the
+ * conversion is left to the browser at the last possible moment.
  */
-export const printableWidthPx = (orientation: PageOrientation): number => {
+export const printableAreaMm = (
+    orientation: PageOrientation,
+): { widthMm: number; heightMm: number } => {
     const acrossMm = orientation === 'landscape' ? A4_LONG_MM : A4_SHORT_MM;
-    return Math.round(((acrossMm - PAGE_MARGIN_MM * 2) / 25.4) * 96);
+    const downMm = orientation === 'landscape' ? A4_SHORT_MM : A4_LONG_MM;
+    return {
+        widthMm: acrossMm - PAGE_MARGIN_MM * 2,
+        heightMm: downMm - PAGE_MARGIN_MM * 2,
+    };
 };
 
 const STYLE_ELEMENT_ID = 'nmt-page-orientation';
@@ -34,9 +45,9 @@ const STYLE_ELEMENT_ID = 'nmt-page-orientation';
 // Module-level, not React state, and deliberately so: `@page` is a property of
 // THE DOCUMENT. There is exactly one printed sheet size at a time no matter how
 // many components are mounted, so a per-component copy of this value could only
-// ever be a way for two of them to disagree. usePrintLayout reads it through
-// getPageOrientation() below to size its width pin, which is the one place the
-// two halves of "print in portrait" have to agree.
+// ever be a way for two of them to disagree. The report preview reads it through
+// getPageOrientation() below so it can put back whatever the document was on
+// before it forced portrait -- see report/ReportPreview.tsx.
 //
 // The default matches the `@page` rule index.css ships, so a reader who hits
 // Ctrl+P without going through a button gets what that rule promises.
@@ -57,19 +68,13 @@ export const getPageOrientation = (): PageOrientation => currentOrientation;
  * follow-up Ctrl+P uses the orientation the reader last chose instead of
  * reverting to the stylesheet default without saying so.
  *
- * It also stamps the orientation onto <html> as `data-print-orientation`, and
- * that attribute is the THIRD thing that has to agree with the other two.
- * `@page` decides how big the sheet is, printableWidthPx decides how wide the
- * charts are laid out, and the attribute decides how many columns the grids
- * break into -- because Tailwind's `md:`/`xl:` breakpoints measure the viewport
- * and know nothing about paper. Without it the column count on a printed sheet
- * is decided by the width of the window the reader happened to have open, so
- * the same report comes out differently from a laptop and from a monitor. The
- * print rules that read it are in index.css (`.print-paper-grid`).
+ * It also stamps the orientation onto <html> as `data-print-orientation`.
  *
- * All three are written from this one function for the same reason the margin
- * is a shared constant: two of them agreeing and the third not is a defect with
- * no symptom on screen.
+ * Nothing in the app styles off that attribute today -- the `.print-paper-grid`
+ * rules that did are gone with the attempt to print the dashboard in place. It
+ * is kept because it is the only way to see, in devtools, which orientation the
+ * document is actually in when a print comes out rotated, and that has been the
+ * cause of a wrong-looking print more than once.
  */
 export const setPageOrientation = (orientation: PageOrientation): void => {
     currentOrientation = orientation;
