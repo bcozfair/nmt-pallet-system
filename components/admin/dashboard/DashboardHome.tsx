@@ -7,7 +7,6 @@ import { useT } from '../../../hooks/useT';
 import { useOverdueThreshold } from '../../../hooks/useOverdueThreshold';
 import { useDashboardData } from '../../../hooks/dashboard/useDashboardData';
 import { usePrintLayout } from '../../../hooks/dashboard/usePrintLayout';
-import { usePageOrientation } from '../../../hooks/usePageOrientation';
 import type { PageOrientation } from '../../../hooks/usePageOrientation';
 import { PrintReportHeader, SkeletonCard } from '../../ui';
 import {
@@ -238,8 +237,11 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
     // pallets were late.
     const { days: overdueDays } = useOverdueThreshold();
 
-    const printRef = usePrintLayout<HTMLDivElement>();
-    const { printWithOrientation } = usePageOrientation();
+    // One hook, not two. The orientation, the width the charts are laid out at
+    // and the call to window.print() are one sequence that has to happen in that
+    // order -- splitting it across two hooks is what let the print fire before
+    // the charts had re-measured. See the block at the top of usePrintLayout.ts.
+    const { ref: printRef, printForPaper } = usePrintLayout<HTMLDivElement>();
 
     const [mountAllSections, setMountAllSections] = useState(false);
     // Collapsed by default. Not persisted: the point of the default is that
@@ -269,8 +271,14 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
      * The two awaits are what a deferred-mount page owes the printer: sections
      * the reader never scrolled to have neither their chunk nor their DOM, and
      * `window.print()` is synchronous, so without them the report would stop at
-     * whatever the reader happened to have looked at. usePrintLayout pins the
-     * paper width on `beforeprint` from there.
+     * whatever the reader happened to have looked at.
+     *
+     * They stay here even though printForPaper waits again afterwards, and the
+     * two waits are for different things. THIS one is for the sections to exist
+     * at all -- a ResponsiveContainer that has never mounted has no box to
+     * measure, so pinning the paper width before this point would pin it around
+     * nothing. The one inside printForPaper is for those now-mounted charts to
+     * re-measure against the paper width.
      */
     const handlePrint = useCallback(
         async (orientation: PageOrientation) => {
@@ -284,16 +292,17 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                 await new Promise<void>((resolve) => {
                     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
                 });
-                // Rewrites `@page` and then prints. It is what decides the width
-                // usePrintLayout pins on `beforeprint`, so a portrait report lays
-                // its charts out for 703px of paper instead of running 329px off
-                // the right edge -- see the note in that hook.
-                await printWithOrientation(orientation);
+                // Rewrites `@page`, pins the paper width, WAITS for every chart to
+                // re-lay-out at it, and only then opens the dialog. The wait is the
+                // point: without it the charts print at the width they last had on
+                // screen, inside cards the print grid has already resized -- which
+                // is what put the fleet donut's total outside its own hole.
+                await printForPaper(orientation);
             } finally {
                 setIsPreparingPrint(false);
             }
         },
-        [printWithOrientation],
+        [printForPaper],
     );
 
     // Best effort for Ctrl+P, which cannot be intercepted usefully: the chunks
