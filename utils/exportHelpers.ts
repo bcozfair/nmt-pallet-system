@@ -48,6 +48,30 @@ const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 
 /**
+ * "No value", for a spreadsheet.
+ *
+ * ---------------------------------------------------------------------------
+ * A CSV MUST NOT WRITE THE SCREEN'S '-' EMPTY MARKER.
+ *
+ * `formatDate` and `formatDateTime` return '-' for a missing date, and on screen
+ * that is right: a table cell needs something to occupy it, and a dash reads as
+ * "nothing here" at a glance. A spreadsheet already has a representation for
+ * that, and it is the empty cell -- the one COUNTA skips, the one a filter's
+ * "(Blanks)" option finds, the one AVERAGE leaves out. A dash is text, so it
+ * gets counted, sorted and charted as a value.
+ *
+ * It is also visibly broken, which is how this was found. '-' matches
+ * FORMULA_TRIGGER, so escapeCell prefixes it with an apostrophe to stop Excel
+ * reading `-5` as arithmetic -- and Excel only HIDES a leading apostrophe on a
+ * value typed into a cell, not on one parsed out of a CSV. So every one of these
+ * cells arrived in the sheet reading literally `'-`.
+ *
+ * The guard is not the bug and stays as it is. Writing '-' into a data file was.
+ * ---------------------------------------------------------------------------
+ */
+const CSV_EMPTY = '';
+
+/**
  * Splits a stored `timestamptz` into the two cells the inventory export writes.
  *
  * The date half goes through formatDate so it reads the same as every other
@@ -56,13 +80,15 @@ const pad2 = (n: number): string => String(n).padStart(2, '0');
  * exportHistoryCSV already writes -- an operator cross-referencing the two files
  * should not have to notice a format change between them.
  *
- * Both halves are the app's '-' empty marker when there is no timestamp, so a
- * pallet that has never moved reads as absent rather than as midnight.
+ * Both halves are empty when there is no timestamp -- see CSV_EMPTY. What
+ * matters is that they are empty rather than midnight: `new Date(null)` is the
+ * epoch, so without this guard a pallet that has never been checked out would
+ * report a checkout on 01-Jan-1970 at 07:00.
  */
 const splitDateTime = (value: string | Date | null | undefined): [string, string] => {
-    if (!value) return ['-', '-'];
+    if (!value) return [CSV_EMPTY, CSV_EMPTY];
     const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return ['-', '-'];
+    if (Number.isNaN(d.getTime())) return [CSV_EMPTY, CSV_EMPTY];
     return [formatDate(d), `${pad2(d.getHours())}:${pad2(d.getMinutes())}`];
 };
 
@@ -216,7 +242,10 @@ export const exportInventoryCSV = async (pallets?: Pallet[]) => {
 
         const rows = palletRows.map(p => {
             const tx = latestTxMap[p.pallet_id];
-            const responsiblePerson = tx ? (userMap[tx.user_id] || tx.user_id) : '-';
+            // Empty, not '-': a pallet that has never been touched has no
+            // responsible person, and an empty cell is how a spreadsheet says
+            // so. See CSV_EMPTY.
+            const responsiblePerson = tx ? (userMap[tx.user_id] || tx.user_id) : CSV_EMPTY;
 
             // Calculate Overdue
             let overdue = 0;
@@ -248,7 +277,7 @@ export const exportInventoryCSV = async (pallets?: Pallet[]) => {
                 activityTime,
                 // Was tx.action_type -- the raw enum ("report_damage") in a column
                 // headed "Last Action". Same table the history export uses below.
-                tx ? (t.action[tx.action_type] ?? tx.action_type) : '-',
+                tx ? (t.action[tx.action_type] ?? tx.action_type) : CSV_EMPTY,
                 responsiblePerson,
                 checkoutDate,
                 checkoutTime,
@@ -573,11 +602,12 @@ export const exportDashboardSummaryCSV = (
             row.palletId,
             row.damageCount,
             row.repairCount,
-            // A flag column, so the cell repeats its own header when set. There
-            // is no yes/no pair anywhere in the dictionary, and '-' is already
-            // the app's empty marker (formatDate returns it).
-            row.scrapped ? a.offenders.isScrapped : '-',
-            row.lastEventISO ? formatDateTime(row.lastEventISO) : '-',
+            // A flag column, so the cell repeats its own header when set and is
+            // empty when it is not. There is no yes/no pair anywhere in the
+            // dictionary, and an empty cell is what a spreadsheet filter reads
+            // as "not flagged" -- see CSV_EMPTY for why this is not '-'.
+            row.scrapped ? a.offenders.isScrapped : CSV_EMPTY,
+            row.lastEventISO ? formatDateTime(row.lastEventISO) : CSV_EMPTY,
         ]);
     }
     blank();
@@ -615,7 +645,7 @@ export const exportDashboardSummaryCSV = (
             row.byAction.report_damage,
             row.byAction.repair,
             row.byAction.scrap,
-            row.lastActiveISO ? formatDateTime(row.lastActiveISO) : '-',
+            row.lastActiveISO ? formatDateTime(row.lastActiveISO) : CSV_EMPTY,
         ]);
     }
     blank();
@@ -689,7 +719,7 @@ export const exportDashboardSummaryCSV = (
             // merely some of them -- the reducer decides that. The threshold
             // itself is not on the object, so agingOverdue.breachNote(days)
             // cannot be called and the flag stands alone.
-            bin.isBreach ? t.dashboard.criticalOverdue : '-',
+            bin.isBreach ? t.dashboard.criticalOverdue : CSV_EMPTY,
         ]);
     }
     blank();

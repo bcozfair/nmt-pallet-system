@@ -166,21 +166,36 @@ describe('exportInventoryCSV', () => {
         expect(row[10]).toBe('14:30');
     });
 
-    // ทั้งสองคอลัมน์ต้องเป็นตัวว่าง '-' ไม่ใช่ 01-Jan-1970 หรือ 00:00 -- สิ่งที่
-    // splitDateTime กันไว้คือการที่ `new Date(null)` กลายเป็น epoch แล้วพาเลทที่ไม่
-    // เคยถูกเบิกออกเลยขึ้นในรายงานว่าเบิกไปตอนเที่ยงคืนปี 1970
+    // ต้องเป็น "เซลล์ว่างจริง" ไม่ใช่ '-' และไม่ใช่ 01-Jan-1970 00:00
     //
-    // ค่าที่ลงไฟล์จริงคือ "'-" ไม่ใช่ "-" และถูกต้องแล้ว: '-' ตรงกับ FORMULA_TRIGGER
-    // (Excel อ่าน -x เป็นสูตร) escapeCell จึงเติม apostrophe นำหน้าให้ ซึ่ง Excel
-    // อ่านเป็น "ที่เหลือในเซลล์นี้เป็นข้อความ" แล้วไม่แสดงตัว apostrophe เอง --
-    // บนหน้าจอ Excel เซลล์นี้จึงอ่านว่า - ตามที่ตั้งใจ
-    it('พาเลทที่ไม่เคยเบิก ทั้งคอลัมน์วันที่และเวลาเป็นตัวว่าง ไม่ใช่เที่ยงคืนปี 1970', async () => {
+    // สองอย่างที่เทสต์นี้กันคนละเรื่องกัน:
+    //  1. `new Date(null)` คือ epoch -- ถ้าไม่กัน พาเลทที่ไม่เคยถูกเบิกออกเลยจะขึ้น
+    //     ในรายงานว่าเบิกไปเมื่อ 01-Jan-1970
+    //  2. '-' เป็นตัวแทน "ว่าง" ของหน้าจอ ไม่ใช่ของสเปรดชีต และมันตรงกับ
+    //     FORMULA_TRIGGER escapeCell จึงเติม apostrophe นำหน้าให้ -- Excel ซ่อน
+    //     apostrophe ให้เฉพาะค่าที่พิมพ์ลงเซลล์เอง ไม่ใช่ค่าที่ import มาจาก CSV
+    //     เซลล์เหล่านี้จึงขึ้นเป็น '- ให้เห็นจริง ๆ บนหน้าจอ Excel
+    it('พาเลทที่ไม่เคยเบิก คอลัมน์วันที่และเวลาเป็นเซลล์ว่าง ไม่ใช่ - และไม่ใช่ปี 1970', async () => {
         const csv = captureCsv();
         await exportInventoryCSV([pallet({ last_checkout_date: null, status: 'available' })]);
 
         const row = cells((await csv.text()).split('\n')[1]);
-        expect(row[9]).toBe("'-");
-        expect(row[10]).toBe("'-");
+        expect(row[9]).toBe('');
+        expect(row[10]).toBe('');
+    });
+
+    it('พาเลทที่ยังไม่เคยมีรายการเลย ช่องผู้รับผิดชอบและรายการล่าสุดเป็นเซลล์ว่าง', async () => {
+        const csv = captureCsv();
+        // ไม่มี transaction สักรายการ (fetchTransactions ถูก mock เป็น [] ใน beforeEach)
+        await exportInventoryCSV([pallet({ status: 'available', last_transaction_date: null })]);
+
+        const row = cells((await csv.text()).split('\n')[1]);
+        // รายการล่าสุด, ผู้รับผิดชอบ
+        expect(row[7]).toBe('');
+        expect(row[8]).toBe('');
+        // และไม่มีเซลล์ไหนในแถวนี้ที่ขึ้นต้นด้วย apostrophe -- ถ้ามี แปลว่ามีค่าไหน
+        // สักค่าที่ยังเขียน '-' หรืออักขระ formula-trigger อื่นลงไฟล์อยู่
+        expect(row.filter((c) => c.startsWith("'"))).toEqual([]);
     });
 
     // URL หลักฐานต้องไม่ถูกเติม apostrophe นำหน้า: 'h' ไม่ตรงกับ FORMULA_TRIGGER
