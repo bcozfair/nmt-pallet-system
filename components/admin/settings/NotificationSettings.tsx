@@ -224,8 +224,7 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({ sett
                 <Menu
                     className="w-24 shrink-0 ml-auto"
                     label={t.settings.testSendTitle}
-                    // accentSoft ชุดเดียวกับปุ่ม "พิมพ์ QR ทั้งหมด" บนหัวหน้าคลัง
-                    // (InventoryHeader.tsx) ด้วยเหตุผลเดียวกับที่ Button.tsx:81-83
+                    // accentSoft ด้วยเหตุผลเดียวกับที่ Button.tsx:88-90
                     // บันทึกไว้: ทรงของ `secondary` เป๊ะ เปลี่ยนแค่ hue สำหรับปุ่มที่
                     // ต้องนั่งบนหน้าที่มีปุ่ม primary ของตัวเองอยู่แล้ว -- ซึ่งหน้านี้
                     // ก็มี "บันทึกการเปลี่ยนแปลง" อยู่บนหัวเพจ

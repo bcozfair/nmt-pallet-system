@@ -22,7 +22,7 @@ export const inventoryEn = {
     reportTitle: 'Inventory Report',
     // The evidence column, which exists on paper only -- see InventoryTable.
     evidencePhoto: 'Evidence',
-    printAllQr: 'Print All QRs',
+    printAllQr: 'Print QR',
     addPallet: 'Add Pallet',
     selectedCount: (count: number) => `${count} Selected`,
     showIds: 'Show IDs',
@@ -184,7 +184,7 @@ export const inventoryTh: InventoryDict = {
     subtitle: 'จัดการพาเลท ติดตามสถานที่ และตรวจสอบสถานะ',
     reportTitle: 'รายงานคลังพาเลท',
     evidencePhoto: 'รูปหลักฐาน',
-    printAllQr: 'พิมพ์ QR ทั้งหมด',
+    printAllQr: 'พิมพ์ QR',
     addPallet: 'เพิ่มพาเลท',
     selectedCount: (count: number) => `เลือกไว้ ${count} รายการ`,
     showIds: 'แสดงรหัส',

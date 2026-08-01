@@ -85,9 +85,13 @@ export const BUTTON_VARIANT: Record<ButtonVariant, string> = {
     accent:
         'bg-accent-700 text-white shadow-lg shadow-accent-700/20 hover:bg-accent-800 ' +
         'active:scale-[0.99] disabled:hover:bg-accent-700',
-    // ทรงเดียวกับ `secondary` เป๊ะ เปลี่ยนแค่ hue: ใช้ตรงที่ปุ่มพิมพ์ QR ต้องนั่งข้าง
-    // ปุ่ม `primary` ของหน้า (เช่น "เพิ่มพาเลท" บนหัวหน้าคลัง) -- ถ้าใช้ `accent` ทึบตรงนั้น
-    // หน้าเดียวจะมีปุ่มทึบสองสีแย่งความสนใจกัน และปุ่มหลักของหน้าจะไม่ใช่ปุ่มที่เด่นที่สุดอีก
+    // ทรงเดียวกับ `secondary` เป๊ะ เปลี่ยนแค่ hue: สำหรับปุ่มตระกูล accent ที่ต้องนั่งข้าง
+    // ปุ่ม `primary` ของหน้า แล้วยอมถอยให้ปุ่มหลักเด่นกว่า -- ปัจจุบันคือปุ่ม "ทดสอบส่ง" ใน
+    // หน้าตั้งค่าแจ้งเตือน (NotificationSettings.tsx) ที่มี "บันทึกการเปลี่ยนแปลง" อยู่บนหัวเพจ
+    //
+    // ปุ่ม "พิมพ์ QR" บนหัวหน้าคลังเคยใช้ตัวนี้ด้วยเหตุผลเดียวกัน แต่ถูกเปลี่ยนเป็น `accent`
+    // ทึบตามที่เจ้าของงานสั่ง เพื่อให้สีตรงกับปุ่ม "พิมพ์ / PDF" ในโมดัลที่มันเปิดขึ้นมา
+    // ผลคือหัวหน้าคลังมีปุ่มทึบสองสี (accent + primary) นั่งข้างกัน -- ตั้งใจ ไม่ใช่หลุด
     accentSoft:
         'border border-accent-200 bg-white text-accent-700 hover:bg-accent-50 ' +
         'active:scale-[0.99] disabled:hover:bg-white',
