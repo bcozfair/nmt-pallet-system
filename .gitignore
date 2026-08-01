@@ -15,8 +15,8 @@ dist-ssr
 # Brainstorming mockups (superpowers visual companion)
 .superpowers/
 
-# Superpowers working docs (plans / specs / checklists) — เอกสารระหว่างทำงาน ไม่ใช่เอกสารส่งงาน
-docs/superpowers/
+# เอกสารทั้งหมด (คู่มือ / plans / specs / checklists) — เก็บไว้ในเครื่อง ไม่เข้า repo
+docs/
 
 # Editor directories and files
 .vscode/*
