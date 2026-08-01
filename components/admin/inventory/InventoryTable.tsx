@@ -18,6 +18,22 @@ type SortKey = keyof Pallet | 'days_overdue';
 
 interface InventoryTableProps {
     paginatedPallets: Pallet[];
+    /**
+     * Every row that passed the filters, not just the current page.
+     *
+     * The printed sheet has to be the whole filtered result: pagination is a
+     * screen affordance, and a report that silently stopped at row 20 because
+     * that is what the reader happened to be looking at would be wrong in a way
+     * nothing on the paper admits to. Rows outside the current page are rendered
+     * but hidden (see `display: none` below), so there is ONE row template
+     * rather than a parallel print-only table that would drift from this one.
+     */
+    processedPallets: Pallet[];
+    /**
+     * Signed evidence-photo URL per pallet id, for the print-only column.
+     * Empty until the print handler loads it -- see useInventoryEvidence.
+     */
+    evidenceUrls: Record<string, string>;
     // We need the full list count or "select all" state logic passed down
     totalProcessedCount: number;
     selectedIds: Set<string>;
@@ -56,6 +72,8 @@ interface InventoryTableProps {
 
 export const InventoryTable: React.FC<InventoryTableProps> = ({
     paginatedPallets,
+    processedPallets,
+    evidenceUrls,
     totalProcessedCount,
     selectedIds,
     onSelectAll,
@@ -77,6 +95,8 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
     isLoading,
 }) => {
     const t = useT();
+
+    const pageIds = new Set(paginatedPallets.map((p) => p.pallet_id));
 
     return (
         <DataTable
@@ -110,7 +130,10 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
             }
             head={
                 <tr>
-                    <th scope="col" className="w-10 border-b border-slate-200 px-3 py-2.5">
+                    {/* Selection is a control, not data -- print:hidden here and
+                        on the matching cell, as a pair, for the reason spelled
+                        out on the actions column below. */}
+                    <th scope="col" className="w-10 border-b border-slate-200 px-3 py-2.5 print:hidden">
                         <Checkbox
                             id="select-all-pallets"
                             ariaLabel={t.inventory.selectAllPallets}
@@ -140,7 +163,14 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                         sortKey="last_checkout_date"
                         sortConfig={sortConfig}
                         onSort={onSort}
-                        className="hidden xl:table-cell"
+                        // `print:table-cell` alongside `xl:table-cell`: a print
+                        // media query measures the PAPER, and A4 landscape is
+                        // ~1032px -- under the 1280px xl breakpoint. Without
+                        // this, the two columns an operator can see on a desktop
+                        // monitor would vanish from the printed report with
+                        // nothing to say they had been dropped. Both variants set
+                        // the same value, so there is no order to get wrong.
+                        className="hidden xl:table-cell print:table-cell"
                     />
                     <SortableTh<SortKey>
                         label={t.inventory.overdue}
@@ -153,14 +183,56 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                         sortKey="pallet_remark"
                         sortConfig={sortConfig}
                         onSort={onSort}
-                        className="hidden xl:table-cell"
+                        // `print:table-cell` alongside `xl:table-cell`: a print
+                        // media query measures the PAPER, and A4 landscape is
+                        // ~1032px -- under the 1280px xl breakpoint. Without
+                        // this, the two columns an operator can see on a desktop
+                        // monitor would vanish from the printed report with
+                        // nothing to say they had been dropped. Both variants set
+                        // the same value, so there is no order to get wrong.
+                        className="hidden xl:table-cell print:table-cell"
                     />
-                    <SortableTh<SortKey> label={t.common.actions} sortConfig={sortConfig} align="right" />
+                    {/* Paper only. The bucket is private, so this is a signed
+                        URL; the browser is still online while the print dialog
+                        renders, so it fetches the image and lays it on the page
+                        without anything here having to inline it as base64.
+                        `print:table-cell`, not `print:block`, or the cell stops
+                        being a table cell and the row's columns shift left. */}
+                    <th
+                        scope="col"
+                        className="hidden border-b border-slate-200 px-3 py-2.5 text-left text-xs font-bold text-slate-600 print:table-cell"
+                    >
+                        {t.inventory.evidencePhoto}
+                    </th>
+                    {/* print:hidden on the HEADER as well as the cell below it.
+                        A `display: none` cell is removed from its row, so
+                        hiding one without the other leaves the row a column
+                        short and every heading from here rightwards lands over
+                        the wrong data. */}
+                    <SortableTh<SortKey>
+                        label={t.common.actions}
+                        sortConfig={sortConfig}
+                        align="right"
+                        className="print:hidden"
+                    />
                 </tr>
             }
         >
             <tbody className="divide-y divide-slate-100">
-                {paginatedPallets.map((p) => {
+                {/* Every filtered row is rendered; the ones outside the current
+                    page are hidden on screen and revealed for print.
+                    `pageIds` is the membership test -- a Set so this stays O(1)
+                    per row rather than an indexOf scan per row.
+
+                    The cost is honest and worth naming: the DOM holds the whole
+                    filtered result rather than 20 rows. `display: none` rows are
+                    not laid out, so the price is node count, and this fleet is
+                    counted in tens. If it ever grows into the thousands, the fix
+                    is to gate the off-page rows behind a "preparing print" flag
+                    -- not to build a second table, which is the option this
+                    deliberately avoids. */}
+                {processedPallets.map((p) => {
+                    const isOnPage = pageIds.has(p.pallet_id);
                     let isOverdue = false;
                     let days = 0;
                     if (p.status === 'in_use' && p.last_checkout_date) {
@@ -204,6 +276,20 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                       ? 'bg-amber-50 hover:bg-amber-100'
                                       : 'hover:bg-slate-50')
                             }
+                            // Rows outside the current page: hidden on screen,
+                            // brought back for print by the
+                            // `tr[data-print-row]` rule in index.css.
+                            //
+                            // Inline `display: none` rather than Tailwind's
+                            // `hidden print:table-row`, because `hidden` and
+                            // `print:table-row` are both single-class selectors
+                            // and which of them wins is decided by their order
+                            // in the built stylesheet -- the same trap Card.tsx
+                            // and Button.tsx record for colours. An inline style
+                            // beaten by one `!important` rule has exactly one
+                            // possible outcome.
+                            style={isOnPage ? undefined : { display: 'none' }}
+                            data-print-row={isOnPage ? undefined : 'true'}
                         >
                             {/* Body cells are `py-1.5`, the header `py-2.5` (see
                                 DataTable's TH_BASE). That is not drift -- the row
@@ -218,7 +304,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                 icon -- 32px, taller than any text in the row. They
                                 came down to `p-1.5`/28px in the same pass, which
                                 is what let the padding change show up at all. */}
-                            <td className="px-3 py-1.5" onClick={(e) => e.stopPropagation()}>
+                            <td className="px-3 py-1.5 print:hidden" onClick={(e) => e.stopPropagation()}>
                                 <Checkbox
                                     ariaLabel={`${t.common.palletId}: ${p.pallet_id}`}
                                     checked={isSelected}
@@ -240,7 +326,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                 </div>
                             </td>
 
-                            <td className="hidden px-3 py-1.5 text-sm text-slate-500 xl:table-cell">
+                            <td className="hidden px-3 py-1.5 text-sm text-slate-500 xl:table-cell print:table-cell">
                                 {formatDateTime(p.last_checkout_date)}
                             </td>
                             <td className="px-3 py-1.5">
@@ -259,7 +345,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                 )}
                             </td>
                             <td
-                                className="hidden max-w-[200px] truncate px-3 py-1.5 text-sm text-slate-500 xl:table-cell"
+                                className="hidden max-w-[200px] truncate px-3 py-1.5 text-sm text-slate-500 xl:table-cell print:table-cell"
                                 title={p.pallet_remark || ''}
                             >
                                 {p.pallet_remark ? (
@@ -271,7 +357,23 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                                     <span className="text-slate-300">-</span>
                                 )}
                             </td>
-                            <td className="px-3 py-1.5 text-right">
+                            {/* Paper only, and empty for every pallet that has
+                                no damage photo. `loading="eager"` because the
+                                default lazy loading never fires for an image
+                                that has not been scrolled into view on screen --
+                                and on paper nothing scrolls, so a lazy image
+                                prints as a blank box. */}
+                            <td className="hidden px-3 py-1.5 print:table-cell">
+                                {evidenceUrls[p.pallet_id] && (
+                                    <img
+                                        src={evidenceUrls[p.pallet_id]}
+                                        alt={`${t.inventory.evidencePhoto}: ${p.pallet_id}`}
+                                        loading="eager"
+                                        className="h-20 w-auto max-w-[120px] rounded border border-slate-200 object-cover"
+                                    />
+                                )}
+                            </td>
+                            <td className="px-3 py-1.5 text-right print:hidden">
                                 <div className="flex justify-end gap-1">
                                     {/* Both resolutions for a damaged pallet, side by side:
                                         repair it, or write it off. Scrapping is reachable

@@ -9,6 +9,21 @@ export const IMAGE_DELETED = 'image_deleted';
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour
 
 /**
+ * The lifetime a link written into an exported CSV gets.
+ *
+ * The default hour above is sized for a link the screen is about to render and
+ * then forget. A spreadsheet outlives the session that produced it: the file is
+ * mailed, opened the next morning, filed. An hour would mean every evidence
+ * link in it is dead before anyone clicks one, with nothing in the cell to say
+ * why -- Supabase answers an expired token with a bare JSON error page.
+ *
+ * A week is the compromise the project owner picked: long enough that the
+ * report is still usable for the meeting it was exported for, short enough that
+ * a file forwarded on is not a permanent public handle on a private bucket.
+ */
+export const CSV_EVIDENCE_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+
+/**
  * Derives the storage object name from whatever is stored in
  * transactions.evidence_image_url.
  *
@@ -40,15 +55,22 @@ export const extractObjectName = (stored: string | null | undefined): string | n
  * The bucket is private (supabase/migrations/20260719_04_storage.sql), so
  * getPublicUrl() no longer resolves. Returns null when there is nothing to
  * show, so callers can render their "no evidence" state.
+ *
+ * `ttlSeconds` defaults to the on-screen hour. Only the CSV export passes
+ * anything else -- see CSV_EVIDENCE_URL_TTL_SECONDS above for why a file needs
+ * a different number from a rendered <img>.
  */
-export const getEvidenceSignedUrl = async (stored: string | null | undefined): Promise<string | null> => {
+export const getEvidenceSignedUrl = async (
+    stored: string | null | undefined,
+    ttlSeconds: number = SIGNED_URL_TTL_SECONDS,
+): Promise<string | null> => {
     const objectName = extractObjectName(stored);
     if (!objectName) return null;
 
     const { data, error } = await supabase
         .storage
         .from(DAMAGE_BUCKET)
-        .createSignedUrl(objectName, SIGNED_URL_TTL_SECONDS);
+        .createSignedUrl(objectName, ttlSeconds);
 
     if (error) {
         console.error('[storage] Failed to sign evidence URL', objectName, error);
@@ -65,9 +87,13 @@ export const getEvidenceSignedUrl = async (stored: string | null | undefined): P
  *
  * Returns a map keyed by the ORIGINAL stored value, so callers can look up
  * using the field they already hold.
+ *
+ * The filter on the way in is what keeps the round-trip count honest: rows with
+ * no evidence, and rows whose image was deleted, never reach the network at all.
  */
 export const getEvidenceSignedUrlMap = async (
-    storedValues: (string | null | undefined)[]
+    storedValues: (string | null | undefined)[],
+    ttlSeconds?: number,
 ): Promise<Record<string, string>> => {
     const unique = Array.from(
         new Set(storedValues.filter((v): v is string => !!v && v !== IMAGE_DELETED))
@@ -75,7 +101,7 @@ export const getEvidenceSignedUrlMap = async (
 
     const entries = await Promise.all(
         unique.map(async (stored) => {
-            const url = await getEvidenceSignedUrl(stored);
+            const url = await getEvidenceSignedUrl(stored, ttlSeconds);
             return url ? ([stored, url] as const) : null;
         })
     );

@@ -1,0 +1,230 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Pallet, Transaction } from '../types';
+
+// Everything this module touches is a network call or a toast. Mocking at the
+// service boundary rather than at `supabase` keeps the test about what lands in
+// the FILE, which is the thing the committee actually looked at.
+vi.mock('../services/palletService', () => ({ fetchPallets: vi.fn() }));
+vi.mock('../services/userService', () => ({ fetchUsers: vi.fn() }));
+vi.mock('../services/transactionService', () => ({ fetchTransactions: vi.fn() }));
+vi.mock('../services/storageService', () => ({
+    CSV_EVIDENCE_URL_TTL_SECONDS: 60 * 60 * 24 * 7,
+    getEvidenceSignedUrlMap: vi.fn(),
+}));
+vi.mock('../services/toast', () => ({
+    toast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
+}));
+
+import { exportInventoryCSV, generateCSV } from './exportHelpers';
+import { fetchPallets } from '../services/palletService';
+import { fetchUsers } from '../services/userService';
+import { fetchTransactions } from '../services/transactionService';
+import { getEvidenceSignedUrlMap } from '../services/storageService';
+
+/**
+ * Captures the text generateCSV writes into its Blob.
+ *
+ * generateCSV builds a Blob, mints an object URL and clicks a link. jsdom has
+ * neither URL.createObjectURL nor a real download, so both are stubbed and the
+ * Blob's contents are read back through its own text(). That is deliberately not
+ * a mock of generateCSV itself: the BOM and the escaping are what is being
+ * tested, and they live inside it.
+ */
+const captureCsv = (): { text: () => Promise<string>; bytes: () => Promise<Uint8Array> } => {
+    let captured: Blob | null = null;
+
+    // Assigned, not vi.spyOn'd: jsdom does not implement URL.createObjectURL at
+    // all, and spyOn refuses to replace a property that is not there
+    // ("createObjectURL does not exist"). vitest.config.ts restores globals
+    // between files, and each test calls this afresh.
+    URL.createObjectURL = (blob: Blob | MediaSource) => {
+        captured = blob as Blob;
+        return 'blob:mock';
+    };
+    URL.revokeObjectURL = () => {};
+    // The anchor's click() would try to navigate jsdom.
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    return {
+        text: async () => {
+            if (!captured) throw new Error('generateCSV never produced a Blob');
+            return (captured as Blob).text();
+        },
+        // The BOM has to be checked on the BYTES, not on the string.
+        //
+        // Blob.text() decodes as UTF-8, and a UTF-8 decode removes a leading
+        // BOM by specification -- so a file that carries one and a file that
+        // does not produce the identical string, and a test written against
+        // text() would pass whether or not the fix is present. Which is the
+        // exact bug being guarded: the committee's mojibake came from a file
+        // Excel decoded without one.
+        bytes: async () => {
+            if (!captured) throw new Error('generateCSV never produced a Blob');
+            return new Uint8Array(await (captured as Blob).arrayBuffer());
+        },
+    };
+};
+
+const UTF8_BOM_BYTES = [0xef, 0xbb, 0xbf];
+
+const pallet = (over: Partial<Pallet> = {}): Pallet => ({
+    pallet_id: 'P001',
+    status: 'in_use',
+    current_location: 'ฝ่ายผลิต',
+    // 14:30 and 09:05 local, so the split columns have something to be wrong
+    // about -- a UTC-vs-local slip would show up as a different hour.
+    last_checkout_date: new Date(2026, 6, 21, 14, 30).toISOString(),
+    last_transaction_date: new Date(2026, 6, 22, 9, 5).toISOString(),
+    created_at: new Date(2026, 0, 15, 8, 0).toISOString(),
+    ...over,
+});
+
+const transaction = (over: Partial<Transaction> = {}): Transaction => ({
+    id: 'tx-1',
+    pallet_id: 'P001',
+    user_id: 'user-1',
+    action_type: 'check_out',
+    department_dest: 'ฝ่ายผลิต',
+    evidence_image_url: null,
+    timestamp: new Date(2026, 6, 22, 9, 5).toISOString(),
+    ...over,
+});
+
+/** Splits one CSV line into its cells, unwrapping generateCSV's quoting. */
+const cells = (line: string): string[] =>
+    (line.match(/"(?:[^"]|"")*"/g) ?? []).map((c) => c.slice(1, -1).replace(/""/g, '"'));
+
+beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(fetchUsers).mockResolvedValue([]);
+    vi.mocked(fetchTransactions).mockResolvedValue([]);
+    vi.mocked(getEvidenceSignedUrlMap).mockResolvedValue({});
+});
+
+describe('generateCSV', () => {
+    // The bug the committee reported, at its root. Excel on Windows decodes a
+    // file with no BOM using the system ANSI codepage, and every Thai character
+    // in it arrives as mojibake.
+    it('ไฟล์ขึ้นต้นด้วยไบต์ UTF-8 BOM (EF BB BF) เสมอ', async () => {
+        const csv = captureCsv();
+        generateCSV(['รหัส'], [['P001']], 'test.csv');
+        expect(Array.from((await csv.bytes()).slice(0, 3))).toEqual(UTF8_BOM_BYTES);
+    });
+
+    it('เครื่องหมายคำพูดในเซลล์ถูก escape ไม่ทำให้จำนวนคอลัมน์เพี้ยน', async () => {
+        const csv = captureCsv();
+        generateCSV(['a', 'b'], [['เขา"พูด"ว่า', 'x']], 'test.csv');
+        const row = (await csv.text()).split('\n')[1];
+        expect(cells(row)).toEqual(['เขา"พูด"ว่า', 'x']);
+    });
+
+    // ตัวกัน formula injection: ค่าที่ขึ้นต้นด้วย = + - @ ถูกเติม apostrophe นำหน้า
+    // เพราะ Excel/Sheets รันมันเป็นสูตร ไม่ใช่แสดงเป็นข้อความ
+    it('ค่าที่ขึ้นต้นด้วย = ถูกเติม apostrophe นำหน้า', async () => {
+        const csv = captureCsv();
+        generateCSV(['a'], [['=cmd|calc']], 'test.csv');
+        expect(cells((await csv.text()).split('\n')[1])).toEqual(["'=cmd|calc"]);
+    });
+});
+
+describe('exportInventoryCSV', () => {
+    it('ส่ง pallets เข้ามา = ใช้ชุดนั้น ไม่ดึงใหม่ทั้งตาราง', async () => {
+        const csv = captureCsv();
+        await exportInventoryCSV([pallet({ pallet_id: 'P007' })]);
+
+        // นี่คือสิ่งที่ทำให้ไฟล์จากหน้าคลังพาเลทตรงกับสิ่งที่เห็นบนจอ: ถ้าดึงใหม่เอง
+        // ไฟล์จะกว้างกลับไปเป็นทั้งคลังโดยไม่มีอะไรบอก
+        expect(fetchPallets).not.toHaveBeenCalled();
+        expect(cells((await csv.text()).split('\n')[1])[0]).toBe('P007');
+    });
+
+    it('ไม่ส่ง pallets = ดึงทั้งตารางเอง (พฤติกรรมของหน้าแดชบอร์ด)', async () => {
+        vi.mocked(fetchPallets).mockResolvedValue([pallet()]);
+        captureCsv();
+        await exportInventoryCSV();
+        expect(fetchPallets).toHaveBeenCalledOnce();
+    });
+
+    it('มี 13 คอลัมน์ และวันที่ถูกแยกออกจากเวลา', async () => {
+        const csv = captureCsv();
+        await exportInventoryCSV([pallet()]);
+
+        const [headerLine, rowLine] = (await csv.text()).split('\n');
+        expect(cells(headerLine)).toHaveLength(13);
+
+        const row = cells(rowLine);
+        expect(row).toHaveLength(13);
+
+        // วันที่เพิ่ม / เวลาที่เพิ่ม -- 15 ม.ค. 2026 08:00 ตามเวลาเครื่อง
+        expect(row[3]).toBe('15-Jan-2026');
+        expect(row[4]).toBe('08:00');
+        // เคลื่อนไหวล่าสุด 22 ก.ค. 2026 09:05
+        expect(row[5]).toBe('22-Jul-2026');
+        expect(row[6]).toBe('09:05');
+        // เบิกล่าสุด 21 ก.ค. 2026 14:30
+        expect(row[9]).toBe('21-Jul-2026');
+        expect(row[10]).toBe('14:30');
+    });
+
+    // ทั้งสองคอลัมน์ต้องเป็นตัวว่าง '-' ไม่ใช่ 01-Jan-1970 หรือ 00:00 -- สิ่งที่
+    // splitDateTime กันไว้คือการที่ `new Date(null)` กลายเป็น epoch แล้วพาเลทที่ไม่
+    // เคยถูกเบิกออกเลยขึ้นในรายงานว่าเบิกไปตอนเที่ยงคืนปี 1970
+    //
+    // ค่าที่ลงไฟล์จริงคือ "'-" ไม่ใช่ "-" และถูกต้องแล้ว: '-' ตรงกับ FORMULA_TRIGGER
+    // (Excel อ่าน -x เป็นสูตร) escapeCell จึงเติม apostrophe นำหน้าให้ ซึ่ง Excel
+    // อ่านเป็น "ที่เหลือในเซลล์นี้เป็นข้อความ" แล้วไม่แสดงตัว apostrophe เอง --
+    // บนหน้าจอ Excel เซลล์นี้จึงอ่านว่า - ตามที่ตั้งใจ
+    it('พาเลทที่ไม่เคยเบิก ทั้งคอลัมน์วันที่และเวลาเป็นตัวว่าง ไม่ใช่เที่ยงคืนปี 1970', async () => {
+        const csv = captureCsv();
+        await exportInventoryCSV([pallet({ last_checkout_date: null, status: 'available' })]);
+
+        const row = cells((await csv.text()).split('\n')[1]);
+        expect(row[9]).toBe("'-");
+        expect(row[10]).toBe("'-");
+    });
+
+    // URL หลักฐานต้องไม่ถูกเติม apostrophe นำหน้า: 'h' ไม่ตรงกับ FORMULA_TRIGGER
+    // (/^[=+\-@\t\r]/) จึงผ่าน escapeCell ไปตรง ๆ -- นี่คือเหตุผลที่คอลัมน์นี้ใส่ URL
+    // ดิบแทน =HYPERLINK() ซึ่งจะต้องเจาะรูตัวกัน formula injection
+    it('URL หลักฐานลงไฟล์เป็น URL เปิดได้จริง ไม่ถูกเติม apostrophe', async () => {
+        vi.mocked(fetchTransactions).mockResolvedValue([
+            transaction({ action_type: 'report_damage', evidence_image_url: 'damage-1.jpg' }),
+        ]);
+        vi.mocked(getEvidenceSignedUrlMap).mockResolvedValue({
+            'damage-1.jpg': 'https://example.supabase.co/storage/v1/object/sign/damage-1.jpg?token=abc',
+        });
+
+        const csv = captureCsv();
+        await exportInventoryCSV([pallet()]);
+
+        const row = cells((await csv.text()).split('\n')[1]);
+        expect(row[12]).toBe('https://example.supabase.co/storage/v1/object/sign/damage-1.jpg?token=abc');
+        expect(row[12].startsWith("'")).toBe(false);
+    });
+
+    it('เซ็นลิงก์ด้วยอายุ 7 วัน ไม่ใช่ 1 ชั่วโมงที่หน้าจอใช้', async () => {
+        captureCsv();
+        await exportInventoryCSV([pallet()]);
+
+        expect(getEvidenceSignedUrlMap).toHaveBeenCalledWith(expect.anything(), 60 * 60 * 24 * 7);
+    });
+
+    it('พาเลทที่ไม่มีหลักฐาน คอลัมน์ลิงก์เป็นเซลล์ว่าง ไม่ใช่ -', async () => {
+        const csv = captureCsv();
+        await exportInventoryCSV([pallet()]);
+
+        expect(cells((await csv.text()).split('\n')[1])[12]).toBe('');
+    });
+
+    // บั๊กที่กรรมการเห็น: ไฟล์จากหน้าคลังพาเลทเปิดใน Excel แล้วภาษาไทยเพี้ยน
+    // ต้นเหตุคือโค้ดชุดเก่าประกอบ data: URI เอง ซึ่งไม่มี BOM ตอนนี้ทุกทางเดินผ่าน
+    // generateCSV ทางเดียว จึงได้ BOM มาด้วยเสมอ
+    it('ไฟล์จากหน้าคลังพาเลทมี BOM และภาษาไทยลงไฟล์ครบ', async () => {
+        const csv = captureCsv();
+        await exportInventoryCSV([pallet()]);
+
+        expect(Array.from((await csv.bytes()).slice(0, 3))).toEqual(UTF8_BOM_BYTES);
+        // ชื่อสถานที่ภาษาไทยลงไฟล์ครบ ไม่ถูกแปลงเป็นอย่างอื่นระหว่างทาง
+        expect(await csv.text()).toContain('ฝ่ายผลิต');
+    });
+});

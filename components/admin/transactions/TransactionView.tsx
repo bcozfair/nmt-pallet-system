@@ -11,10 +11,11 @@ import { TransactionTable, TxSortConfig } from './TransactionTable';
 import { TransactionEditModal } from './TransactionEditModal';
 import { ImageViewerModal } from '../common/ImageViewerModal';
 import { TransactionHeader } from './TransactionHeader';
-import { ConfirmDialog, StickyHeader } from '../../ui';
+import { ConfirmDialog, PrintReportHeader, StickyHeader } from '../../ui';
 import { generateCSV } from '../../../utils/exportHelpers';
 import { getEvidenceSignedUrl } from '../../../services/storageService';
 import { useT } from '../../../hooks/useT';
+import { usePageOrientation } from '../../../hooks/usePageOrientation';
 import { dict } from '../../../services/i18n';
 import { describeAppError } from '../../../services/appError';
 
@@ -276,6 +277,33 @@ export const TransactionView = () => {
         }
     };
 
+    // --- PRINT ---
+    //
+    // Nothing to prepare before printing here, unlike the dashboard (deferred
+    // chart sections) and the inventory screen (signed evidence photos): every
+    // row this sheet needs is already in the DOM, hidden, from
+    // `processedTransactions`. So the handler is the orientation switch and
+    // window.print(), and Ctrl+P produces the same sheet minus the choice.
+    const { printWithOrientation } = usePageOrientation();
+
+    // What the printed sheet says the rows were filtered by. Assembled here
+    // because this is the component holding every filter's value; the
+    // PrintReportHeader primitive only lays out the phrases it is handed.
+    const printFilters: string[] = [];
+    if (searchTerm) printFilters.push(`${t.common.search}: ${searchTerm}`);
+    if (actionFilter !== 'all') {
+        printFilters.push(
+            `${t.transactions.colAction}: ${t.action[actionFilter as keyof typeof t.action] ?? actionFilter}`,
+        );
+    }
+    // A location is a department name an admin typed in, and a user name is a
+    // person's name -- both print verbatim, never translated.
+    if (locationFilter !== 'all') printFilters.push(`${t.common.location}: ${locationFilter}`);
+    if (userFilter !== 'all') printFilters.push(`${t.common.user}: ${users[userFilter] ?? userFilter}`);
+    if (dateRange.start || dateRange.end) {
+        printFilters.push(`${t.common.date}: ${dateRange.start || '…'} – ${dateRange.end || '…'}`);
+    }
+
     // --- EDIT & DELETE HANDLERS ---
 
     const handleEdit = (tx: Transaction) => {
@@ -371,6 +399,21 @@ export const TransactionView = () => {
         // at that box's edge instead of continuing down the document; and a box
         // clamped to 100vh has nothing below the fold to hand to the printer.
         <div className="flex flex-col gap-4">
+            {/* Paper only, and the first thing on the sheet: PageHeader inside
+                TransactionHeader is print:hidden because it is a control strip,
+                so without this the report would start with an unlabelled table.
+                The filter line is what stops a filtered view being read as the
+                complete history. */}
+            <PrintReportHeader
+                title={t.transactions.reportTitle}
+                generatedOn={t.dashboard.reportGeneratedOn(formatDateTime(new Date()))}
+                filters={
+                    printFilters.length > 0
+                        ? [`${t.common.printFilters} ${printFilters.join(' · ')}`]
+                        : undefined
+                }
+            />
+
             {/* Everything above the rows travels together and stays pinned at
                 xl: the page header and the filter bar. What scrolls is the rows
                 and the pagination under them. The table's own head pins directly
@@ -384,6 +427,7 @@ export const TransactionView = () => {
                 <TransactionHeader
                     onCleanup={handleCleanup}
                     onExport={handleExport}
+                    onPrintReport={printWithOrientation}
                 />
 
                 <TransactionFilters
@@ -426,6 +470,7 @@ export const TransactionView = () => {
 
             <TransactionTable
                 paginatedTransactions={paginatedTransactions}
+                processedTransactions={processedTransactions}
                 totalProcessedCount={processedTransactions.length}
                 sortConfig={sortConfig}
                 onSort={handleSort}

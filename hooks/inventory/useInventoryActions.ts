@@ -1,14 +1,11 @@
 
 import { useState } from 'react';
-import { Pallet, Transaction } from '../../types';
+import { Pallet } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { deletePallet, updatePallet } from '../../services/palletService';
 import { resolveDamage, scrapPallet, createBulkTransaction } from '../../services/transactionService';
-import { fetchUsers } from '../../services/userService';
-import { supabase } from '../../services/supabase';
 import { toast } from '../../services/toast';
 import { dict } from '../../services/i18n';
-import { formatDate, palletStatusLabel } from '../../components/admin/common/AdminHelpers';
 import { describeAppError } from '../../services/appError';
 
 // Text here is read through dict() rather than useT(). Every string below is
@@ -224,92 +221,12 @@ export const useInventoryActions = (
         }
     };
 
-    const handleExportFiltered = async (processedPallets: Pallet[]) => {
-        toast.info(dict().csv.preparingInventory);
-
-        try {
-            // 1. Fetch Users Data for mapping IDs to Names
-            const users = await fetchUsers();
-            const userMap = users.reduce((acc, u) => ({ ...acc, [u.id]: u.full_name }), {} as Record<string, string>);
-
-            // 2. Fetch Latest Transactions for all filtered pallets
-            const palletIds = processedPallets.map(p => p.pallet_id);
-            const chunkSize = 50;
-            const latestTxMap: Record<string, Transaction> = {};
-
-            // Process in chunks
-            for (let i = 0; i < palletIds.length; i += chunkSize) {
-                const chunk = palletIds.slice(i, i + chunkSize);
-                const { data } = await supabase
-                    .from('transactions')
-                    .select('*')
-                    .in('pallet_id', chunk)
-                    .order('timestamp', { ascending: false });
-
-                if (data) {
-                    data.forEach(tx => {
-                        if (!latestTxMap[tx.pallet_id]) {
-                            latestTxMap[tx.pallet_id] = tx;
-                        }
-                    });
-                }
-            }
-
-            // Column headers come from `csv.header` in locales/en.ts, the same
-            // table the transactions export reads, so the two files agree on what
-            // a column is called. Only "Last Checkout" is unique to this export.
-            const col = dict().csv.header;
-            const headers = [
-                col.palletId, col.status, col.currentLocation, col.dateAdded, col.lastActivityDate,
-                col.actionType, col.performedBy, dict().inventory.lastCheckout, col.daysOverdue, col.evidenceFile
-            ];
-
-            const rows = processedPallets.map(p => {
-                const tx = latestTxMap[p.pallet_id];
-                let overdue = 0;
-                if (p.status === 'in_use' && p.last_checkout_date) {
-                    overdue = Math.floor((new Date().getTime() - new Date(p.last_checkout_date).getTime()) / (1000 * 3600 * 24));
-                }
-
-                const evidence = tx?.evidence_image_url && tx.evidence_image_url !== 'image_deleted' ? tx.evidence_image_url : '';
-
-                return [
-                    p.pallet_id,
-                    palletStatusLabel(p.status),
-                    p.current_location,
-                    formatDate(p.created_at) || '-',
-                    tx ? formatDate(tx.timestamp) : '-',
-                    // Labelled, not the raw enum: 'check_out' in a spreadsheet cell
-                    // means nothing to the reader, and the status column beside it
-                    // is already translated through palletStatusLabel.
-                    tx ? dict().action[tx.action_type] : '-',
-                    tx ? (userMap[tx.user_id] || tx.user_id) : '-',
-                    formatDate(p.last_checkout_date) || '-',
-                    overdue.toString(),
-                    evidence
-                ];
-            });
-
-            const csvContent = "data:text/csv;charset=utf-8,"
-                + headers.join(",") + "\n"
-                + rows.map(e => e.map(cell => `"${cell}"`).join(",")).join("\n");
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            const d = new Date();
-            const dateStr = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
-            link.setAttribute("download", `inventory_full_export_${dateStr}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            toast.success(dict().csv.inventoryDone(processedPallets.length));
-        } catch (error) {
-            console.error("Export failed", error);
-            toast.error(dict().inventory.exportFailed);
-        }
-    };
+    // `handleExportFiltered` used to live here: a second, hand-rolled CSV builder
+    // for the inventory screen's Export List button. It is gone -- InventoryView
+    // now calls exportInventoryCSV(processedPallets) directly, and that function's
+    // header comment lists the three defects the duplicate carried (mojibake in
+    // Excel, unescaped quotes, no formula-injection guard). A hook that owns modal
+    // state and write handlers had no business assembling a file format anyway.
 
     return {
         // Modal States
@@ -326,7 +243,6 @@ export const useInventoryActions = (
         handleScrapRow,
         handleBulkScrap,
         handleConfirmBulkTransaction,
-        handleSavePalletEdit,
-        handleExportFiltered
+        handleSavePalletEdit
     };
 };

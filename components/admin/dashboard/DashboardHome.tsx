@@ -7,7 +7,9 @@ import { useT } from '../../../hooks/useT';
 import { useOverdueThreshold } from '../../../hooks/useOverdueThreshold';
 import { useDashboardData } from '../../../hooks/dashboard/useDashboardData';
 import { usePrintLayout } from '../../../hooks/dashboard/usePrintLayout';
-import { SkeletonCard } from '../../ui';
+import { usePageOrientation } from '../../../hooks/usePageOrientation';
+import type { PageOrientation } from '../../../hooks/usePageOrientation';
+import { PrintReportHeader, SkeletonCard } from '../../ui';
 import {
     exportDashboardSummaryCSV,
     exportHistoryCSV,
@@ -191,7 +193,13 @@ const DeferredSection: React.FC<DeferredSectionProps> = ({
             // AdminDashboard: without it, an in-page jump below `lg` parks the
             // section heading underneath it and the reader lands on a chart
             // with no title.
-            className="scroll-mt-20 print-avoid-break"
+            //
+            // `print-avoid-break` used to be here too and is gone. It never did
+            // anything: a section is several A4 pages tall and the engine drops
+            // the rule for any box taller than one page. Leaving a rule in place
+            // that reads as working is worse than not having it -- the guard is
+            // on components/ui/Card.tsx now, at a size that fits on a sheet.
+            className="scroll-mt-20"
         >
             {isMounted ? <Suspense fallback={placeholder}>{children}</Suspense> : placeholder}
         </section>
@@ -231,6 +239,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
     const { days: overdueDays } = useOverdueThreshold();
 
     const printRef = usePrintLayout<HTMLDivElement>();
+    const { printWithOrientation } = usePageOrientation();
 
     const [mountAllSections, setMountAllSections] = useState(false);
     // Collapsed by default. Not persisted: the point of the default is that
@@ -263,22 +272,29 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
      * whatever the reader happened to have looked at. usePrintLayout pins the
      * paper width on `beforeprint` from there.
      */
-    const handlePrint = useCallback(async () => {
-        setMountAllSections(true);
-        setIsPreparingPrint(true);
-        try {
-            await preloadAllSections();
-            // Two frames, not one: the first lets React commit the newly mounted
-            // sections, the second lets each ResponsiveContainer measure the box
-            // that commit created.
-            await new Promise<void>((resolve) => {
-                requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-            });
-            window.print();
-        } finally {
-            setIsPreparingPrint(false);
-        }
-    }, []);
+    const handlePrint = useCallback(
+        async (orientation: PageOrientation) => {
+            setMountAllSections(true);
+            setIsPreparingPrint(true);
+            try {
+                await preloadAllSections();
+                // Two frames, not one: the first lets React commit the newly mounted
+                // sections, the second lets each ResponsiveContainer measure the box
+                // that commit created.
+                await new Promise<void>((resolve) => {
+                    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+                });
+                // Rewrites `@page` and then prints. It is what decides the width
+                // usePrintLayout pins on `beforeprint`, so a portrait report lays
+                // its charts out for 703px of paper instead of running 329px off
+                // the right edge -- see the note in that hook.
+                await printWithOrientation(orientation);
+            } finally {
+                setIsPreparingPrint(false);
+            }
+        },
+        [printWithOrientation],
+    );
 
     // Best effort for Ctrl+P, which cannot be intercepted usefully: the chunks
     // are async, so this cannot complete in time for the print job that fired
@@ -319,13 +335,16 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                 the page header to say what this is; the printed sheet has none
                 of them and would otherwise start with an unlabelled KPI row.
                 Each chart still carries its own range chip onto the page, so a
-                printed report says which window every figure covers. */}
-            <div className="hidden print:block border-b border-slate-200 pb-4">
-                <h1 className="text-2xl font-semibold text-slate-900">{t.dashboard.reportTitle}</h1>
-                <p className="mt-1 text-sm text-slate-500">
-                    {t.dashboard.reportGeneratedOn(formatDateTime(new Date()))}
-                </p>
-            </div>
+                printed report says which window every figure covers -- which is
+                why no `filters` prop is passed here.
+
+                The markup that used to be written out inline here is the
+                PrintReportHeader primitive now, shared with the inventory and
+                transaction screens. */}
+            <PrintReportHeader
+                title={t.dashboard.reportTitle}
+                generatedOn={t.dashboard.reportGeneratedOn(formatDateTime(new Date()))}
+            />
 
             {/* No range control here any more -- it lives on each card the
                 range actually scopes, and its static twin (AsOfNowChip) on each
@@ -364,8 +383,15 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
 
             {/* Outside the rail's row: the KPI figures are as of now and are not
                 scoped by the range selector, so they are not one of the five
-                sections the rail navigates. */}
-            <div className="print-avoid-break">
+                sections the rail navigates.
+
+                No `print-avoid-break` on this wrapper any more. Each tile now
+                carries the guard itself (components/ui/StatTile.tsx), which is
+                both smaller than a page and the unit a reader would object to
+                seeing cut. Keeping it on the row as well would only ask the
+                engine to keep four tiles together, and in portrait -- where they
+                stack -- that is a box it would silently ignore. */}
+            <div>
                 <KpiRow
                     fleet={analytics?.fleet ?? null}
                     overdueDays={overdueDays}

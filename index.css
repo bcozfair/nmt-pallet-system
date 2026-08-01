@@ -179,10 +179,49 @@
   }
 
   /* Cards must not be split across a page break. A stat tile or a plot cut in
-     half mid-axis is worse than a shorter report. */
+     half mid-axis is worse than a shorter report.
+
+     The class is applied by components/ui/Card.tsx and StatTile.tsx, on the CARD
+     ITSELF. It used to be applied by DashboardHome on each <section>, and there
+     it was dead code: a browser discards `break-inside: avoid` for any box taller
+     than a page, and a section holding five charts is several A4 pages tall. */
   .print-avoid-break {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  /* A table that runs past the bottom of the sheet continues on the next one --
+     and, without this, continues as bare columns of numbers with no headings.
+     `table-header-group` is the CSS that tells the engine <thead> is a running
+     header and must be repeated at the top of every fragment.
+
+     It has to be `!important` and it has to be here rather than on the element:
+     the print rules further down force `position: static` on everything matching
+     `[class*="sticky"]`, and DataTable's <thead> is `xl:sticky` -- responsive
+     variants apply on paper too. A `display` and a `position` do not fight, but
+     the head does carry `xl:z-10`, and a sticky/z-indexed head is exactly the
+     kind of box an engine will decline to promote to a running header.
+
+     `tr` alongside it, because a row split in half across the fold was the other
+     half of the same complaint. A row is a few lines tall at most, so this is a
+     rule the engine can always honour. */
+  thead {
+    display: table-header-group !important;
+  }
+
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* The inventory table renders every row that passed the filters and hides the
+     ones outside the current page with an inline `display: none` -- pagination
+     is a screen affordance, and a report that stopped at row 20 because that is
+     the page the reader was on would be wrong without saying so. This is the
+     rule that brings them back. `!important` because it has to beat an inline
+     style, which is the only reason the inline style is safe to use there. */
+  tr[data-print-row] {
+    display: table-row !important;
   }
 
   /* Long shadows read as grey smudges on paper, so surfaces fall back to a

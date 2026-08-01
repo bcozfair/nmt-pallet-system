@@ -23,7 +23,11 @@ export const Pagination: React.FC<PaginationProps> = ({
     if (totalPages <= 0) return null;
 
     return (
-        <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between bg-slate-50 shrink-0 gap-4 min-h-10">
+        // print:hidden — page buttons are dead on paper, and the "showing 1-20
+        // of 137" line would contradict the sheet, which carries every filtered
+        // row (see InventoryTable's off-page rows). A control that lies about
+        // what the reader is holding is worse than one that is merely useless.
+        <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between bg-slate-50 shrink-0 gap-4 min-h-10 print:hidden">
             {totalItems !== undefined && itemsPerPage !== undefined && (
                 // One sentence from the dictionary instead of English fragments
                 // stitched around bold <span>s. Thai puts those numbers in a

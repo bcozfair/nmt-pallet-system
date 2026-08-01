@@ -14,6 +14,12 @@ export const inventoryEn = {
     title: 'Inventory Management',
     subtitle: 'Manage assets, track location, and monitor status.',
     exportList: 'Export List',
+    // Heads the printed sheet (components/ui/PrintReportHeader.tsx). Its own key
+    // rather than reusing `title` above: that one names a screen you manage
+    // things on, this one names a document somebody is holding.
+    reportTitle: 'Inventory Report',
+    // The evidence column, which exists on paper only -- see InventoryTable.
+    evidencePhoto: 'Evidence',
     printAllQr: 'Print All QRs',
     addPallet: 'Add Pallet',
     selectedCount: (count: number) => `${count} Selected`,
@@ -66,6 +72,25 @@ export const inventoryEn = {
     createPallet: 'Create Pallet',
     palletCreated: (id: string) => `Pallet ${id} created successfully.`,
     createFailed: 'Error creating pallet. ID might already exist.',
+
+    // Batch creation. The id field is prefilled with the next running number and
+    // stays editable -- the system proposes, it does not decide.
+    quantity: 'Quantity',
+    // Shown live under the two fields, so the reader sees the exact range before
+    // committing to it. Three parameters rather than a start and a count,
+    // because the END is the number somebody checks against the stickers they
+    // are about to print.
+    rangePreview: (start: string, end: string, count: number) =>
+        `Will create ${start} – ${end}, ${count} pallets`,
+    // Why the quantity field is stuck at 1. It has to name the cause, or a
+    // disabled field with no explanation reads as a broken screen.
+    quantityLockedNote: 'This ID has no number at the end, so there is no sequence to continue. Pallets can only be added one at a time.',
+    // Offered beside the duplicate-id error: refetches the pallet list and fills
+    // in a fresh number, so the modal does not have to be closed and reopened
+    // after somebody else has taken the id.
+    recalculateId: 'Recalculate ID',
+    palletsCreated: (count: number, start: string, end: string) =>
+        `Created ${count} pallets, ${start} – ${end}.`,
 
     // --- Confirm modal ---
     working: 'Working...',
@@ -137,10 +162,10 @@ export const inventoryEn = {
     idExists: 'Pallet ID already exists',
     updateFailed: 'Failed to update pallet',
 
-    // The other column headers of this export come from `csv.header` in
-    // locales/en.ts, which the transactions export shares. Only this one has no
-    // counterpart there.
-    exportFailed: 'Export failed. Please try again.',
+    // `exportFailed` used to sit here, for the hand-rolled CSV builder this
+    // screen carried in useInventoryActions. That builder is gone -- the screen
+    // calls exportInventoryCSV now, which reports through `csv.exportFailed`
+    // like the other two exports do.
 
     // --- Status strip (InventoryStatusStrip.tsx) ---
     // Scrapped's footnote line under the four status tiles -- see the comment
@@ -156,6 +181,8 @@ export const inventoryTh: InventoryDict = {
     title: 'จัดการคลังพาเลท',
     subtitle: 'จัดการพาเลท ติดตามสถานที่ และตรวจสอบสถานะ',
     exportList: 'ส่งออกรายการ',
+    reportTitle: 'รายงานคลังพาเลท',
+    evidencePhoto: 'รูปหลักฐาน',
     printAllQr: 'พิมพ์ QR ทั้งหมด',
     addPallet: 'เพิ่มพาเลท',
     selectedCount: (count: number) => `เลือกไว้ ${count} รายการ`,
@@ -200,6 +227,14 @@ export const inventoryTh: InventoryDict = {
     createPallet: 'สร้างพาเลท',
     palletCreated: (id: string) => `สร้างพาเลท ${id} เรียบร้อยแล้ว`,
     createFailed: 'สร้างพาเลทไม่สำเร็จ รหัสนี้อาจมีอยู่ในระบบแล้ว',
+
+    quantity: 'จำนวน',
+    rangePreview: (start: string, end: string, count: number) =>
+        `จะสร้าง ${start} – ${end} รวม ${count} ใบ`,
+    quantityLockedNote: 'รหัสนี้ไม่มีตัวเลขท้ายรหัส จึงไม่มีลำดับให้นับต่อ เพิ่มได้ครั้งละ 1 ใบเท่านั้น',
+    recalculateId: 'คำนวณเลขใหม่',
+    palletsCreated: (count: number, start: string, end: string) =>
+        `สร้างพาเลท ${count} ใบ ${start} – ${end} เรียบร้อยแล้ว`,
 
     // --- Confirm modal ---
     working: 'กำลังดำเนินการ...',
@@ -267,8 +302,6 @@ export const inventoryTh: InventoryDict = {
     palletUpdated: 'บันทึกข้อมูลพาเลทแล้ว',
     idExists: 'รหัสพาเลทนี้มีอยู่ในระบบแล้ว',
     updateFailed: 'บันทึกข้อมูลพาเลทไม่สำเร็จ',
-
-    exportFailed: 'ส่งออกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
 
     // --- Status strip (InventoryStatusStrip.tsx) ---
     scrappedNote: (count: number) => `ตัดออกจากระบบแล้ว ${count} รายการ`,

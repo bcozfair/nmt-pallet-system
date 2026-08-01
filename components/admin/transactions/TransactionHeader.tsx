@@ -1,11 +1,13 @@
 import React from 'react';
 import { History, Trash2, Download } from 'lucide-react';
 import { useT } from '../../../hooks/useT';
-import { Button, PageHeader } from '../../ui';
+import type { PageOrientation } from '../../../hooks/usePageOrientation';
+import { Button, PageHeader, PrintMenu } from '../../ui';
 
 interface TransactionHeaderProps {
     onCleanup: () => void;
     onExport: () => void;
+    onPrintReport: (orientation: PageOrientation) => void;
 }
 
 // ปุ่มลบข้อมูลเก่าของหน้านี้คือต้นทางของ `Button` variant `danger` -- ขอบแดงอ่อน
@@ -15,6 +17,7 @@ interface TransactionHeaderProps {
 export const TransactionHeader: React.FC<TransactionHeaderProps> = ({
     onCleanup,
     onExport,
+    onPrintReport,
 }) => {
     const t = useT();
 
@@ -28,6 +31,14 @@ export const TransactionHeader: React.FC<TransactionHeaderProps> = ({
                     <Button variant="danger" icon={Trash2} onClick={onCleanup}>
                         {t.transactions.cleanup}
                     </Button>
+                    {/* Same control, same wording and same order as the
+                        dashboard and inventory headers -- see PrintMenu. */}
+                    <PrintMenu
+                        label={t.common.printReport}
+                        landscapeLabel={t.common.printLandscape}
+                        portraitLabel={t.common.printPortrait}
+                        onPrint={onPrintReport}
+                    />
                     <Button variant="secondary" icon={Download} onClick={onExport}>
                         {t.transactions.exportCsv}
                     </Button>

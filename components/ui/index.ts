@@ -64,6 +64,9 @@ export type { DateRange, DateRangeFieldProps } from './DateRangeField';
 export { Menu } from './Menu';
 export type { MenuItem, MenuProps, MenuTone } from './Menu';
 
+export { PrintMenu } from './PrintMenu';
+export type { PrintMenuProps } from './PrintMenu';
+
 // `DataTable` is the shell -- card, scroll behaviour, sticky header, loading and
 // empty states, a slot for pagination. It deliberately does NOT take columns and
 // rows: the four tables it is meant for render badges, evidence thumbnails and
@@ -79,6 +82,12 @@ export type { FilterBarProps } from './FilterBar';
 
 export { PageHeader } from './PageHeader';
 export type { PageHeaderProps } from './PageHeader';
+
+// The paper counterpart of PageHeader: that one is `print:hidden` because it is
+// a control strip, this one is `hidden print:block` because it is the only thing
+// on the sheet that says what the sheet is.
+export { PrintReportHeader } from './PrintReportHeader';
+export type { PrintReportHeaderProps } from './PrintReportHeader';
 
 export { SelectionBar } from './SelectionBar';
 export type { SelectionBarProps } from './SelectionBar';

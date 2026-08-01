@@ -1,11 +1,12 @@
 import React from 'react';
-import { Clock, FileText, LayoutDashboard, Package, PieChart, Printer } from 'lucide-react';
-import { Button, Menu, PageHeader as UiPageHeader } from '../../../ui';
+import { Clock, FileText, LayoutDashboard, Package, PieChart } from 'lucide-react';
+import { Menu, PageHeader as UiPageHeader, PrintMenu } from '../../../ui';
 import type { MenuItem } from '../../../ui';
+import type { PageOrientation } from '../../../../hooks/usePageOrientation';
 import { useT } from '../../../../hooks/useT';
 
 export interface PageHeaderProps {
-    onPrint: () => void;
+    onPrint: (orientation: PageOrientation) => void;
     onExportSummary: () => void;
     onExportInventory: () => void;
     onExportHistory: () => void;
@@ -64,9 +65,17 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             actionsBusy={isBusy}
             actions={
                 <>
-                    <Button variant="secondary" icon={Printer} onClick={onPrint} disabled={isBusy}>
-                        {t.dashboard.printReport}
-                    </Button>
+                    {/* Was a plain button that printed landscape and never said
+                        so. `t.common.print*` rather than `t.dashboard.*`: the
+                        inventory and transaction screens print through the same
+                        component and must not name the same action differently. */}
+                    <PrintMenu
+                        label={t.common.printReport}
+                        landscapeLabel={t.common.printLandscape}
+                        portraitLabel={t.common.printPortrait}
+                        onPrint={onPrint}
+                        disabled={isBusy}
+                    />
                     <Menu label={t.dashboard.exportData} icon={FileText} items={exportItems} disabled={isBusy} />
                 </>
             }

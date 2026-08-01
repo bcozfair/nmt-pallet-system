@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { getPageOrientation, printableWidthPx } from '../usePageOrientation';
 
 // Recharts does not lay out for paper on its own.
 //
@@ -14,11 +15,20 @@ import { useEffect, useRef } from 'react';
 // why this is a width pin and not a CSS `transform: scale()` -- scaling would
 // shrink the axis labels along with the plot.
 //
-// PRINT_WIDTH_PX is A4 landscape minus the 12mm margins declared in index.css
-// (297mm - 24mm = 273mm), converted at the CSS reference of 96dpi. Keeping the
-// two in step matters: a pin wider than the printable area silently clips the
-// right-hand column of every grid.
-const PRINT_WIDTH_PX = Math.round((297 - 24) / 25.4 * 96); // ~1032
+// The pin width FOLLOWS THE CHOSEN ORIENTATION. It used to be the landscape
+// number, ~1032px, baked in as a constant -- which was correct for as long as
+// landscape was the only thing this app could print.
+//
+// The moment the header offered "print in portrait", that constant became a bug
+// with no symptom on screen: A4 portrait has 703px of printable width, so every
+// chart was laid out 329px wider than the paper and the right-hand edge of every
+// grid was cut off. Nothing warns about it -- the preview simply shows a chart
+// running off the sheet.
+//
+// printableWidthPx and the `@page` rule are computed from the same margin
+// constant (hooks/usePageOrientation.ts), which is what keeps them in step.
+// getPageOrientation() is read at pin time, not at mount: the reader picks the
+// orientation from a menu after this hook has already run.
 
 interface PrintLayoutOptions {
     /** Skip the pin, e.g. while the dashboard is still showing skeletons. */
@@ -53,7 +63,7 @@ export const usePrintLayout = <T extends HTMLElement = HTMLDivElement>(
                 width: el.style.width,
                 maxWidth: el.style.maxWidth,
             };
-            el.style.width = `${PRINT_WIDTH_PX}px`;
+            el.style.width = `${printableWidthPx(getPageOrientation())}px`;
             // The shell caps content at max-w-7xl (1280px). That cap is below
             // the pin at some widths and above it at others, so it is cleared
             // rather than fought with -- otherwise the pin would apply on a

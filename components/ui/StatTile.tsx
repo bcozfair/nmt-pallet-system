@@ -79,7 +79,12 @@ export interface StatTileProps {
 // have less content than it, which is exactly the ones that were too tall.
 const STAT_TILE_LAYOUT = 'flex min-h-[4.5rem] w-full flex-col p-3.5 text-left';
 
-export const STAT_TILE_BOX = `${CARD_SHELL} ${STAT_TILE_LAYOUT}`;
+// `print-avoid-break` for the same reason Card.tsx carries it, and separately
+// from it: a tile is built on the CARD_SHELL string rather than on the <Card>
+// component, so it does not inherit that line. A tile is a label above a figure
+// -- the one shape on the page where a break is guaranteed to be nonsense,
+// because half of it is a number with no caption.
+export const STAT_TILE_BOX = `${CARD_SHELL} print-avoid-break ${STAT_TILE_LAYOUT}`;
 
 // The two surfaces a clickable tile can wear. Full sets of the same three
 // properties (border colour, fill, hover border colour), picked between by ONE

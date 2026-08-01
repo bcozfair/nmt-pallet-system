@@ -60,6 +60,12 @@ export const th: Dictionary = {
         required: 'จำเป็นต้องกรอก',
         popupBlocked: 'เบราว์เซอร์บล็อกป๊อปอัป กรุณาอนุญาตป๊อปอัปสำหรับเว็บไซต์นี้เพื่อสั่งพิมพ์',
 
+        // --- Printing ---
+        printReport: 'พิมพ์รายงาน',
+        printLandscape: 'พิมพ์ (แนวนอน)',
+        printPortrait: 'พิมพ์ (แนวตั้ง)',
+        printFilters: 'ตัวกรองที่ใช้:',
+
         actions: 'จัดการ',
         all: 'ทั้งหมด',
         status: 'สถานะ',
@@ -94,6 +100,11 @@ export const th: Dictionary = {
             evidenceFile: 'ไฟล์หลักฐาน',
             date: 'วันที่',
             time: 'เวลา',
+            timeAdded: 'เวลาที่เพิ่มเข้าระบบ',
+            lastActivityTime: 'เวลาที่ทำรายการล่าสุด',
+            lastCheckoutDate: 'วันที่เบิกออกล่าสุด',
+            lastCheckoutTime: 'เวลาที่เบิกออกล่าสุด',
+            evidenceLink: 'ลิงก์ไฟล์หลักฐาน',
             actionType: 'ประเภทรายการ',
             performedBy: 'ผู้ทำรายการ',
             locationDest: 'สถานที่/ปลายทาง',

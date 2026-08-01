@@ -2,7 +2,8 @@
 import { fetchPallets } from '../services/palletService';
 import { fetchUsers } from '../services/userService';
 import { fetchTransactions } from '../services/transactionService';
-import { ActionType } from '../types';
+import { CSV_EVIDENCE_URL_TTL_SECONDS, getEvidenceSignedUrlMap } from '../services/storageService';
+import { ActionType, Pallet } from '../types';
 import { formatDate, formatDateTime, formatDuration, palletStatusLabel } from '../components/admin/common/AdminHelpers';
 import { toast } from '../services/toast';
 import { dict, getLang } from '../services/i18n';
@@ -42,6 +43,28 @@ const ALL_ACTIONS: ActionType[] = ['check_out', 'check_in', 'report_damage', 're
 // history and the dashboard summary -- get it, and so no two of them can render
 // the same name differently.
 const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
+
+/** Two digits, for hours and minutes. Also used by the dashboard summary below. */
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+
+/**
+ * Splits a stored `timestamptz` into the two cells the inventory export writes.
+ *
+ * The date half goes through formatDate so it reads the same as every other
+ * date on screen and in the other two exports (DD-MMM-YYYY, en-GB, see the note
+ * in AdminHelpers). The time half is `HH:mm`, byte for byte the form
+ * exportHistoryCSV already writes -- an operator cross-referencing the two files
+ * should not have to notice a format change between them.
+ *
+ * Both halves are the app's '-' empty marker when there is no timestamp, so a
+ * pallet that has never moved reads as absent rather than as midnight.
+ */
+const splitDateTime = (value: string | Date | null | undefined): [string, string] => {
+    if (!value) return ['-', '-'];
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return ['-', '-'];
+    return [formatDate(d), `${pad2(d.getHours())}:${pad2(d.getMinutes())}`];
+};
 
 const escapeCell = (cell: string | number | null | undefined): string => {
     const raw = (cell ?? '').toString();
@@ -86,7 +109,33 @@ export const generateCSV = (headers: string[], rows: (string | number)[][], file
     }
 };
 
-export const exportInventoryCSV = async () => {
+/**
+ * The current state of the fleet, one row per pallet.
+ *
+ * ---------------------------------------------------------------------------
+ * THIS IS THE ONLY INVENTORY EXPORT. There used to be a second one --
+ * `handleExportFiltered` in hooks/inventory/useInventoryActions.ts -- built by
+ * hand for the inventory screen's "Export List" button, because that screen
+ * wanted the filtered rows and this function fetched the whole table. Everything
+ * else about the two was meant to be the same, and nothing about them was:
+ *
+ *   * It assembled a `data:text/csv;charset=utf-8,...` URI. Excel on Windows
+ *     ignores the charset in a data: URI and decodes the bytes with the system
+ *     ANSI codepage, so every Thai column heading and every Thai location name
+ *     arrived as mojibake. That is the bug the committee saw. generateCSV
+ *     writes a Blob with the UTF-8 BOM, which is the thing that makes Excel read
+ *     it as UTF-8.
+ *   * It quoted cells as `"${cell}"` with no escaping, so a remark containing a
+ *     double quote broke the row into the wrong number of columns.
+ *   * It had no formula-injection guard, which escapeCell above exists for.
+ *
+ * Those three are not bugs to fix twice. `pallets` is the whole difference:
+ *
+ *   omitted -- fetch every pallet (the dashboard's Export Inventory CSV)
+ *   passed  -- write exactly these rows (the inventory screen, already filtered)
+ * ---------------------------------------------------------------------------
+ */
+export const exportInventoryCSV = async (pallets?: Pallet[]) => {
 
     // dict() throughout: this module is called from event handlers, not rendered.
     const t = dict();
@@ -95,8 +144,12 @@ export const exportInventoryCSV = async () => {
         toast.info(t.csv.preparingInventory);
 
         // 1. Fetch all necessary data
-        const [pallets, users, transactions] = await Promise.all([
-            fetchPallets(),
+        const [palletRows, users, transactions] = await Promise.all([
+            // A caller that already has the rows on screen hands them over
+            // rather than re-fetching -- and, more importantly, so that the file
+            // matches what the operator is looking at. Re-fetching here would
+            // silently widen a filtered export back to the whole fleet.
+            pallets ? Promise.resolve(pallets) : fetchPallets(),
             fetchUsers(),
             // Pages rather than stopping at PostgREST's 1000-row ceiling. It has
             // to: the reduce below keeps only the first row it sees per pallet,
@@ -120,21 +173,48 @@ export const exportInventoryCSV = async () => {
             }
         });
 
-        // 3. Define Columns
+        // 3. Sign the evidence images.
+        //
+        // The column used to hold the raw `evidence_image_url` field, which is a
+        // storage object name -- the damage_reports bucket is private, so that
+        // string opens nothing for anybody. These are signed URLs instead, valid
+        // for a week (see CSV_EVIDENCE_URL_TTL_SECONDS), so the cell is a link a
+        // reader can actually click.
+        //
+        // Signing is one round-trip PER OBJECT, so this is the slow step of the
+        // export. getEvidenceSignedUrlMap drops empty and `image_deleted` values
+        // before it signs anything, which is what keeps a 500-pallet fleet with
+        // 12 damage photos at 12 requests rather than 500. The
+        // "preparing report" toast above is already on screen while it runs.
+        const evidenceUrls = await getEvidenceSignedUrlMap(
+            palletRows.map((p) => latestTxMap[p.pallet_id]?.evidence_image_url),
+            CSV_EVIDENCE_URL_TTL_SECONDS,
+        );
+
+        // 4. Define Columns
+        //
+        // Ordered as the reader walks a pallet's life: what it is, where it is,
+        // when it arrived, when it last moved, who moved it, when it went out,
+        // how late it is, and the photo. Each of the three timestamps is a date
+        // cell followed by its time cell -- see splitDateTime.
         const h = t.csv.header;
         const headers = [
             h.palletId,
             h.status,
             h.currentLocation,
-            h.responsiblePerson,
-            h.lastAction,
-            h.lastActivityDate,
-            h.daysOverdue,
             h.dateAdded,
-            h.evidenceFile      // storage object name; bucket is private
+            h.timeAdded,
+            h.lastActivityDate,
+            h.lastActivityTime,
+            h.lastAction,
+            h.responsiblePerson,
+            h.lastCheckoutDate,
+            h.lastCheckoutTime,
+            h.daysOverdue,
+            h.evidenceLink
         ];
 
-        const rows = pallets.map(p => {
+        const rows = palletRows.map(p => {
             const tx = latestTxMap[p.pallet_id];
             const responsiblePerson = tx ? (userMap[tx.user_id] || tx.user_id) : '-';
 
@@ -144,37 +224,54 @@ export const exportInventoryCSV = async () => {
                 overdue = Math.floor((new Date().getTime() - new Date(p.last_checkout_date).getTime()) / (1000 * 3600 * 24));
             }
 
-            // Format Dates
-            const lastActivity = p.last_transaction_date ? formatDateTime(p.last_transaction_date) :
-                (tx ? formatDateTime(tx.timestamp) : '-');
+            const [addedDate, addedTime] = splitDateTime(p.created_at);
+            // The pallet row's own field first, the latest transaction as the
+            // fallback -- the same precedence the column had when it was one
+            // combined cell.
+            const [activityDate, activityTime] = splitDateTime(p.last_transaction_date ?? tx?.timestamp);
+            const [checkoutDate, checkoutTime] = splitDateTime(p.last_checkout_date);
 
-            const created = p.created_at ? formatDate(p.created_at) : '-';
-            const evidence = tx?.evidence_image_url && tx.evidence_image_url !== 'image_deleted' ? tx.evidence_image_url : '';
+            // Empty rather than '-' when there is no photo: '-' in a column of
+            // https:// links reads as a broken link, and an empty cell is what a
+            // spreadsheet's filters treat as "no value".
+            const evidence = tx?.evidence_image_url
+                ? (evidenceUrls[tx.evidence_image_url] ?? '')
+                : '';
 
             return [
                 p.pallet_id,
                 palletStatusLabel(p.status),
                 p.current_location,
-                responsiblePerson,
+                addedDate,
+                addedTime,
+                activityDate,
+                activityTime,
                 // Was tx.action_type -- the raw enum ("report_damage") in a column
                 // headed "Last Action". Same table the history export uses below.
                 tx ? (t.action[tx.action_type] ?? tx.action_type) : '-',
-                lastActivity,
+                responsiblePerson,
+                checkoutDate,
+                checkoutTime,
                 overdue > 0 ? overdue.toString() : '0',
-                created,
+                // Straight through escapeCell with no special handling: a signed
+                // URL starts with 'h', which does not match FORMULA_TRIGGER, so
+                // it is never prefixed with the apostrophe that would stop Excel
+                // recognising it as a link. This is exactly why the column holds
+                // a bare URL and not `=HYPERLINK(...)` -- that would have needed
+                // a hole punched in the formula-injection guard.
                 evidence
             ];
         });
 
 
         const d = new Date();
-        const filenameDate = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+        const filenameDate = `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
         const filename = `nmt_current_inventory_${filenameDate}.csv`;
 
         generateCSV(headers, rows, filename);
 
 
-        toast.success(t.csv.inventoryDone(pallets.length));
+        toast.success(t.csv.inventoryDone(palletRows.length));
     } catch (e: any) {
         console.error(e);
         toast.error(t.csv.exportFailed(describeAppError(e)));
@@ -306,8 +403,6 @@ export const exportHistoryCSV = async () => {
 // RFC-4180 and covers the commas, quotes and newlines that free-text department
 // names, staff names and locations can contain. Nothing is pre-escaped here.
 // ===========================================================================
-
-const pad2 = (n: number): string => String(n).padStart(2, '0');
 
 /** The four presets, mapped onto their labels in the analytics dictionary. */
 const RANGE_LABEL_KEY: Record<DashboardRange, 'd7' | 'd30' | 'd90' | 'm12'> = {

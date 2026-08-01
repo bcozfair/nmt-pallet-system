@@ -20,6 +20,10 @@ export const transactionsEn = {
     subtitle: 'View full history of check-ins, check-outs, and repairs.',
     cleanup: 'Cleanup Data',
     exportCsv: 'Export CSV',
+    // Heads the printed sheet (components/ui/PrintReportHeader.tsx). Its own key
+    // rather than reusing `title` above: that one names a screen you manage
+    // things on, this one names a document somebody is holding.
+    reportTitle: 'Transaction History Report',
 
     // --- Filters ---
     searchPlaceholder: 'Search by Pallet ID, Notes...',
@@ -94,6 +98,7 @@ export const transactionsTh: TransactionsDict = {
     subtitle: 'ดูประวัติการเบิกออก รับคืน และการซ่อมทั้งหมด',
     cleanup: 'ล้างข้อมูลเก่า',
     exportCsv: 'ส่งออก CSV',
+    reportTitle: 'รายงานประวัติการทำรายการ',
 
     searchPlaceholder: 'ค้นหาด้วยรหัสพาเลท หรือหมายเหตุ...',
     allUsers: 'ผู้ใช้งานทั้งหมด',

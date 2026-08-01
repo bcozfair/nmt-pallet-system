@@ -21,7 +21,17 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     clearLabel,
     isFiltered = false,
 }) => (
-    <div className="flex flex-col gap-2">
+    // print:hidden on the primitive, not on each screen's filter component. A
+    // filter bar is a control -- search boxes, dropdowns and a "clear filters"
+    // link -- and a control is never content on paper. PageHeader already made
+    // this call for itself; this is the same rule for the row underneath it, and
+    // applying it here covers the inventory, transaction, user and location
+    // screens at once, including any filter bar written after this.
+    //
+    // The conditions themselves are NOT lost: the printable screens name them in
+    // PrintReportHeader, as text, which is what a reader holding the sheet needs
+    // -- an empty dropdown telling them nothing.
+    <div className="flex flex-col gap-2 print:hidden">
         <div className={`${CARD_SHELL} p-3`}>
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">{children}</div>
         </div>

@@ -113,8 +113,21 @@ export const Card: React.FC<CardProps> = ({
     // tone swaps the whole surface string instead of layering a second one on
     // top of it. CARD_SHELL stays exported unchanged for the skeletons, which
     // only ever stand in for a default card.
+    // `print-avoid-break` on every card, unconditionally. The rule behind it
+    // (index.css, @media print) is `break-inside: avoid`, and it was being
+    // applied one level up -- on each <section> of the dashboard -- where it
+    // could not work at all: a browser DROPS `break-inside: avoid` on a box that
+    // is taller than one page and then breaks wherever it likes. A section
+    // holding five charts is several A4 pages tall, so the rule had never once
+    // taken effect, and a KPI tile or a plot cut in half mid-axis was the result.
+    //
+    // A card is the largest box that genuinely fits on a sheet, which makes this
+    // the right altitude for the rule and not merely a closer one. Putting it on
+    // the primitive rather than at the call sites also means every card in the
+    // app -- dashboard, inventory, settings, the tables' shells -- is covered by
+    // this one line, including cards written after this was added.
     <Tag
-        className={`${CARD_SHELL_SHAPE} ${TONE_SURFACE[tone]} ${accent ? 'overflow-hidden' : ''} ${className}`}
+        className={`${CARD_SHELL_SHAPE} ${TONE_SURFACE[tone]} print-avoid-break ${accent ? 'overflow-hidden' : ''} ${className}`}
     >
         {accent && <BrandHairline busy={busy} />}
         {children}

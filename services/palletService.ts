@@ -35,19 +35,71 @@ export const subscribeToPallets = (onUpdate: () => void) => {
         });
 };
 
-export const createPallet = async (palletId: string, location: string): Promise<void> => {
-    const newPallet: Pallet = {
+// Postgres reports a unique violation as 23505 and names the offending value in
+// `details`, e.g. `Key (pallet_id)=(P024) already exists.` Pulling the id back
+// out is what lets the message say WHICH one clashed -- with a batch of twenty
+// that is the difference between a usable error and "something already exists".
+const DUPLICATE_KEY_CODE = '23505';
+const DUPLICATE_VALUE = /\(pallet_id\)=\(([^)]+)\)/;
+
+/**
+ * Turns a raw PostgrestError from an insert into the app's own error type.
+ *
+ * This wrapping exists here, at the service boundary, because that is where the
+ * Postgres error code is still visible and where every other write in this file
+ * already does it (see updatePallet). It used to be missing: `createPallet`
+ * threw the driver's error object straight through, so AddPalletModal had to
+ * test `error.code === '23505'` itself while EditPalletModal -- the same
+ * situation, the same message -- got a translated one from updatePallet. Two
+ * dialogs saying different things about the same clash, and a twelve-line
+ * comment in InventoryModals.tsx explaining the discrepancy instead of fixing it.
+ */
+const asPalletWriteError = (error: { code?: string; details?: string | null }, ids: string[]) => {
+    if (error.code !== DUPLICATE_KEY_CODE) return error;
+
+    // The id from the driver's `details` when it is there, otherwise the first
+    // of the batch -- for a single insert those are the same thing anyway.
+    const named = error.details ? DUPLICATE_VALUE.exec(error.details)?.[1] : undefined;
+    return new AppError('pallet_exists', { palletId: named ?? ids[0] });
+};
+
+/**
+ * Creates one or more pallets in a single statement.
+ *
+ * ALL OR NOTHING, and that is the reason for one `insert` with an array rather
+ * than a loop. Postgres treats a multi-row INSERT as one statement, so a unique
+ * violation on any row rolls the whole thing back on the server -- no partial
+ * batch, no compensating deletes to write here, nothing to get wrong if this
+ * function is interrupted.
+ *
+ * It matters because of what a partial batch would mean: two admins adding
+ * pallets at the same time both see P024 as next, and the second one to press
+ * Create must get nothing at all. Twenty rows where three landed and seventeen
+ * did not would leave the sequence in a state neither of them could reason
+ * about, and the fix would be to work out which stickers had already been
+ * printed.
+ */
+export const createPallets = async (palletIds: string[], location: string): Promise<void> => {
+    if (palletIds.length === 0) return;
+
+    const now = new Date().toISOString();
+    const rows: Pallet[] = palletIds.map((palletId) => ({
         pallet_id: palletId,
         status: 'available',
         current_location: location,
         last_checkout_date: null,
-        created_at: new Date().toISOString()
-    };
+        created_at: now
+    }));
 
-    // Try to insert, if conflict (duplicate ID) throw error
-    const { error } = await supabase.from('pallets').insert(newPallet);
-    if (error) throw error;
+    const { error } = await supabase.from('pallets').insert(rows);
+    if (error) throw asPalletWriteError(error, palletIds);
 };
+
+// A one-row batch, not a second insert path. Two insert statements for the same
+// table is two places to keep the column list, the defaults and the error
+// wrapping in step.
+export const createPallet = async (palletId: string, location: string): Promise<void> =>
+    createPallets([palletId], location);
 
 export const updatePallet = async (currentId: string, updates: { pallet_id?: string, pallet_remark?: string }) => {
     // 1. If Pallet ID is NOT changing, just update the fields

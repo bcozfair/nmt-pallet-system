@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Pallet } from '../../../types';
-import { ConfirmDialog, StickyHeader } from '../../ui';
+import { ConfirmDialog, PrintReportHeader, StickyHeader } from '../../ui';
 import { toast } from '../../../services/toast';
 import { describeAppError } from '../../../services/appError';
+import { exportInventoryCSV } from '../../../utils/exportHelpers';
 import { useT } from '../../../hooks/useT';
 
 // Sub-components
@@ -19,6 +20,10 @@ import { BulkTransactionModal } from './BulkTransactionModal';
 import { useInventoryFilters } from '../../../hooks/inventory/useInventoryFilters';
 import { useInventorySelection } from '../../../hooks/inventory/useInventorySelection';
 import { useInventoryActions } from '../../../hooks/inventory/useInventoryActions';
+import { useInventoryEvidence } from '../../../hooks/inventory/useInventoryEvidence';
+import { usePageOrientation } from '../../../hooks/usePageOrientation';
+import type { PageOrientation } from '../../../hooks/usePageOrientation';
+import { formatDateTime } from '../common/AdminHelpers';
 
 export const InventoryView = ({
     pallets,
@@ -82,9 +87,52 @@ export const InventoryView = ({
         handleScrapRow,
         handleBulkScrap,
         handleConfirmBulkTransaction,
-        handleSavePalletEdit,
-        handleExportFiltered
+        handleSavePalletEdit
     } = useInventoryActions(onRefresh, setSelectedIds);
+
+    // 4. Printing
+    const { evidenceUrls, loadEvidence } = useInventoryEvidence();
+    const { printWithOrientation } = usePageOrientation();
+
+    // Signs the damage photos first, then prints. The await is the whole point:
+    // the evidence column exists on paper only, and a synchronous window.print()
+    // would go out before a single URL came back. See useInventoryEvidence for
+    // why this is not loaded when the screen opens.
+    const handlePrintReport = useCallback(
+        async (orientation: PageOrientation) => {
+            await loadEvidence(processedPallets);
+            // One frame so React commits the <img> tags the load above just made
+            // renderable. Without it the print snapshot is taken from the DOM as
+            // it was before the state update.
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+            await printWithOrientation(orientation);
+        },
+        [loadEvidence, processedPallets, printWithOrientation],
+    );
+
+    // What the printed sheet says the rows were filtered by. Assembled here
+    // because this is the component that holds every filter's value; the
+    // PrintReportHeader primitive only lays out whatever phrases it is handed.
+    //
+    // Built by pushing, not by mapping-then-filtering, so a filter at its default
+    // contributes nothing at all rather than an empty phrase.
+    const printFilters: string[] = [];
+    if (searchTerm) printFilters.push(`${t.inventory.searchPallet}: ${searchTerm}`);
+    if (statusFilter !== 'all') {
+        // 'overdue' is the strip's fifth tile and is not a PalletStatus, so it
+        // has no entry in `t.status` -- it reads from the inventory dictionary
+        // like the tile it came from.
+        const label = statusFilter === 'overdue'
+            ? t.inventory.overdue
+            : (t.status[statusFilter as keyof typeof t.status] ?? statusFilter);
+        printFilters.push(`${t.common.status}: ${label}`);
+    }
+    // Location names are data an admin typed on the locations screen, so they
+    // print verbatim -- the same rule InventoryFilters follows on screen.
+    if (locationFilter !== 'all') printFilters.push(`${t.common.location}: ${locationFilter}`);
+    if (dateRange.start || dateRange.end) {
+        printFilters.push(`${t.common.date}: ${dateRange.start || '…'} – ${dateRange.end || '…'}`);
+    }
 
     // Render Helpers
     const onPrintQrSelected = () => onPrintQr(processedPallets.filter(p => selectedIds.has(p.pallet_id)));
@@ -145,10 +193,29 @@ export const InventoryView = ({
                 The inner gap-4 is this page's own rhythm, repeated here because
                 these three are no longer direct children of the column that
                 sets it. */}
+            {/* Paper only, and the first thing on the sheet: PageHeader above is
+                print:hidden because it is a control strip, so without this the
+                report would start with an unlabelled table. `printFilters` is
+                what stops a filtered view being read as the whole fleet. */}
+            <PrintReportHeader
+                title={t.inventory.reportTitle}
+                generatedOn={t.dashboard.reportGeneratedOn(formatDateTime(new Date()))}
+                filters={
+                    printFilters.length > 0
+                        ? [`${t.common.printFilters} ${printFilters.join(' · ')}`]
+                        : undefined
+                }
+            />
+
             <StickyHeader className="flex flex-col gap-4">
                 <InventoryHeader
+                    onPrintReport={handlePrintReport}
                     onPrintQrAll={onPrintQrAll}
-                    onExport={() => handleExportFiltered(processedPallets)}
+                    // The rows that passed the filters, not the whole table:
+                    // the file has to be what is on screen. exportInventoryCSV
+                    // fetches everything itself when it is handed nothing, which
+                    // is how the dashboard's copy of this button behaves.
+                    onExport={() => void exportInventoryCSV(processedPallets)}
                     onAddPallet={() => setIsAddModalOpen(true)}
                 />
 
@@ -179,6 +246,8 @@ export const InventoryView = ({
 
             <InventoryTable
                 paginatedPallets={paginatedPallets}
+                processedPallets={processedPallets}
+                evidenceUrls={evidenceUrls}
                 totalProcessedCount={processedPallets.length}
                 selectedIds={selectedIds}
                 onSelectAll={handleSelectAll}

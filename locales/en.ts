@@ -68,6 +68,17 @@ export const en = {
         required: 'Required',
         popupBlocked: 'Popups are blocked. Please allow popups for this site to print.',
 
+        // --- Printing -------------------------------------------------------
+        // Shared by all three printable screens (dashboard, inventory,
+        // transactions), which is why they sit in `common` rather than under one
+        // feature area. The orientation pair is a menu under `printReport`.
+        printReport: 'Print Report',
+        printLandscape: 'Print (Landscape)',
+        printPortrait: 'Print (Portrait)',
+        // Prefixes the filter conditions on the printed sheet, so a filtered
+        // report cannot be mistaken for the whole data set.
+        printFilters: 'Filters:',
+
         // Recurring labels and table headers
         actions: 'Actions',
         all: 'All',
@@ -105,6 +116,22 @@ export const en = {
             evidenceFile: 'Evidence File',
             date: 'Date',
             time: 'Time',
+            // The time halves of the three date columns above.
+            //
+            // Separate columns rather than one "21-Jul-2026 14:30" cell: a
+            // spreadsheet reads a combined value as text, so it sorts
+            // alphabetically and cannot be filtered by hour. Split, the date
+            // column stays sortable and the time column answers "which shift
+            // recorded this" -- which is what the committee asked for. The
+            // database has held the time all along; only the export dropped it.
+            timeAdded: 'Time Added',
+            lastActivityTime: 'Last Activity Time',
+            lastCheckoutDate: 'Last Checkout Date',
+            lastCheckoutTime: 'Last Checkout Time',
+            // Not `evidenceFile`: that column held a bare storage object name,
+            // which nobody outside this codebase can turn into a picture. This
+            // one holds a signed URL that opens the image in a browser.
+            evidenceLink: 'Evidence Link',
             actionType: 'Action Type',
             performedBy: 'Performed By',
             locationDest: 'Location/Destination',
