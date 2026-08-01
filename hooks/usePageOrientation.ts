@@ -45,9 +45,9 @@ const STYLE_ELEMENT_ID = 'nmt-page-orientation';
 // Module-level, not React state, and deliberately so: `@page` is a property of
 // THE DOCUMENT. There is exactly one printed sheet size at a time no matter how
 // many components are mounted, so a per-component copy of this value could only
-// ever be a way for two of them to disagree. The report preview reads it through
-// getPageOrientation() below so it can put back whatever the document was on
-// before it forced portrait -- see report/ReportPreview.tsx.
+// ever be a way for two of them to disagree. The report print hook reads it
+// through getPageOrientation() below so it can put back whatever the document was
+// on before it forced portrait -- see report/useReportPrint.ts.
 //
 // The default matches the `@page` rule index.css ships, so a reader who hits
 // Ctrl+P without going through a button gets what that rule promises.
