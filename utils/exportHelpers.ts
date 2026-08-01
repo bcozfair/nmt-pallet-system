@@ -3,8 +3,11 @@ import { fetchPallets } from '../services/palletService';
 import { fetchUsers } from '../services/userService';
 import { fetchTransactions } from '../services/transactionService';
 import { CSV_EVIDENCE_URL_TTL_SECONDS, getEvidenceSignedUrlMap } from '../services/storageService';
-import { ActionType, Pallet } from '../types';
-import { formatDate, formatDateTime, formatDuration, palletStatusLabel } from '../components/admin/common/AdminHelpers';
+import { ActionType, Pallet, Transaction } from '../types';
+// formatDate/formatDateTime from AdminHelpers are deliberately NOT imported.
+// They are the SCREEN's formats -- `21-Jul-2026`, and '-' for a missing value --
+// and neither belongs in a data file. See formatCsvDate and CSV_EMPTY below.
+import { formatDuration, palletStatusLabel } from '../components/admin/common/AdminHelpers';
 import { toast } from '../services/toast';
 import { dict, getLang } from '../services/i18n';
 import { describeAppError } from '../services/appError';
@@ -72,24 +75,58 @@ const pad2 = (n: number): string => String(n).padStart(2, '0');
 const CSV_EMPTY = '';
 
 /**
- * Splits a stored `timestamptz` into the two cells the inventory export writes.
+ * THE date format for every file this module writes: `dd/mm/yyyy`.
  *
- * The date half goes through formatDate so it reads the same as every other
- * date on screen and in the other two exports (DD-MMM-YYYY, en-GB, see the note
- * in AdminHelpers). The time half is `HH:mm`, byte for byte the form
- * exportHistoryCSV already writes -- an operator cross-referencing the two files
- * should not have to notice a format change between them.
+ * ---------------------------------------------------------------------------
+ * WHY NOT formatDate() FROM AdminHelpers
+ *
+ * That one produces `21-Jul-2026`, and it is right for the screen: a month
+ * spelled out cannot be read the wrong way round, which matters in a UI used by
+ * people who write dates both ways.
+ *
+ * A spreadsheet cell is not a label, it is a value. `21-Jul-2026` arrives in
+ * Excel as TEXT -- it sorts alphabetically (Apr before Jan), it cannot be
+ * filtered by month, and a date subtraction over the column produces an error.
+ * `21/07/2026` is parsed as a real date, so the column sorts, filters and
+ * calculates.
+ *
+ * It also settles a discrepancy between the two exports. The inventory file used
+ * `21-Jul-2026` and the history file used `21/07/2026` -- the same warehouse's
+ * data in two shapes, so a lookup across the pair had to be reformatted by hand
+ * first. One function, called by everything here, is what stops that recurring.
+ * ---------------------------------------------------------------------------
+ */
+const formatCsvDate = (d: Date): string =>
+    `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+
+/** `HH:mm`, browser-local -- this is a UTC+7 warehouse and the shift times matter. */
+const formatCsvTime = (d: Date): string => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+/** For the few summary cells that are one combined stamp rather than two columns. */
+const formatCsvDateTime = (value: string | Date): string => {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return CSV_EMPTY;
+    return `${formatCsvDate(d)} ${formatCsvTime(d)}`;
+};
+
+/**
+ * Splits a stored `timestamptz` into a date cell and a time cell.
+ *
+ * Two columns, not one combined stamp: a combined value is text to a
+ * spreadsheet, so it sorts alphabetically and cannot be filtered by hour. Split,
+ * the date column stays a real date and the time column answers "which shift
+ * recorded this".
  *
  * Both halves are empty when there is no timestamp -- see CSV_EMPTY. What
  * matters is that they are empty rather than midnight: `new Date(null)` is the
  * epoch, so without this guard a pallet that has never been checked out would
- * report a checkout on 01-Jan-1970 at 07:00.
+ * report a checkout on 01/01/1970 at 07:00.
  */
 const splitDateTime = (value: string | Date | null | undefined): [string, string] => {
     if (!value) return [CSV_EMPTY, CSV_EMPTY];
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return [CSV_EMPTY, CSV_EMPTY];
-    return [formatDate(d), `${pad2(d.getHours())}:${pad2(d.getMinutes())}`];
+    return [formatCsvDate(d), formatCsvTime(d)];
 };
 
 const escapeCell = (cell: string | number | null | undefined): string => {
@@ -307,29 +344,69 @@ export const exportInventoryCSV = async (pallets?: Pallet[]) => {
     }
 };
 
-export const exportHistoryCSV = async () => {
+/**
+ * The transaction history, one row per movement.
+ *
+ * ---------------------------------------------------------------------------
+ * THIS IS THE ONLY TRANSACTION EXPORT. The transactions screen used to build its
+ * own -- `handleExport` in TransactionView.tsx -- for exactly the reason the
+ * inventory screen did: it wanted the filtered rows and this function fetched
+ * the whole table. Same shape of duplication, same consequences:
+ *
+ *   * Its Evidence column held `tx.evidence_image_url`, a storage object name.
+ *     The damage_reports bucket is private, so that string opens nothing for
+ *     anyone -- it looked like data and was a dead end. Signed URLs below.
+ *   * It stamped one combined `21-Jul-2026 14:30` cell where this one wrote a
+ *     dd/mm/yyyy date and an HH:mm time in two columns. Two files of the same
+ *     data, two date formats.
+ *   * Its filename was `transactions_export_YYYY-MM-DD.csv` against this one's
+ *     `nmt_transaction_history_DD-MM-YYYY.csv`, so a downloads folder held two
+ *     unrelated-looking files that were the same report.
+ *
+ * The one thing it had that this did not -- the Remark column -- was kept, not
+ * dropped. `transactions` is now the whole difference:
+ *
+ *   omitted -- fetch the entire history (the dashboard's Export History CSV)
+ *   passed  -- write exactly these rows (the transactions screen, filtered)
+ * ---------------------------------------------------------------------------
+ */
+export const exportHistoryCSV = async (transactions?: Transaction[]) => {
     const t = dict();
 
     try {
         toast.info(t.csv.preparingHistory);
         // 1. Fetch data in parallel
-        const [users, transactions] = await Promise.all([
+        const [users, txRows] = await Promise.all([
             fetchUsers(),
-            // Same call as before in intent -- the whole history, no filter --
-            // except it now pages instead of stopping at row 1000. An export
-            // labelled "full history" that quietly held back everything past
-            // the first thousand rows was the worst place for this bug to hide,
-            // because the file looks complete once it is open in Excel.
+            // A caller that already has the rows on screen hands them over, so
+            // the file matches what the operator is looking at. Re-fetching here
+            // would silently widen a filtered export to the whole history.
+            //
+            // Without them: the whole history, no filter -- paging rather than
+            // stopping at row 1000. An export labelled "full history" that
+            // quietly held back everything past the first thousand rows was the
+            // worst place for that bug to hide, because the file looks complete
+            // once it is open in Excel.
             //
             // 'desc' is explicit only to keep the newest-first row order this
             // file has always produced; the rows go into the CSV in fetch order.
-            fetchTransactions({ order: 'desc' })
+            transactions ? Promise.resolve(transactions) : fetchTransactions({ order: 'desc' })
         ]);
 
         // 2. Create User Map
         const userMap = users.reduce((acc, u) => ({ ...acc, [u.id]: u.full_name }), {} as Record<string, string>);
 
-        // 3. Build CSV Lines
+        // 3. Sign the evidence images -- one round-trip per surviving photo, and
+        // none at all for rows with no evidence or a deleted one, which
+        // getEvidenceSignedUrlMap filters before it signs. Seven days, the same
+        // lifetime the inventory export uses, so the two files' links expire
+        // together rather than one of them dying first for no visible reason.
+        const evidenceUrls = await getEvidenceSignedUrlMap(
+            txRows.map((tx) => tx.evidence_image_url),
+            CSV_EVIDENCE_URL_TTL_SECONDS,
+        );
+
+        // 4. Build CSV Lines
         const h = t.csv.header;
         const headers = [
             h.date,
@@ -338,20 +415,26 @@ export const exportHistoryCSV = async () => {
             h.actionType,
             h.performedBy,
             h.locationDest,
-            h.evidenceFile
+            // Carried over from the transactions screen's own export, which is
+            // the only place it existed. Dropping a column while merging two
+            // exports would be a capability lost in a refactor, not a decision.
+            t.common.remark,
+            // Was `evidenceFile`, holding a storage object name nobody could
+            // open. Now a signed URL, same as the inventory export.
+            h.evidenceLink
         ];
 
-        const rows = transactions.map(tx => {
-            const dateObj = new Date(tx.timestamp);
-            const dateStr = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
-            const timeStr = `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+        const rows = txRows.map(tx => {
+            const [dateStr, timeStr] = splitDateTime(tx.timestamp);
 
             const userName = userMap[tx.user_id] || `${t.common.user}: ${tx.user_id}`;
             // This used to be a five-branch ternary duplicating the same labels
             // MobileHistory had its own copy of. Both now read the one table.
             const action = t.action[tx.action_type] ?? tx.action_type;
 
-            const evidence = tx.evidence_image_url && tx.evidence_image_url !== 'image_deleted' ? tx.evidence_image_url : '';
+            const evidence = tx.evidence_image_url
+                ? (evidenceUrls[tx.evidence_image_url] ?? CSV_EMPTY)
+                : CSV_EMPTY;
 
             return [
                 dateStr,
@@ -359,15 +442,19 @@ export const exportHistoryCSV = async () => {
                 tx.pallet_id,
                 action,
                 userName,
+                // A check-in carries no destination because the destination is
+                // the warehouse. Naming it is more use than an empty cell here,
+                // and it is what this export has always written.
                 tx.department_dest || t.csv.warehouse,
+                tx.transaction_remark || CSV_EMPTY,
                 evidence
             ];
         });
 
 
-        // 4. Generate CSV
+        // 5. Generate CSV
         const d = new Date();
-        const filenameDate = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+        const filenameDate = `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
         const filename = `nmt_transaction_history_${filenameDate}.csv`;
 
         generateCSV(headers, rows, filename);
@@ -494,9 +581,10 @@ export const exportDashboardSummaryCSV = (
     const a = t.dashboard.analytics;
 
     // Durations follow the active language -- a unit is a unit. DATES do not:
-    // formatDate/formatDateTime are locked to en-GB in AdminHelpers.tsx:65 so the
-    // screen, the CSV and the filename all say 2026 rather than the CSV saying
-    // 2026 and a th-TH screen saying พ.ศ. 2569.
+    // formatCsvDate builds the digits by hand, so every file this module writes
+    // says 2026 in both languages rather than a th-TH locale rendering it as
+    // พ.ศ. 2569. A date in a data file is an index into a shared record, not
+    // prose, and it has to match the filename and the database.
     const locale = getLang() === 'th' ? 'th' : 'en-GB';
 
     const { fleet, dwell, damage, staff, heat, aging, trend } = analytics;
@@ -507,7 +595,7 @@ export const exportDashboardSummaryCSV = (
     // --- Preamble ---------------------------------------------------------
     rows.push([t.dashboard.reportTitle]);
     rows.push([a.range.label, a.range[RANGE_LABEL_KEY[range]]]);
-    rows.push([t.dashboard.reportGeneratedOn(formatDateTime(new Date()))]);
+    rows.push([t.dashboard.reportGeneratedOn(formatCsvDateTime(new Date()))]);
     // The caveat that makes the rest of the file readable: the fleet block is
     // counted as of now and is deliberately NOT scoped by the range above, so a
     // reader does not take an unchanged total for a broken filter.
@@ -607,7 +695,7 @@ export const exportDashboardSummaryCSV = (
             // dictionary, and an empty cell is what a spreadsheet filter reads
             // as "not flagged" -- see CSV_EMPTY for why this is not '-'.
             row.scrapped ? a.offenders.isScrapped : CSV_EMPTY,
-            row.lastEventISO ? formatDateTime(row.lastEventISO) : CSV_EMPTY,
+            row.lastEventISO ? formatCsvDateTime(row.lastEventISO) : CSV_EMPTY,
         ]);
     }
     blank();
@@ -645,7 +733,7 @@ export const exportDashboardSummaryCSV = (
             row.byAction.report_damage,
             row.byAction.repair,
             row.byAction.scrap,
-            row.lastActiveISO ? formatDateTime(row.lastActiveISO) : CSV_EMPTY,
+            row.lastActiveISO ? formatCsvDateTime(row.lastActiveISO) : CSV_EMPTY,
         ]);
     }
     blank();

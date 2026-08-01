@@ -76,8 +76,10 @@ export const transactionsEn = {
     // --- Toasts and confirmations ---
     loadFailed: 'Failed to load transaction history.',
     evidenceLoadFailed: 'Could not load the evidence image.',
-    exportDone: (count: number) => `Exported ${count} records.`,
-    exportFailed: 'Export failed.',
+    // `exportDone` and `exportFailed` used to sit here, for the CSV builder this
+    // screen carried in TransactionView. That builder is gone -- the screen calls
+    // exportHistoryCSV now, which reports through `csv.historyDone` and
+    // `csv.exportFailed` like the other two exports do.
     updated: 'Transaction updated successfully',
     updateFailed: 'Failed to update transaction',
     deleteTitle: 'Delete Transaction?',
@@ -135,8 +137,6 @@ export const transactionsTh: TransactionsDict = {
 
     loadFailed: 'โหลดประวัติรายการไม่สำเร็จ',
     evidenceLoadFailed: 'โหลดรูปหลักฐานไม่สำเร็จ',
-    exportDone: (count: number) => `ส่งออก ${count} รายการแล้ว`,
-    exportFailed: 'ส่งออกไม่สำเร็จ',
     updated: 'แก้ไขรายการเรียบร้อยแล้ว',
     updateFailed: 'แก้ไขรายการไม่สำเร็จ',
     deleteTitle: 'ลบรายการนี้?',

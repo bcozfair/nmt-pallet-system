@@ -12,7 +12,7 @@ import { TransactionEditModal } from './TransactionEditModal';
 import { ImageViewerModal } from '../common/ImageViewerModal';
 import { TransactionHeader } from './TransactionHeader';
 import { ConfirmDialog, PrintReportHeader, StickyHeader } from '../../ui';
-import { generateCSV } from '../../../utils/exportHelpers';
+import { exportHistoryCSV } from '../../../utils/exportHelpers';
 import { getEvidenceSignedUrl } from '../../../services/storageService';
 import { useT } from '../../../hooks/useT';
 import { usePageOrientation } from '../../../hooks/usePageOrientation';
@@ -233,48 +233,19 @@ export const TransactionView = () => {
         dateRange.start !== '' || dateRange.end !== '',
     ].filter(Boolean).length;
 
+    // The rows that passed the filters, not the whole table: the file has to be
+    // what is on screen. exportHistoryCSV fetches the entire history itself when
+    // it is handed nothing, which is how the dashboard's copy of this button
+    // behaves.
+    //
+    // This screen used to assemble the CSV here instead. That builder is gone --
+    // exportHelpers.ts's header comment lists what it carried: a storage object
+    // name in the Evidence column that opened nothing, a combined date-time cell
+    // in a different format from the other export's, and a filename that made
+    // the same report look like two. It reported through toasts of its own too,
+    // which is why `transactions.exportDone`/`exportFailed` are gone with it.
     const handleExport = () => {
-        // ... (Export logic, add Notes column)
-        try {
-            const strings = dict();
-            // Column names come from the shared csv.header block, so this export and
-            // the full-history one in utils/exportHelpers.ts head their columns alike.
-            const h = strings.csv.header;
-            const headers = [
-                strings.transactions.colDateTime,
-                h.palletId,
-                h.actionType,
-                strings.common.user,
-                h.locationDest,
-                strings.common.remark,
-                h.evidenceFile
-            ];
-            const rows = processedTransactions.map(tx => [
-                formatDateTime(tx.timestamp),
-                tx.pallet_id,
-                // Was the raw enum ("report_damage") under a heading that reads
-                // "Action". Same table every badge and dropdown on this screen uses.
-                strings.action[tx.action_type] ?? tx.action_type,
-                users[tx.user_id] || tx.user_id,
-                tx.department_dest || '',
-                tx.transaction_remark || '',
-                tx.evidence_image_url || ''
-            ]);
-
-            const d = new Date();
-            const filename = `transactions_export_${d.toISOString().split('T')[0]}.csv`;
-
-            const success = generateCSV(headers, rows, filename);
-
-            if (success) {
-                toast.success(strings.transactions.exportDone(processedTransactions.length));
-            } else {
-                toast.error(strings.transactions.exportFailed);
-            }
-        } catch (e) {
-            console.error(e);
-            toast.error(dict().transactions.exportFailed);
-        }
+        void exportHistoryCSV(processedTransactions);
     };
 
     // --- PRINT ---

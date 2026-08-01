@@ -15,7 +15,7 @@ vi.mock('../services/toast', () => ({
     toast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
 }));
 
-import { exportInventoryCSV, generateCSV } from './exportHelpers';
+import { exportHistoryCSV, exportInventoryCSV, generateCSV } from './exportHelpers';
 import { fetchPallets } from '../services/palletService';
 import { fetchUsers } from '../services/userService';
 import { fetchTransactions } from '../services/transactionService';
@@ -155,14 +155,18 @@ describe('exportInventoryCSV', () => {
         const row = cells(rowLine);
         expect(row).toHaveLength(13);
 
+        // dd/mm/yyyy ไม่ใช่ 15-Jan-2026 ของหน้าจอ -- Excel อ่าน dd/mm/yyyy เป็น
+        // "วันที่" จริง คอลัมน์จึงเรียงและกรองตามเดือนได้ ส่วน 15-Jan-2026 เป็น
+        // ข้อความ เรียงแล้วได้ Apr มาก่อน Jan
+        //
         // วันที่เพิ่ม / เวลาที่เพิ่ม -- 15 ม.ค. 2026 08:00 ตามเวลาเครื่อง
-        expect(row[3]).toBe('15-Jan-2026');
+        expect(row[3]).toBe('15/01/2026');
         expect(row[4]).toBe('08:00');
         // เคลื่อนไหวล่าสุด 22 ก.ค. 2026 09:05
-        expect(row[5]).toBe('22-Jul-2026');
+        expect(row[5]).toBe('22/07/2026');
         expect(row[6]).toBe('09:05');
         // เบิกล่าสุด 21 ก.ค. 2026 14:30
-        expect(row[9]).toBe('21-Jul-2026');
+        expect(row[9]).toBe('21/07/2026');
         expect(row[10]).toBe('14:30');
     });
 
@@ -231,6 +235,24 @@ describe('exportInventoryCSV', () => {
         expect(cells((await csv.text()).split('\n')[1])[12]).toBe('');
     });
 
+    // สองไฟล์ต้องเขียนวันที่รูปแบบเดียวกัน มิฉะนั้นการเอาไฟล์คลังพาเลทไป VLOOKUP
+    // กับไฟล์ประวัติต้องมานั่งแปลงรูปแบบก่อน
+    it('รูปแบบวันที่ตรงกับไฟล์ประวัติรายการ', async () => {
+        vi.mocked(fetchTransactions).mockResolvedValue([transaction()]);
+
+        const inventoryCsv = captureCsv();
+        await exportInventoryCSV([pallet()]);
+        const inventoryDate = cells((await inventoryCsv.text()).split('\n')[1])[5];
+
+        const historyCsv = captureCsv();
+        await exportHistoryCSV([transaction()]);
+        const historyDate = cells((await historyCsv.text()).split('\n')[1])[0];
+
+        // ทั้งคู่มาจาก transaction ดวงเดียวกัน (22 ก.ค. 2026 09:05)
+        expect(inventoryDate).toBe('22/07/2026');
+        expect(historyDate).toBe('22/07/2026');
+    });
+
     // บั๊กที่กรรมการเห็น: ไฟล์จากหน้าคลังพาเลทเปิดใน Excel แล้วภาษาไทยเพี้ยน
     // ต้นเหตุคือโค้ดชุดเก่าประกอบ data: URI เอง ซึ่งไม่มี BOM ตอนนี้ทุกทางเดินผ่าน
     // generateCSV ทางเดียว จึงได้ BOM มาด้วยเสมอ
@@ -241,5 +263,59 @@ describe('exportInventoryCSV', () => {
         expect(Array.from((await csv.bytes()).slice(0, 3))).toEqual(UTF8_BOM_BYTES);
         // ชื่อสถานที่ภาษาไทยลงไฟล์ครบ ไม่ถูกแปลงเป็นอย่างอื่นระหว่างทาง
         expect(await csv.text()).toContain('ฝ่ายผลิต');
+    });
+});
+
+describe('exportHistoryCSV', () => {
+    it('ส่ง transactions เข้ามา = ใช้ชุดนั้น ไม่ดึงประวัติทั้งหมดใหม่', async () => {
+        const csv = captureCsv();
+        await exportHistoryCSV([transaction({ pallet_id: 'P077' })]);
+
+        expect(fetchTransactions).not.toHaveBeenCalled();
+        expect(cells((await csv.text()).split('\n')[1])[2]).toBe('P077');
+    });
+
+    it('ไม่ส่ง transactions = ดึงประวัติทั้งหมดเอง (พฤติกรรมของหน้าแดชบอร์ด)', async () => {
+        vi.mocked(fetchTransactions).mockResolvedValue([transaction()]);
+        captureCsv();
+        await exportHistoryCSV();
+        expect(fetchTransactions).toHaveBeenCalledOnce();
+    });
+
+    // อาการที่รายงานมา: คอลัมน์ไฟล์หลักฐานเป็นชื่อรูป ซึ่ง bucket เป็น private
+    // สตริงนั้นจึงเปิดอะไรไม่ได้เลย -- ดูเหมือนข้อมูลแต่เป็นทางตัน
+    it('คอลัมน์หลักฐานเป็น URL เปิดได้จริง ไม่ใช่ชื่อไฟล์', async () => {
+        vi.mocked(getEvidenceSignedUrlMap).mockResolvedValue({
+            'damage-1.jpg': 'https://example.supabase.co/storage/v1/object/sign/damage-1.jpg?token=abc',
+        });
+
+        const csv = captureCsv();
+        await exportHistoryCSV([
+            transaction({ action_type: 'report_damage', evidence_image_url: 'damage-1.jpg' }),
+        ]);
+
+        const row = cells((await csv.text()).split('\n')[1]);
+        expect(row[7]).toBe('https://example.supabase.co/storage/v1/object/sign/damage-1.jpg?token=abc');
+        expect(getEvidenceSignedUrlMap).toHaveBeenCalledWith(expect.anything(), 60 * 60 * 24 * 7);
+    });
+
+    // คอลัมน์นี้เคยมีอยู่เฉพาะในตัวส่งออกของหน้าประวัติรายการ ตอนรวมสองตัวเข้าด้วยกัน
+    // มันต้องไม่หายไปเงียบ ๆ
+    it('คอลัมน์หมายเหตุยังอยู่ครบหลังรวมสองตัวส่งออกเข้าด้วยกัน', async () => {
+        const csv = captureCsv();
+        await exportHistoryCSV([transaction({ transaction_remark: 'ล้อแตกหนึ่งข้าง' })]);
+
+        const [headerLine, rowLine] = (await csv.text()).split('\n');
+        expect(cells(headerLine)).toHaveLength(8);
+        expect(cells(rowLine)[6]).toBe('ล้อแตกหนึ่งข้าง');
+    });
+
+    it('แยกคอลัมน์วันที่กับเวลาออกจากกัน ไม่ใช่เซลล์รวม', async () => {
+        const csv = captureCsv();
+        await exportHistoryCSV([transaction()]);
+
+        const row = cells((await csv.text()).split('\n')[1]);
+        expect(row[0]).toBe('22/07/2026');
+        expect(row[1]).toBe('09:05');
     });
 });
