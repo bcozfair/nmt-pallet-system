@@ -155,9 +155,9 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                         sortConfig={sortConfig}
                         onSort={onSort}
                         // Dropped below `xl` and NOT brought back for print. The
-                        // report carries all seven columns on both orientations
-                        // and does not consult a breakpoint to decide -- which is
-                        // what the `print:table-cell` that used to be here was
+                        // report carries all seven columns and does not consult
+                        // a breakpoint to decide -- which is what the
+                        // `print:table-cell` that used to be here was
                         // compensating for, since a print media query measures
                         // the paper and A4 is narrower than `xl`.
                         className="hidden xl:table-cell"

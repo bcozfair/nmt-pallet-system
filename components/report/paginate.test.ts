@@ -44,44 +44,38 @@ describe('chunkPages -- แบ่งรายการเป็นหน้า �
 });
 
 describe('tableCapacity -- จำนวนแถวต่อหน้าต้องอยู่ในกระดาษจริง', () => {
+    // ต้องตรงกับค่าคงที่ใน ReportTableDocument.tsx -- เขียนซ้ำตรงนี้โดยตั้งใจ
+    // เพราะถ้า import มา เทสต์จะเดินตามค่าที่เปลี่ยนไปโดยไม่ทักอะไรเลย ซึ่งคือ
+    // สิ่งที่เทสต์นี้มีไว้ดักพอดี
+    const ROW_MM = 5;
+    const HEAD_ROW_MM = 6;
+    const MASTHEAD_MM = 30;
+
     // นี่คือเทสต์ที่กันไม่ให้ใครขยาย masthead หรือความสูงแถวจนแถวสุดท้ายโดนตัด
     // โดยไม่รู้ตัว: ความสูงที่แถวทั้งหมดกินรวมกัน บวกหัวตาราง ต้องไม่เกินพื้นที่
     // ที่ ReportPage เหลือให้จริง ๆ
-    it.each(['portrait', 'landscape'] as const)('แถวทั้งหมดของหน้าอยู่ในพื้นที่ body ได้จริง (%s)', (orientation) => {
-        const { first, rest } = tableCapacity(orientation);
-        const ROW_MM = 5;
-        const HEAD_ROW_MM = 6;
-        const MASTHEAD_MM = 30;
+    it('แถวทั้งหมดของหน้าอยู่ในพื้นที่ body ได้จริง', () => {
+        const { first, rest } = tableCapacity();
 
         expect(first).toBeGreaterThan(0);
-        expect(first * ROW_MM + HEAD_ROW_MM).toBeLessThanOrEqual(
-            bodyHeightMm(orientation, MASTHEAD_MM),
-        );
-        expect(rest * ROW_MM + HEAD_ROW_MM).toBeLessThanOrEqual(bodyHeightMm(orientation));
+        expect(first * ROW_MM + HEAD_ROW_MM).toBeLessThanOrEqual(bodyHeightMm(MASTHEAD_MM));
+        expect(rest * ROW_MM + HEAD_ROW_MM).toBeLessThanOrEqual(bodyHeightMm());
     });
 
     // หน้าแรกต้องจุน้อยกว่าเสมอ เพราะเสีย masthead ไป ถ้าวันไหนเท่ากันหรือมากกว่า
     // แปลว่ามีคนถอด masthead ออกแล้วลืมเลิกแบ่งความจุสองค่า
-    it.each(['portrait', 'landscape'] as const)('หน้าแรกจุน้อยกว่าหน้าถัดไป (%s)', (orientation) => {
-        const { first, rest } = tableCapacity(orientation);
+    it('หน้าแรกจุน้อยกว่าหน้าถัดไป', () => {
+        const { first, rest } = tableCapacity();
 
         expect(first).toBeLessThan(rest);
-    });
-
-    // แนวตั้งสูงกว่าแนวนอน จึงต้องจุแถวได้มากกว่า -- ถ้ากลับกันแปลว่ามีที่ไหน
-    // สลับด้านกว้าง/ยาวของ A4
-    it('แนวตั้งจุแถวได้มากกว่าแนวนอน', () => {
-        expect(tableCapacity('portrait').rest).toBeGreaterThan(tableCapacity('landscape').rest);
     });
 });
 
 describe('appendixBodyMm -- หน้าภาคผนวกใช้พื้นที่ของหน้าจริง', () => {
     it('ไม่เกินความสูงกระดาษ และเหลือที่ให้หัวกับท้ายหน้า', () => {
-        for (const orientation of ['portrait', 'landscape'] as const) {
-            const body = appendixBodyMm(orientation);
+        const body = appendixBodyMm();
 
-            expect(body).toBeGreaterThan(0);
-            expect(body).toBeLessThan(pageBoxMm(orientation).heightMm);
-        }
+        expect(body).toBeGreaterThan(0);
+        expect(body).toBeLessThan(pageBoxMm('portrait').heightMm);
     });
 });

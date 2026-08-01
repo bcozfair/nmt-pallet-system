@@ -1,8 +1,7 @@
 import React from 'react';
-import { Download, QrCode, Plus, Package } from 'lucide-react';
+import { Download, QrCode, Plus, Package, Printer } from 'lucide-react';
 import { useT } from '../../../hooks/useT';
-import type { PageOrientation } from '../../../hooks/usePageOrientation';
-import { Button, PageHeader, PrintMenu } from '../../ui';
+import { Button, PageHeader } from '../../ui';
 
 // The selection-mode half of this file (the blue bar, show/hide-IDs panel and
 // its bulk buttons) moved wholesale to InventorySelectionBar.tsx, which floats
@@ -13,9 +12,10 @@ import { Button, PageHeader, PrintMenu } from '../../ui';
 // regardless of what, if anything, is selected.
 interface InventoryHeaderProps {
     onExport: () => void;
-    // Prints the screen itself. Not to be confused with onPrintQrAll below,
-    // which builds a sheet of QR stickers in a window of its own.
-    onPrintReport: (orientation: PageOrientation) => void;
+    // Builds and prints the A4 inventory report. Not to be confused with
+    // onPrintQrAll below, which builds a sheet of QR stickers in a window of its
+    // own. Async because the damage photos have to be signed first.
+    onPrintReport: () => void | Promise<void>;
     onPrintQrAll: () => void;
     onAddPallet: () => void;
 }
@@ -45,13 +45,19 @@ export const InventoryHeader: React.FC<InventoryHeaderProps> = ({
                         with a single item is a second click that offers no
                         choice. Same label, same position, same result -- the
                         shape differs only where there is genuinely a choice to
-                        make. */}
-                    <PrintMenu
-                        label={t.common.printReport}
-                        landscapeLabel={t.common.printLandscape}
-                        portraitLabel={t.common.printPortrait}
-                        onPrint={onPrintReport}
-                    />
+                        make.
+
+                        Printing is the same shape now, and for the same reason.
+                        It used to be a dropdown offering landscape or portrait,
+                        back when this screen printed itself in place and the
+                        orientation genuinely changed what came out. The report is
+                        an A4 portrait document -- see REPORT_ORIENTATION in
+                        components/report/useReportPrint.ts -- so there is one
+                        outcome, and a menu with one outcome is a click that
+                        offers no choice. */}
+                    <Button variant="secondary" icon={Printer} onClick={() => void onPrintReport()}>
+                        {t.common.printReport}
+                    </Button>
                     <Button variant="secondary" icon={Download} onClick={onExport}>
                         {t.common.exportData}
                     </Button>

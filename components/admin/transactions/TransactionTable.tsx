@@ -141,11 +141,11 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                         โมดัลแก้ไขและในไฟล์ CSV ที่ส่งออก -- เกณฑ์เดียวกับที่หน้า
                         คลังพาเลทซ่อนคอลัมน์หมายเหตุกับเบิกออกล่าสุด */}
                     {/* Dropped below `xl` and NOT brought back for print. The
-                        report carries all seven columns on both orientations and
-                        does not consult a breakpoint to decide -- which is what
-                        the `print:table-cell` that used to be here was
-                        compensating for, since a print media query measures the
-                        paper and A4 is narrower than `xl`. */}
+                        report carries all seven columns and does not consult a
+                        breakpoint to decide -- which is what the
+                        `print:table-cell` that used to be here was compensating
+                        for, since a print media query measures the paper and A4
+                        is narrower than `xl`. */}
                     <SortableTh<TxSortKey> label={t.common.remark} sortConfig={sortConfig} className="hidden xl:table-cell" />
                     <SortableTh<TxSortKey> label={t.transactions.colEvidence} sortConfig={sortConfig} align="center" />
                     <SortableTh<TxSortKey> label={t.common.actions} sortConfig={sortConfig} align="right" />

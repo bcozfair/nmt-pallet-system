@@ -11,7 +11,6 @@ import {
 import type { ReportColumn, ReportSummaryItem } from '../../../report';
 import { formatDateTime } from '../../common/AdminHelpers';
 import { useT } from '../../../../hooks/useT';
-import type { PageOrientation } from '../../../../hooks/usePageOrientation';
 import type { Pallet, PalletStatus } from '../../../../types';
 
 // THE INVENTORY REPORT: which columns, and what goes in the appendix.
@@ -21,13 +20,12 @@ import type { Pallet, PalletStatus } from '../../../../types';
 // screen's own is the seven columns below and the decision that damage photos
 // get sheets of their own.
 //
-// Seven columns on both orientations, and no responsive variants anywhere in
-// this file. The screen drops Last Checkout and Remark below `xl`, and both had
-// to be given `print:table-cell` by hand to come back on paper -- because a
-// print media query measures the PAPER, and A4 landscape is about 1032px, under
-// the 1280px `xl` breakpoint. Anyone adding an eighth column to the screen would
-// have had to know that. Here the widths are percentages of whatever sheet was
-// chosen, so there is nothing to remember.
+// Seven columns, and no responsive variants anywhere in this file. The screen
+// drops Last Checkout and Remark below `xl`, and both had to be given
+// `print:table-cell` by hand to come back on paper -- because a print media
+// query measures the PAPER, and A4 is narrower than the 1280px `xl` breakpoint.
+// Anyone adding an eighth column to the screen would have had to know that. Here
+// the widths are percentages of the sheet, so there is nothing to remember.
 
 /** How many days past `overdueThreshold` a checked-out pallet is, or null. */
 const overdueDays = (pallet: Pallet, threshold: number): { days: number; late: boolean } | null => {
@@ -55,13 +53,13 @@ const CARD_MM = 38;
 /** Between cards, in both directions. */
 const CARD_GAP_MM = 3;
 
-const photoColumns = (orientation: PageOrientation): number =>
-    orientation === 'landscape' ? 5 : 3;
+/** Across a 186mm portrait sheet, which gives each card about 60mm. */
+const PHOTO_COLUMNS = 3;
 
 /** How many photographs fit on one appendix sheet. */
-const photosPerPage = (orientation: PageOrientation): number => {
-    const rows = Math.max(1, Math.floor(appendixBodyMm(orientation) / (CARD_MM + CARD_GAP_MM)));
-    return rows * photoColumns(orientation);
+const photosPerPage = (): number => {
+    const rows = Math.max(1, Math.floor(appendixBodyMm() / (CARD_MM + CARD_GAP_MM)));
+    return rows * PHOTO_COLUMNS;
 };
 
 export interface InventoryReportProps {
@@ -78,7 +76,6 @@ export interface InventoryReportProps {
     /** Passed in rather than read from the clock here, so every sheet of one
      *  print carries the same timestamp. */
     generatedAt: Date;
-    orientation: PageOrientation;
 }
 
 export const InventoryReport: React.FC<InventoryReportProps> = ({
@@ -87,7 +84,6 @@ export const InventoryReport: React.FC<InventoryReportProps> = ({
     overdueThreshold,
     filterLine,
     generatedAt,
-    orientation,
 }) => {
     const t = useT();
     const r = t.inventory.report;
@@ -182,8 +178,8 @@ export const InventoryReport: React.FC<InventoryReportProps> = ({
         .map((p) => ({ pallet: p, url: evidenceUrls[p.pallet_id] }))
         .filter((entry): entry is { pallet: Pallet; url: string } => Boolean(entry.url));
 
-    const cols = photoColumns(orientation);
-    const photoPages = photos.length > 0 ? chunkPages(photos, photosPerPage(orientation), photosPerPage(orientation)) : [];
+    const perPage = photosPerPage();
+    const photoPages = photos.length > 0 ? chunkPages(photos, perPage, perPage) : [];
 
     const appendix = photoPages.map((pagePhotos, index) => ({
         key: `photos-${index}`,
@@ -192,7 +188,7 @@ export const InventoryReport: React.FC<InventoryReportProps> = ({
             <div
                 className="grid content-start"
                 style={{
-                    gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                    gridTemplateColumns: `repeat(${PHOTO_COLUMNS}, minmax(0, 1fr))`,
                     gap: `${CARD_GAP_MM}mm`,
                 }}
             >
@@ -238,7 +234,6 @@ export const InventoryReport: React.FC<InventoryReportProps> = ({
 
     return (
         <ReportTableDocument<Pallet>
-            orientation={orientation}
             documentTitle={t.inventory.reportTitle}
             subtitle={r.subtitle}
             generatedOn={t.common.generatedOn(formatDateTime(generatedAt))}

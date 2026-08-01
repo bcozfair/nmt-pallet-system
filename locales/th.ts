@@ -62,8 +62,6 @@ export const th: Dictionary = {
 
         // --- Printing ---
         printReport: 'พิมพ์รายงาน',
-        printLandscape: 'พิมพ์ (แนวนอน)',
-        printPortrait: 'พิมพ์ (แนวตั้ง)',
         exportData: 'ส่งออกข้อมูล',
         printFilters: 'ตัวกรองที่ใช้:',
         generatedOn: (when: string) => `สร้างรายงานเมื่อ ${when}`,

@@ -91,8 +91,9 @@ describe('setPageOrientation -- @page กับ data-print-orientation ต้อ
         expect(PAGE_HEIGHT_MM).toBeLessThan(area.heightMm);
     });
 
-    // หน้าคลังพาเลทกับหน้าประวัติรายการให้คนเลือกแนวกระดาษได้ กล่องหน้าจึงต้อง
-    // พอดีกับพื้นที่พิมพ์ของ *ทั้งสองแนว* ไม่ใช่แค่แนวตั้งที่แดชบอร์ดใช้
+    // รายงานทุกฉบับเป็นแนวตั้ง แต่ `@page` ที่ index.css ship ไปยังเป็นแนวนอน
+    // (ไว้ให้ Ctrl+P เปล่า ๆ) ดังนั้นเลขของ *ทั้งสองแนว* ยังต้องถูกต้องอยู่ --
+    // กฎเดียวกันนี้คือสิ่งที่ useReportPrint คืนค่ากลับหลังพิมพ์เสร็จ
     it('กล่องหน้าพอดีกับพื้นที่พิมพ์ทั้งสองแนว', () => {
         for (const orientation of ['portrait', 'landscape'] as const) {
             const area = printableAreaMm(orientation);

@@ -69,12 +69,15 @@ export const en = {
         popupBlocked: 'Popups are blocked. Please allow popups for this site to print.',
 
         // --- Printing -------------------------------------------------------
-        // Shared by all three printable screens (dashboard, inventory,
-        // transactions), which is why they sit in `common` rather than under one
-        // feature area. The orientation pair is a menu under `printReport`.
+        // The label on the one print button all three printable screens carry
+        // (dashboard, inventory, transactions), which is why it sits in `common`
+        // rather than under one feature area.
+        //
+        // `printLandscape` and `printPortrait` used to sit beside it, for a
+        // dropdown offering the sheet's orientation. Every report is A4 portrait
+        // now -- see REPORT_ORIENTATION in components/report/useReportPrint.ts --
+        // so there is one outcome and one button.
         printReport: 'Print Report',
-        printLandscape: 'Print (Landscape)',
-        printPortrait: 'Print (Portrait)',
         // The export control, on all three screens that have one. It was three
         // separate keys saying three things -- "Export Data" on the dashboard,
         // "Export List" on inventory, "Export CSV" on transactions -- for a

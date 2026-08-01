@@ -4,7 +4,6 @@ import { ACTION_PILL, NEUTRAL_PILL, ReportPill, ReportTableDocument } from '../.
 import type { ReportColumn, ReportSummaryItem } from '../../../report';
 import { formatDateTime } from '../../common/AdminHelpers';
 import { useT } from '../../../../hooks/useT';
-import type { PageOrientation } from '../../../../hooks/usePageOrientation';
 import type { ActionType, Transaction } from '../../../../types';
 
 // THE HISTORY REPORT: which columns, and the one thing paper cannot carry.
@@ -46,7 +45,6 @@ export interface TransactionReportProps {
      */
     windowLimit?: number;
     generatedAt: Date;
-    orientation: PageOrientation;
 }
 
 export const TransactionReport: React.FC<TransactionReportProps> = ({
@@ -55,7 +53,6 @@ export const TransactionReport: React.FC<TransactionReportProps> = ({
     filterLine,
     windowLimit,
     generatedAt,
-    orientation,
 }) => {
     const t = useT();
     const r = t.transactions.report;
@@ -138,7 +135,6 @@ export const TransactionReport: React.FC<TransactionReportProps> = ({
 
     return (
         <ReportTableDocument<Transaction>
-            orientation={orientation}
             documentTitle={t.transactions.reportTitle}
             subtitle={r.subtitle}
             generatedOn={t.common.generatedOn(formatDateTime(generatedAt))}

@@ -40,6 +40,13 @@ import type { PageOrientation } from '../../hooks/usePageOrientation';
 /**
  * The page box for an orientation, in millimetres.
  *
+ * EVERY REPORT IS PORTRAIT -- see REPORT_ORIENTATION in useReportPrint.ts for
+ * why the choice the two table reports briefly offered was withdrawn. The
+ * parameter stays because `@page` for a bare Ctrl+P is still landscape and this
+ * has to keep telling the truth about both, and because a function that took no
+ * argument would be stating the orientation in a second place, free to disagree
+ * with the one that decides it.
+ *
  * COMPUTED from PAGE_MARGIN_MM rather than written as `186 x 273`, because the
  * margin and the page box are two halves of one measurement: a box sized for a
  * 12mm margin printed against a 15mm one either loses its right-hand column or
@@ -59,7 +66,7 @@ export const pageBoxMm = (orientation: PageOrientation): { widthMm: number; heig
     return { widthMm: area.widthMm, heightMm: area.heightMm - 1 };
 };
 
-/** A4 portrait, the size the dashboard report is fixed at. 186 x 272mm. */
+/** A4 portrait, the size every sheet in every report is fixed at. 186 x 272mm. */
 export const PAGE_WIDTH_MM = pageBoxMm('portrait').widthMm;
 export const PAGE_HEIGHT_MM = pageBoxMm('portrait').heightMm;
 
@@ -96,8 +103,8 @@ export const FOOT_MM = 6.9;
  * a height for exactly this reason -- a content-sized masthead makes this
  * function a guess, and a guess here is a clipped row.
  */
-export const bodyHeightMm = (orientation: PageOrientation, headMm: number = RUNNING_HEAD_MM): number =>
-    pageBoxMm(orientation).heightMm - headMm - HEAD_GAP_MM - FOOT_MM;
+export const bodyHeightMm = (headMm: number = RUNNING_HEAD_MM): number =>
+    PAGE_HEIGHT_MM - headMm - HEAD_GAP_MM - FOOT_MM;
 
 export interface ReportPageProps {
     /** 1-based. Printed in the foot as "3 / 8". */
@@ -117,8 +124,6 @@ export interface ReportPageProps {
     /** Already-formatted "Page N of M". Passed in so the wording stays in the
      *  dictionary and this file stays free of it. */
     pageLabel: string;
-    /** Which way the sheet is fed. Decides the box, and nothing else here. */
-    orientation?: PageOrientation;
     children: React.ReactNode;
 }
 
@@ -139,11 +144,8 @@ export const ReportPage: React.FC<ReportPageProps> = ({
     documentTitle,
     masthead,
     pageLabel,
-    orientation = 'portrait',
     children,
 }) => {
-    const box = pageBoxMm(orientation);
-
     return (
         <article
             className="report-page"
@@ -151,8 +153,8 @@ export const ReportPage: React.FC<ReportPageProps> = ({
             // is decided is the one place the margin is read from. A
             // `width: 186mm` in index.css would be a second copy of an arithmetic
             // result, free to disagree with PAGE_MARGIN_MM the day somebody
-            // changes it -- and free to be wrong for landscape besides.
-            style={{ width: `${box.widthMm}mm`, height: `${box.heightMm}mm` }}
+            // changes it.
+            style={{ width: `${PAGE_WIDTH_MM}mm`, height: `${PAGE_HEIGHT_MM}mm` }}
             aria-label={pageLabel}
         >
             {masthead ?? (

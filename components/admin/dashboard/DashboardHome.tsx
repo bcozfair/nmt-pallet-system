@@ -254,11 +254,6 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
     //
     // `job` is both the render flag and the instant the sheet claims to
     // describe -- see the hook for why those are one value.
-    //
-    // Portrait is passed rather than defaulted. This report is laid out for one
-    // sheet and offers no choice, and the inventory and transaction reports do
-    // offer one -- a hook that defaulted the orientation would let one of those
-    // two forget to pass the reader's answer and still compile.
     const { job: printJob, print: printReport } = useReportPrint();
 
     // `error` from the hook is a raw Error.message -- a Supabase string, in
@@ -309,7 +304,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                 page-level picker governed one of the five blocks on screen and
                 needed a printed disclaimer to admit it. */}
             <PageHeader
-                onOpenReport={() => printReport('portrait')}
+                onOpenReport={printReport}
                 onExportSummary={handleExportSummary}
                 onExportInventory={handleExportInventory}
                 onExportHistory={handleExportHistory}

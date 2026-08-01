@@ -47,7 +47,10 @@ export const dashboardEn = {
     // was capped. None of them has a counterpart anywhere in the app, which is
     // exactly why they are not reachable from `common`.
     report: {
-        open: 'Report',
+        // `open` used to sit here, reading "Report" rather than "Print Report",
+        // because there was a preview between the button and the printer. The
+        // preview is gone and the button reads `common.printReport` like the
+        // other two screens'.
         subtitle: 'Pallet fleet, movement, quality and workload',
         // Says which window every range-scoped figure covers. The report has no
         // range picker on it, so the sheet has to state the scope itself.
@@ -162,7 +165,6 @@ export const dashboardTh: DashboardDict = {
 
     // --- รายงาน A4 ที่จัดหน้าเอง (components/admin/dashboard/report/) ---
     report: {
-        open: 'รายงาน',
         subtitle: 'ภาพรวมพาเลท ความเคลื่อนไหว คุณภาพ และภาระงาน',
         rangeLine: (range: string) => `ช่วงเวลา: ${range}`,
         asOfLine: (when: string) => `ตัวเลขสถานะพาเลท ณ ${when}`,

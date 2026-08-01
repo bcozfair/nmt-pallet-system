@@ -186,7 +186,8 @@
    two halves of one measurement -- a report's pages are boxes sized to fit
    inside this margin exactly, and a box computed from a margin the printer is
    not using either loses a column or spills a blank sheet after every real one.
-   hooks/usePageOrientation.test.ts guards the agreement, in both orientations. */
+   hooks/usePageOrientation.test.ts guards the agreement -- for both orientations,
+   because a bare Ctrl+P still gets the landscape default declared below. */
 @page {
   size: A4 landscape;
   margin: 12mm;
@@ -212,7 +213,8 @@
   /* ขนาดหน้าไม่ได้อยู่ที่นี่ -- ReportPage.tsx เขียน width/height เป็น inline style
      จาก PAGE_MARGIN_MM เพราะขนาดกล่องกับระยะขอบเป็นผลลัพธ์ของเลขตัวเดียวกัน
      ถ้าเขียนซ้ำไว้ตรงนี้ วันที่ใครแก้ระยะขอบ สองที่นี้จะไม่ตรงกันโดยไม่มีอะไรเตือน
-     และค่าที่เขียนไว้จะถูกได้แค่แนวเดียว ทั้งที่สองหน้าตารางให้เลือกแนวกระดาษได้ */
+     (`@page` ที่ประกาศไว้ในไฟล์นี้เป็นแนวนอน ซึ่งไว้ให้ Ctrl+P เปล่า ๆ ไม่ใช่ให้รายงาน
+     -- รายงานทุกฉบับเป็น A4 แนวตั้ง และเขียน `@page` ของตัวเองตอนสั่งพิมพ์) */
   flex: none;
   display: flex;
   flex-direction: column;

@@ -64,8 +64,12 @@ export type { DateRange, DateRangeFieldProps } from './DateRangeField';
 export { Menu } from './Menu';
 export type { MenuItem, MenuProps, MenuTone } from './Menu';
 
-export { PrintMenu } from './PrintMenu';
-export type { PrintMenuProps } from './PrintMenu';
+// PrintMenu -- "Print Report" with landscape/portrait attached -- was deleted
+// with the orientation choice itself. It made sense while the inventory and
+// transaction screens printed themselves in place, where the sheet shape really
+// did change what came out. Their reports are declared-page A4 portrait
+// documents now (components/report/useReportPrint.ts), so all three printable
+// screens carry one plain Button reading `common.printReport`.
 
 // `DataTable` is the shell -- card, scroll behaviour, sticky header, loading and
 // empty states, a slot for pagination. It deliberately does NOT take columns and

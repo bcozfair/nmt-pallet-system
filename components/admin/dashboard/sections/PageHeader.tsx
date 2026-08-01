@@ -75,30 +75,30 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             actionsBusy={isBusy}
             actions={
                 <>
-                    {/* A plain button, not the shared PrintMenu the inventory and
-                        transaction screens use, and the difference is a real one
-                        rather than an inconsistency.
-
-                        All three screens build a separate A4 document now (see
+                    {/* The same button, with the same label and icon, that the
+                        inventory and transaction headers carry. All three build
+                        an A4 portrait document and print it (see
                         components/report/ReportPage.tsx for the two reasons none
-                        of them can be printed in place). But those two are a
-                        TABLE: the same seven columns fit on either sheet, and a
-                        landscape page just gives each of them more width and each
-                        page more rows, so the choice is a real choice and their
-                        control offers it.
+                        of them can be printed in place), so there is one control
+                        to learn.
 
-                        This report is not. Its figures are laid out at sizes
-                        chosen for a 186mm column, and its four pages are boxes of
-                        exactly that shape. Offering landscape here would offer to
-                        rotate them, which is not an option -- it is a defect with
-                        a menu item. */}
+                        It used to read "Report" rather than "Print Report",
+                        because there was a preview between the button and the
+                        printer and "Report" was the honest name for what opened.
+                        The preview is gone; the browser's own print preview does
+                        that job. `common.printReport` is now what all three read.
+
+                        `canOpenReport` is separate from `isBusy` on purpose: a
+                        failed analytics fetch must disable this without also
+                        disabling the CSV exports beside it, which fetch their own
+                        data. */}
                     <Button
                         variant="secondary"
                         icon={Printer}
                         onClick={onOpenReport}
                         disabled={isBusy || !canOpenReport}
                     >
-                        {t.dashboard.report.open}
+                        {t.common.printReport}
                     </Button>
                     {/* `t.common.exportData`, the same key the inventory and
                         transaction headers read. See the note beside it. */}

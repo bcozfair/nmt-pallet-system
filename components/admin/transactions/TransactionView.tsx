@@ -511,7 +511,6 @@ export const TransactionView = () => {
                             transactions.length >= TX_FETCH_LIMIT ? TX_FETCH_LIMIT : undefined
                         }
                         generatedAt={printJob.at}
-                        orientation={printJob.orientation}
                     />
                 </ReportPrintHost>
             )}

@@ -62,38 +62,47 @@ const imagesReady = (root: ParentNode): Promise<unknown> => {
     return Promise.race([decoded, timeout]);
 };
 
+/**
+ * Every report is A4 PORTRAIT, and there is no control anywhere offering
+ * anything else.
+ *
+ * The two table reports briefly did offer the choice, inheriting it from the
+ * screens' old in-place printing where it made sense -- a wide table really is
+ * easier to read across a landscape sheet. It does not survive the move to
+ * declared pages. A report laid out for one sheet and printed on the other is
+ * not a rotation, it is a different document: different rows per page, different
+ * page count, a masthead sized for a different column width. Offering both
+ * meant two layouts to keep honest, of which a reader would only ever see one.
+ *
+ * `@page` elsewhere in the app stays landscape. That default is for a bare
+ * Ctrl+P, which reaches no JavaScript and therefore no report -- and a raw
+ * screenshot of a seven-column table is better off wide.
+ */
+const REPORT_ORIENTATION: PageOrientation = 'portrait';
+
 export interface ReportPrintJob {
     /**
      * The instant the report describes.
      *
-     * Doubles as part of the render flag, and that is on purpose: "the report is
+     * Doubles as the render flag, and that is on purpose: "the report is
      * mounted" and "this is the moment it is a snapshot of" cannot drift apart if
      * they are the same piece of state. Kept out of the render path otherwise --
      * these screens re-render on every realtime change, so a live `new Date()`
      * would print a different time from the one the reader asked for.
      */
     at: Date;
-    /** Which way the sheet is fed. Decides both `@page` and the report's boxes. */
-    orientation: PageOrientation;
 }
 
 export interface ReportPrint {
     /** The job in flight, or `null` when nothing is being printed. */
     job: ReportPrintJob | null;
-    print: (orientation: PageOrientation) => void;
+    print: () => void;
 }
 
 export const useReportPrint = (): ReportPrint => {
     const [job, setJob] = useState<ReportPrintJob | null>(null);
 
-    // The orientation is REQUIRED rather than defaulted. Two of the three
-    // reports offer the reader a choice, and a default here would let a call
-    // site forget to pass the reader's answer through and still compile -- the
-    // report would then lay itself out for one sheet and be printed on another.
-    const print = useCallback(
-        (orientation: PageOrientation) => setJob({ at: new Date(), orientation }),
-        [],
-    );
+    const print = useCallback(() => setJob({ at: new Date() }), []);
 
     useEffect(() => {
         if (!job) return;
@@ -101,10 +110,9 @@ export const useReportPrint = (): ReportPrint => {
         const root = document.documentElement;
         // `@page` is DOCUMENT state, not this hook's. Whatever the previous value
         // was is put back below -- otherwise the next thing anybody printed, on a
-        // screen that never opened a report, would come out in this report's
-        // orientation.
+        // screen that never opened a report, would come out portrait.
         const savedOrientation = getPageOrientation();
-        setPageOrientation(job.orientation);
+        setPageOrientation(REPORT_ORIENTATION);
         // What the print rules in index.css key on, so that everything except the
         // report is hidden for the duration.
         root.dataset.reportOpen = 'true';

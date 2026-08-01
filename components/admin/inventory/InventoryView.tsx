@@ -23,7 +23,6 @@ import { useInventoryFilters } from '../../../hooks/inventory/useInventoryFilter
 import { useInventorySelection } from '../../../hooks/inventory/useInventorySelection';
 import { useInventoryActions } from '../../../hooks/inventory/useInventoryActions';
 import { useInventoryEvidence } from '../../../hooks/inventory/useInventoryEvidence';
-import type { PageOrientation } from '../../../hooks/usePageOrientation';
 
 export const InventoryView = ({
     pallets,
@@ -109,13 +108,10 @@ export const InventoryView = ({
     // useInventoryEvidence for why this is not loaded when the screen opens, and
     // useReportPrint for the second half of the wait -- decoding the images once
     // they are in the DOM.
-    const handlePrintReport = useCallback(
-        async (orientation: PageOrientation) => {
-            await loadEvidence(processedPallets);
-            printReport(orientation);
-        },
-        [loadEvidence, processedPallets, printReport],
-    );
+    const handlePrintReport = useCallback(async () => {
+        await loadEvidence(processedPallets);
+        printReport();
+    }, [loadEvidence, processedPallets, printReport]);
 
     // What the printed sheet says the rows were filtered by. Assembled here
     // because this is the component that holds every filter's value; the report
@@ -334,7 +330,6 @@ export const InventoryView = ({
                                 : undefined
                         }
                         generatedAt={printJob.at}
-                        orientation={printJob.orientation}
                     />
                 </ReportPrintHost>
             )}

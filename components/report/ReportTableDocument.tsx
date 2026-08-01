@@ -2,7 +2,6 @@ import React from 'react';
 
 import { ReportPage, RUNNING_HEAD_MM, bodyHeightMm } from './ReportPage';
 import { chunkPages } from './paginate';
-import type { PageOrientation } from '../../hooks/usePageOrientation';
 
 // A LIST, TURNED INTO A DOCUMENT.
 //
@@ -63,8 +62,8 @@ const SAFETY_MM = 2;
 const MASTHEAD_MM = 30;
 
 /** How many rows fit on a sheet whose head occupies `headMm`. */
-const rowsPerPage = (orientation: PageOrientation, headMm: number): number =>
-    Math.floor((bodyHeightMm(orientation, headMm) - HEAD_ROW_MM - SAFETY_MM) / ROW_MM);
+const rowsPerPage = (headMm: number): number =>
+    Math.floor((bodyHeightMm(headMm) - HEAD_ROW_MM - SAFETY_MM) / ROW_MM);
 
 /**
  * How many rows this document puts on page 1 and on every page after it.
@@ -75,11 +74,9 @@ const rowsPerPage = (orientation: PageOrientation, headMm: number): number =>
  * have been four pages is six. Neither shows up on screen. There is a test
  * against it in paginate.test.ts.
  */
-export const tableCapacity = (
-    orientation: PageOrientation,
-): { first: number; rest: number } => ({
-    first: rowsPerPage(orientation, MASTHEAD_MM),
-    rest: rowsPerPage(orientation, RUNNING_HEAD_MM),
+export const tableCapacity = (): { first: number; rest: number } => ({
+    first: rowsPerPage(MASTHEAD_MM),
+    rest: rowsPerPage(RUNNING_HEAD_MM),
 });
 
 /**
@@ -90,8 +87,7 @@ export const tableCapacity = (
  * table chunks its rows: a grid that overflows a clipped page loses pictures
  * with nothing on the sheet to say a picture was lost.
  */
-export const appendixBodyMm = (orientation: PageOrientation): number =>
-    bodyHeightMm(orientation, RUNNING_HEAD_MM) - SAFETY_MM;
+export const appendixBodyMm = (): number => bodyHeightMm(RUNNING_HEAD_MM) - SAFETY_MM;
 
 export interface ReportColumn<T> {
     key: string;
@@ -99,9 +95,9 @@ export interface ReportColumn<T> {
     /**
      * Share of the table width, as a percentage. The set must sum to 100.
      *
-     * Percentages rather than pixels or `ch`, because the same column list is
-     * printed on 186mm of portrait and 273mm of landscape -- a fixed width would
-     * either overflow one or leave a stripe of white on the other.
+     * Percentages rather than pixels or `ch`, because a column's job here is to
+     * claim a share of whatever the sheet gives it. A width in pixels would be a
+     * second copy of the page width, free to disagree with PAGE_MARGIN_MM.
      */
     width: number;
     align?: 'left' | 'right' | 'center';
@@ -115,7 +111,6 @@ export interface ReportSummaryItem {
 }
 
 export interface ReportTableDocumentProps<T> {
-    orientation: PageOrientation;
     /** The report's name. Masthead on page 1, running head after that. */
     documentTitle: string;
     subtitle: string;
@@ -157,7 +152,6 @@ const alignClass = (align: ReportColumn<unknown>['align']): string =>
  * this file, because nothing would know how tall a row was going to be.
  */
 export const ReportTableDocument = <T,>({
-    orientation,
     documentTitle,
     subtitle,
     generatedOn,
@@ -172,7 +166,7 @@ export const ReportTableDocument = <T,>({
     pageLabel,
     appendix = [],
 }: ReportTableDocumentProps<T>): React.ReactElement => {
-    const capacity = tableCapacity(orientation);
+    const capacity = tableCapacity();
     const pages = chunkPages(rows, capacity.first, capacity.rest);
     const total = pages.length + appendix.length;
 
@@ -230,7 +224,6 @@ export const ReportTableDocument = <T,>({
             total={total}
             section={section}
             documentTitle={documentTitle}
-            orientation={orientation}
             pageLabel={pageLabel(index + 1, total)}
             masthead={index === 0 ? masthead : undefined}
         >
@@ -321,8 +314,7 @@ export const ReportTableDocument = <T,>({
                         total={total}
                         section={extra.section}
                         documentTitle={documentTitle}
-                        orientation={orientation}
-                        pageLabel={pageLabel(page, total)}
+                                    pageLabel={pageLabel(page, total)}
                     >
                         {extra.body}
                     </ReportPage>
