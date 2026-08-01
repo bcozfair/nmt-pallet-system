@@ -460,7 +460,11 @@ export const QualitySection: React.FC<QualitySectionProps> = ({
         // a 1120px content width, 6 tracks with 5 x 24px gaps give
         // (1120 - 120) / 6 = 166.67px each, so a 2-span plus its internal gap is
         // 357px -- exactly one third of a 3-column grid.
-        <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-6">
+        //
+        // `print-paper-grid` -- paper columns, not viewport columns. On A4 this
+        // becomes two per row in landscape and one in portrait, whatever the
+        // reader's window happened to be. See the block in index.css.
+        <div className="print-paper-grid grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-6">
             {/* --- DORMANT PALLETS ---
                 Not a quality metric, and it says so with its own AsOfNowChip
                 against four range-scoped neighbours. It is here because the

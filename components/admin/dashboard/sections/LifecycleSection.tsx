@@ -630,7 +630,8 @@ export const LifecycleSection: React.FC<LifecycleSectionProps> = ({
     // takes 256px from that breakpoint up, which is why the measured content
     // width at 1024px (704px) is NARROWER than at 768px (736px). A second
     // column at `lg` would land in the tightest column on the whole ladder.
-    <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2">
+    // `print-paper-grid` -- paper columns, not viewport columns. See index.css.
+    <div className="print-paper-grid grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2">
         <DwellCard
             dwell={analytics?.dwell ?? null}
             isLoading={isLoading}

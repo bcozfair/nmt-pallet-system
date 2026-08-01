@@ -417,7 +417,13 @@ export const FleetSection: React.FC<FleetSectionProps> = ({
         // Columns step at md and xl and skip lg entirely: the sidebar claims
         // 256px from lg up, which is why the measured content width at 1024px
         // (704px) is NARROWER than at 768px (736px).
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-6">
+        //
+        // `print-paper-grid` is the paper's own layout, and it overrides every
+        // one of the classes beside it when the sheet is what is being laid out.
+        // Those are viewport breakpoints; a sheet of A4 has no viewport. See the
+        // block in index.css -- without it, whether this section prints as one
+        // column or six is decided by how wide the reader's browser window was.
+        <div className="print-paper-grid grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-6">
             {/* ---------------------------------------------------------------
                 FLEET HEALTH
                 ChartFrame has no className hook, so the span class goes on a

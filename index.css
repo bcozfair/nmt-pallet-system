@@ -161,7 +161,22 @@
 
    `hooks/dashboard/usePrintLayout.ts` is the other half. Recharts sizes its
    SVG from a measured width, so the hook pins a print-friendly width on
-   `beforeprint` and lets the ResizeObserver re-lay-out every chart for paper. */
+   `beforeprint` and lets the ResizeObserver re-lay-out every chart for paper.
+
+   THREE things describe the sheet and all three are written by
+   setPageOrientation() in hooks/usePageOrientation.ts, because two of them
+   agreeing and the third not is a defect with no symptom on screen:
+
+     - this `@page` rule       -- how big the sheet actually is
+     - printableWidthPx()      -- how wide the charts are laid out
+     - `data-print-orientation` on <html> -- how many columns the grids break
+                                  into (the `.print-paper-grid` rules below)
+
+   The last of those exists because Tailwind's `md:`/`xl:` breakpoints measure
+   the VIEWPORT. On paper there is no viewport, so before it was added the
+   column count of a printed report was decided by how wide the reader's browser
+   window happened to be -- the same report came out differently from a laptop
+   and from a monitor. hooks/usePageOrientation.test.ts guards the agreement. */
 @page {
   size: A4 landscape;
   margin: 12mm;
@@ -188,6 +203,16 @@
   .print-avoid-break {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  /* The other half: keep a box and whatever follows it on the same sheet.
+     Applied by components/ui/PrintReportHeader.tsx, whose whole job is to say
+     what the sheet is -- a report masthead alone at the foot of page 1 with the
+     report itself starting on page 2 is the one break that must never happen.
+     `break-inside` cannot express that; it is a rule about a box's neighbours. */
+  .print-avoid-break-after {
+    break-after: avoid;
+    page-break-after: avoid;
   }
 
   /* A table that runs past the bottom of the sheet continues on the next one --
@@ -270,6 +295,145 @@
   .overflow-x-auto,
   .overflow-auto {
     overflow: visible !important;
+  }
+
+  /* --- กรอบของแอปไม่ใช่เนื้อหาของรายงาน ------------------------------
+
+     <main> ใน AdminDashboard ถือ `p-4 lg:p-8` ซึ่งบนกระดาษกลายเป็นขอบซ้อนขอบ:
+     `@page` ให้ 12mm มาแล้ว แล้วยังบวกอีก 16px หรือ 32px ทับเข้าไป -- และบวก
+     เท่าไหร่ขึ้นกับความกว้างหน้าต่างของคนสั่งพิมพ์ ขอบกระดาษจึงไม่เท่ากัน
+     ระหว่างคนที่พิมพ์จากจอกว้างกับจอแคบ ทั้งที่เป็นรายงานฉบับเดียวกัน
+
+     `max-w-7xl` (1280px) เป็นเพดานของตัวครอบใน AdminDashboard ไม่ใช่ของ
+     `#dashboard-printable-area` -- usePrintLayout ปลดเพดานที่ตัวมันเองแล้ว แต่
+     ปลดที่ตัวครอบไม่ได้เพราะไม่ได้ถือ ref ไว้
+
+     `min-h-dvh` ตอนพิมพ์คือความสูงหนึ่งหน้ากระดาษเต็ม ๆ รายงานสั้น ๆ จึงมี
+     หน้าเปล่าต่อท้ายเสมอ */
+  main {
+    padding: 0 !important;
+  }
+
+  [class*="max-w-7xl"] {
+    max-width: none !important;
+  }
+
+  [class*="min-h-dvh"],
+  [class*="min-h-screen"] {
+    min-height: 0 !important;
+  }
+
+  /* พื้นหลังไล่สีของ .app-canvas พิมพ์ออกมาเป็นคราบฟ้าจาง ๆ ที่มุมบนซ้ายของ
+     แผ่นแรก html/body ถูกล้างเป็นขาวไปแล้วข้างบน แต่ตัวนี้เป็น <div> */
+  .app-canvas {
+    background: none !important;
+  }
+
+  /* แอนิเมชันกับกระดาษไปด้วยกันไม่ได้ และนี่ไม่ใช่เรื่องความสวยอย่างเดียว:
+     `.animate-surface-in` เริ่มที่ opacity 0 / translateY(8px) ส่วนการ์ดใน
+     deep-dive เพิ่ง mount ตอนกดพิมพ์ (forceMount ใน DashboardHome) ถ้าเบราว์เซอร์
+     snapshot ระหว่าง 0.4 วินาทีนั้น การ์ดจะติดกระดาษไปแบบจาง ๆ และเยื้องลงมา
+     โดยไม่มีอะไรเตือน
+
+     ปลอดภัยเพราะ animation ทุกตัวในไฟล์นี้ประกาศ fill-mode `both` -- ค่าปลายทาง
+     ถูกค้างไว้ที่ตัว element อยู่แล้ว การสั่ง `animation: none` จึงกลับไปใช้
+     สไตล์จริงของ element ซึ่งตรงกับเฟรมสุดท้ายพอดี ไม่ใช่การซ่อนของ */
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* `border-slate-200/80` คืออัลฟา 80% บนกระดาษขาวจะจางจนขอบการ์ดแทบหายไป
+     และเงาถูกถอดออกไปแล้วโดยกฎข้างบน -- เส้นขอบจึงเป็นสิ่งเดียวที่เหลืออยู่
+     ที่บอกว่าการ์ดใบหนึ่งเริ่มและจบตรงไหน */
+  .print-avoid-break {
+    border-color: #cbd5e1 !important;
+  }
+
+  /* หัวเรื่องที่ค้างอยู่ท้ายหน้าโดยที่เนื้อหาไปขึ้นหน้าถัดไป อ่านเหมือน
+     หัวข้อที่ไม่มีเนื้อ */
+  h1,
+  h2,
+  h3,
+  h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  p,
+  li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* --- จำนวนคอลัมน์ต้องมาจากกระดาษ ไม่ใช่จากขนาดหน้าต่าง ---------------
+
+     นี่คือต้นเหตุตัวจริงของ "พิมพ์ออกมาแล้วยังไม่สวย"
+
+     breakpoint ของ Tailwind (`md:` `xl:`) วัดจาก VIEWPORT เสมอ ส่วนความกว้างที่
+     usePrintLayout pin ให้ตอน beforeprint มาจากขนาดกระดาษ สองอย่างนี้ไม่รู้จักกัน
+     เลย ผลคือรายงานฉบับเดียวกันออกมาคนละหน้าตาแล้วแต่ว่าสั่งพิมพ์จากจอไหน:
+
+       จอ 1440px + แนวตั้ง   -> `xl:grid-cols-6` ทำงาน แต่กระดาษกว้างแค่ 703px
+                               การ์ดโดนัทได้ 2/6 ราว 220px บีบจนอ่านไม่ออก
+       จอ 1280px ลงมา + แนวนอน -> ไม่มี `xl:` เลย ทุกการ์ดเรียงเดี่ยวบนกระดาษกว้าง
+                               1032px กลายเป็นแถบยาวโล่ง ๆ ใบละหนึ่งแถว
+
+     ทางแก้คือเลิกให้ breakpoint ตัดสินอะไรบนกระดาษ แล้วประกาศเลย์เอาต์ของกระดาษ
+     ตรง ๆ จาก `data-print-orientation` บน <html> -- เขียนโดย setPageOrientation()
+     ซึ่งเป็นตัวเดียวกับที่เขียนกฎ `@page` ทั้งสองจึงแยกกันเพี้ยนไม่ได้
+     (hooks/usePageOrientation.ts)
+
+       แนวนอน 1032px -> การ์ดกราฟสองใบต่อแถว ใบละ ~509px
+       แนวตั้ง   703px -> ใบเดียวต่อแถว สองใบจะเหลือใบละ ~345px ซึ่งกราฟแท่งนอน
+                         ของ FleetSection เสียให้แกน y ไป 128px ก่อนแล้ว
+
+     `> *` รีเซ็ตทุกลูกเป็นหนึ่งช่อง เพราะ `xl:col-span-*` บนลูกก็เป็น breakpoint
+     เหมือนกัน ถ้าไม่รีเซ็ต การ์ดที่ประกาศ span 4 ไว้จะกลืนทั้งแถวของกริดสองคอลัมน์
+     แล้วเหลือช่องว่างข้าง ๆ ใบอื่น */
+  .print-paper-grid,
+  .print-paper-tiles {
+    display: grid !important;
+    gap: 14px !important;
+  }
+
+  .print-paper-grid>*,
+  .print-paper-tiles>* {
+    grid-column: auto / span 1 !important;
+  }
+
+  /* ค่าตั้งต้นคือแนวนอน ตรงกับกฎ `@page` ที่ไฟล์นี้ ship ไปและตรงกับค่าเริ่มต้น
+     ของ currentOrientation -- ถ้า attribute หายไปด้วยเหตุใดก็ตาม กระดาษยังได้
+     เลย์เอาต์ที่ตรงกับขนาดจริงของมัน ไม่ใช่ตกกลับไปเป็นคอลัมน์เดียว */
+  .print-paper-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  [data-print-orientation="portrait"] .print-paper-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* แถว KPI เป็นไทล์ตัวเลข ไม่ใช่กราฟ จึงอยู่ได้ที่ความกว้างน้อยกว่ากันมาก:
+     แนวนอน 1032/4 = ~250px, แนวตั้ง 703/2 = ~345px ทั้งคู่พอสำหรับป้ายไทย
+     สองบรรทัดบวกตัวเลข */
+  .print-paper-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  [data-print-orientation="portrait"] .print-paper-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  /* ทางออกสำหรับการ์ดที่กว้างโดยธรรมชาติ -- heatmap 24 คอลัมน์ของ TimeSection
+     ถ้าถูกบีบเหลือครึ่งแถวในแนวนอน ช่องจะเหลือกว้าง ~17px ทั้งที่สูง 24px
+     กลายเป็นตารางช่องผอมที่อ่านความเข้มไม่ได้
+     เขียนเป็น `> .print-span-all` ไม่ใช่ `.print-span-all` เฉย ๆ เพื่อให้
+     specificity ชนะกฎรีเซ็ตข้างบนด้วยตัวมันเอง ไม่ใช่ด้วยลำดับในไฟล์ */
+  .print-paper-grid>.print-span-all,
+  .print-paper-tiles>.print-span-all {
+    grid-column: 1 / -1 !important;
   }
 
   /* <details> is collapsed on screen by design -- the chart is the primary

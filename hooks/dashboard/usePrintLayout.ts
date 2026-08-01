@@ -63,7 +63,17 @@ export const usePrintLayout = <T extends HTMLElement = HTMLDivElement>(
                 width: el.style.width,
                 maxWidth: el.style.maxWidth,
             };
-            el.style.width = `${printableWidthPx(getPageOrientation())}px`;
+            const orientation = getPageOrientation();
+            el.style.width = `${printableWidthPx(orientation)}px`;
+            // The same stamp setPageOrientation writes, repeated here because
+            // this is the one code path EVERY print goes through. A plain Ctrl+P
+            // never calls setPageOrientation at all, so on a first-ever print the
+            // attribute would be missing and index.css's `.print-paper-grid`
+            // rules would fall back to their landscape default -- which happens
+            // to be right, but only by luck. Written from getPageOrientation()
+            // rather than from a literal, so it stays right after the reader has
+            // used the menu once and then goes back to Ctrl+P.
+            document.documentElement.dataset.printOrientation = orientation;
             // The shell caps content at max-w-7xl (1280px). That cap is below
             // the pin at some widths and above it at others, so it is cleared
             // rather than fought with -- otherwise the pin would apply on a

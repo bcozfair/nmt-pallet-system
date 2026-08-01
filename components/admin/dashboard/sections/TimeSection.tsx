@@ -126,22 +126,35 @@ export interface TimeSectionProps {
  * `visibility` is what makes exactly one of them visible. Both halves of each
  * pair must move together -- a variant showing a 12-column grid while claiming
  * 4-hour bins is a silently wrong chart.
+ *
+ * Every `visibility` string also carries an explicit `print:` verdict, and that
+ * is not decoration. `sm:` and `lg:` measure the VIEWPORT, so on paper they were
+ * answering a question about the reader's window -- an admin on a 900px window
+ * printed the 2-hour grid onto a sheet with room for the 1-hour one, and the
+ * report lost half its resolution for a reason that has nothing to do with the
+ * report. The card takes the full sheet width on paper (`print-span-all` below),
+ * which is ~1032px in landscape and 703px in portrait; 24 columns fit in both,
+ * so the finest binning is always the right one there.
+ *
+ * Stated per variant rather than left to the `sm:`/`lg:` classes to resolve,
+ * because "which variant wins" would otherwise depend on the order Tailwind
+ * happens to emit the `print` and `lg` variants in.
  */
 const HEAT_VARIANTS = [
     {
         binHours: 4,
         columns: 'grid-cols-[3.5rem_repeat(6,minmax(0,1fr))]',
-        visibility: 'sm:hidden',
+        visibility: 'sm:hidden print:hidden',
     },
     {
         binHours: 2,
         columns: 'grid-cols-[3.5rem_repeat(12,minmax(0,1fr))]',
-        visibility: 'hidden sm:block lg:hidden',
+        visibility: 'hidden sm:block lg:hidden print:hidden',
     },
     {
         binHours: 1,
         columns: 'grid-cols-[3.5rem_repeat(24,minmax(0,1fr))]',
-        visibility: 'hidden lg:block',
+        visibility: 'hidden lg:block print:block',
     },
 ] as const;
 
@@ -502,13 +515,20 @@ export const TimeSection: React.FC<TimeSectionProps> = ({
     };
 
     return (
-        <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-4">
-            {/* --- Hour x weekday heatmap --- */}
+        // `print-paper-grid` -- paper columns, not viewport columns. See index.css.
+        <div className="print-paper-grid grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-4">
+            {/* --- Hour x weekday heatmap ---
+                `print-span-all` because this is the one card on the dashboard
+                that cannot survive being halved: the 1-hour variant is 24 cells
+                across, and half of a 1032px landscape sheet leaves each cell
+                ~17px wide against its own 24px height -- a grid of thin slots
+                whose shading is no longer comparable. Full sheet width gives it
+                ~40px per cell. */}
             <Card
                 accent
                 busy={isRefreshing}
                 as="section"
-                className="animate-surface-in flex flex-col xl:col-span-3"
+                className="animate-surface-in flex flex-col xl:col-span-3 print-span-all"
             >
                 <div className="flex flex-col p-5 sm:p-6">
                     <SectionHeader

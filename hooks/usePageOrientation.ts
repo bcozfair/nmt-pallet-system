@@ -56,6 +56,20 @@ export const getPageOrientation = (): PageOrientation => currentOrientation;
  * It stays in <head> after printing rather than being torn down, so that a
  * follow-up Ctrl+P uses the orientation the reader last chose instead of
  * reverting to the stylesheet default without saying so.
+ *
+ * It also stamps the orientation onto <html> as `data-print-orientation`, and
+ * that attribute is the THIRD thing that has to agree with the other two.
+ * `@page` decides how big the sheet is, printableWidthPx decides how wide the
+ * charts are laid out, and the attribute decides how many columns the grids
+ * break into -- because Tailwind's `md:`/`xl:` breakpoints measure the viewport
+ * and know nothing about paper. Without it the column count on a printed sheet
+ * is decided by the width of the window the reader happened to have open, so
+ * the same report comes out differently from a laptop and from a monitor. The
+ * print rules that read it are in index.css (`.print-paper-grid`).
+ *
+ * All three are written from this one function for the same reason the margin
+ * is a shared constant: two of them agreeing and the third not is a defect with
+ * no symptom on screen.
  */
 export const setPageOrientation = (orientation: PageOrientation): void => {
     currentOrientation = orientation;
@@ -70,6 +84,7 @@ export const setPageOrientation = (orientation: PageOrientation): void => {
     }
 
     style.textContent = `@page { size: A4 ${orientation}; margin: ${PAGE_MARGIN_MM}mm; }`;
+    document.documentElement.dataset.printOrientation = orientation;
 };
 
 /**

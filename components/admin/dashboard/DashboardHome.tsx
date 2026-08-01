@@ -533,7 +533,14 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                 </div>
             )}
 
-            <div className="hidden print:block text-center text-xs text-slate-400">
+            {/* The colophon. slate-600 and a rule above it, not slate-400 and
+                nothing: slate-400 measures 2.56:1 on white -- this file's own
+                comments call that illegal for text elsewhere on the page -- and
+                on paper it is fainter still, so the one line that dates the
+                report was the least legible thing on the sheet. The rule is what
+                marks the end of the document; without it the sentence floated
+                under the last card and read as part of it. */}
+            <div className="hidden print:block border-t border-slate-300 pt-2 text-center text-xs text-slate-600">
                 {t.dashboard.printedFooter(formatDateTime(new Date()))}
             </div>
         </div>
