@@ -84,6 +84,14 @@ export const en = {
         // Prefixes the filter conditions on the printed sheet, so a filtered
         // report cannot be mistaken for the whole data set.
         printFilters: 'Filters:',
+        // The masthead's timestamp, on all three A4 reports. It used to sit under
+        // `dashboard`, which meant the inventory and transaction screens reached
+        // into another feature's block to say when their own sheet was made --
+        // the one thing the note at the top of every locale file forbids.
+        generatedOn: (when: string) => `Generated on ${when}`,
+        // The foot of every sheet, and its accessible name. Shared for the same
+        // reason: three reports, one way of numbering a page.
+        pageOf: (page: number, total: number) => `Page ${page} of ${total}`,
 
         // Recurring labels and table headers
         actions: 'Actions',

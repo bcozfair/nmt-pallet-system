@@ -5,17 +5,17 @@ import { fetchDepartments } from '../../../services/departmentService';
 import { fetchTransactions, cleanupOldData, updateTransaction, deleteTransaction } from '../../../services/transactionService';
 import { supabase } from '../../../services/supabase';
 import { toast } from '../../../services/toast';
-import { formatDateTime } from '../common/AdminHelpers';
 import { TransactionFilters } from './TransactionFilters';
 import { TransactionTable, TxSortConfig } from './TransactionTable';
 import { TransactionEditModal } from './TransactionEditModal';
 import { ImageViewerModal } from '../common/ImageViewerModal';
 import { TransactionHeader } from './TransactionHeader';
-import { ConfirmDialog, PrintReportHeader, StickyHeader } from '../../ui';
+import { ConfirmDialog, StickyHeader } from '../../ui';
+import { ReportPrintHost, useReportPrint } from '../../report';
+import { TransactionReport } from './report/TransactionReport';
 import { exportHistoryCSV } from '../../../utils/exportHelpers';
 import { getEvidenceSignedUrl } from '../../../services/storageService';
 import { useT } from '../../../hooks/useT';
-import { usePageOrientation } from '../../../hooks/usePageOrientation';
 import { dict } from '../../../services/i18n';
 import { describeAppError } from '../../../services/appError';
 
@@ -250,16 +250,22 @@ export const TransactionView = () => {
 
     // --- PRINT ---
     //
-    // Nothing to prepare before printing here, unlike the dashboard (deferred
-    // chart sections) and the inventory screen (signed evidence photos): every
-    // row this sheet needs is already in the DOM, hidden, from
-    // `processedTransactions`. So the handler is the orientation switch and
-    // window.print(), and Ctrl+P produces the same sheet minus the choice.
-    const { printWithOrientation } = usePageOrientation();
+    // THIS SCREEN NO LONGER PRINTS ITSELF. It used to render every filtered row
+    // and hide the off-page ones so a `tr[data-print-row]` rule could reveal them
+    // for print. That produced a document, but the rows per sheet were whatever
+    // the engine happened to fit and the remark column vanished from the paper
+    // because it is `xl:` and A4 is narrower than `xl`.
+    //
+    // What replaces it is a separate A4 document that declares its own pages --
+    // report/TransactionReport.tsx, on the shared kit in components/report/.
+    // Nothing has to be fetched before it can be built: unlike the inventory
+    // report's photo appendix, every value this one prints is already in
+    // `processedTransactions`.
+    const { job: printJob, print: printReport } = useReportPrint();
 
     // What the printed sheet says the rows were filtered by. Assembled here
-    // because this is the component holding every filter's value; the
-    // PrintReportHeader primitive only lays out the phrases it is handed.
+    // because this is the component holding every filter's value; the report only
+    // lays out the phrases it is handed.
     const printFilters: string[] = [];
     if (searchTerm) printFilters.push(`${t.common.search}: ${searchTerm}`);
     if (actionFilter !== 'all') {
@@ -370,21 +376,6 @@ export const TransactionView = () => {
         // at that box's edge instead of continuing down the document; and a box
         // clamped to 100vh has nothing below the fold to hand to the printer.
         <div className="flex flex-col gap-4">
-            {/* Paper only, and the first thing on the sheet: PageHeader inside
-                TransactionHeader is print:hidden because it is a control strip,
-                so without this the report would start with an unlabelled table.
-                The filter line is what stops a filtered view being read as the
-                complete history. */}
-            <PrintReportHeader
-                title={t.transactions.reportTitle}
-                generatedOn={t.dashboard.reportGeneratedOn(formatDateTime(new Date()))}
-                filters={
-                    printFilters.length > 0
-                        ? [`${t.common.printFilters} ${printFilters.join(' · ')}`]
-                        : undefined
-                }
-            />
-
             {/* Everything above the rows travels together and stays pinned at
                 xl: the page header and the filter bar. What scrolls is the rows
                 and the pagination under them. The table's own head pins directly
@@ -398,7 +389,7 @@ export const TransactionView = () => {
                 <TransactionHeader
                     onCleanup={handleCleanup}
                     onExport={handleExport}
-                    onPrintReport={printWithOrientation}
+                    onPrintReport={printReport}
                 />
 
                 <TransactionFilters
@@ -441,7 +432,6 @@ export const TransactionView = () => {
 
             <TransactionTable
                 paginatedTransactions={paginatedTransactions}
-                processedTransactions={processedTransactions}
                 totalProcessedCount={processedTransactions.length}
                 sortConfig={sortConfig}
                 onSort={handleSort}
@@ -500,6 +490,31 @@ export const TransactionView = () => {
                 />
             )}
 
+            {/* Mounted only while a print is in flight. It portals as many sheets
+                as the filtered rows need into <body> -- up to TX_FETCH_LIMIT of
+                them, which is why it is not built on every visit to this screen
+                for a reader who never presses the button. */}
+            {printJob && (
+                <ReportPrintHost>
+                    <TransactionReport
+                        transactions={processedTransactions}
+                        userMap={users}
+                        filterLine={
+                            printFilters.length > 0
+                                ? `${t.common.printFilters} ${printFilters.join(' · ')}`
+                                : undefined
+                        }
+                        // Only when the fetch actually came back full. Below the
+                        // cap the list IS the whole history and the note would be
+                        // a lie -- the same test the on-screen note above uses.
+                        windowLimit={
+                            transactions.length >= TX_FETCH_LIMIT ? TX_FETCH_LIMIT : undefined
+                        }
+                        generatedAt={printJob.at}
+                        orientation={printJob.orientation}
+                    />
+                </ReportPrintHost>
+            )}
         </div>
     );
 };

@@ -1,7 +1,9 @@
 
 import React, { useCallback } from 'react';
 import { Pallet } from '../../../types';
-import { ConfirmDialog, PrintReportHeader, StickyHeader } from '../../ui';
+import { ConfirmDialog, StickyHeader } from '../../ui';
+import { ReportPrintHost, useReportPrint } from '../../report';
+import { InventoryReport } from './report/InventoryReport';
 import { toast } from '../../../services/toast';
 import { describeAppError } from '../../../services/appError';
 import { exportInventoryCSV } from '../../../utils/exportHelpers';
@@ -21,9 +23,7 @@ import { useInventoryFilters } from '../../../hooks/inventory/useInventoryFilter
 import { useInventorySelection } from '../../../hooks/inventory/useInventorySelection';
 import { useInventoryActions } from '../../../hooks/inventory/useInventoryActions';
 import { useInventoryEvidence } from '../../../hooks/inventory/useInventoryEvidence';
-import { usePageOrientation } from '../../../hooks/usePageOrientation';
 import type { PageOrientation } from '../../../hooks/usePageOrientation';
-import { formatDateTime } from '../common/AdminHelpers';
 
 export const InventoryView = ({
     pallets,
@@ -91,28 +91,35 @@ export const InventoryView = ({
     } = useInventoryActions(onRefresh, setSelectedIds);
 
     // 4. Printing
+    //
+    // THIS SCREEN NO LONGER PRINTS ITSELF. It used to: hide the chrome, unfreeze
+    // the sticky header, and let a `tr[data-print-row]` rule reveal the rows
+    // pagination had hidden. That produced a document, but the rows per sheet
+    // were whatever the engine happened to fit, and two columns vanished from
+    // the paper because they are `xl:` and A4 is narrower than `xl`.
+    //
+    // What replaces it is a separate A4 document that declares its own pages --
+    // components/admin/inventory/report/, on the shared kit in components/report/.
     const { evidenceUrls, loadEvidence } = useInventoryEvidence();
-    const { printWithOrientation } = usePageOrientation();
+    const { job: printJob, print: printReport } = useReportPrint();
 
-    // Signs the damage photos first, then prints. The await is the whole point:
-    // the evidence column exists on paper only, and a synchronous window.print()
-    // would go out before a single URL came back. See useInventoryEvidence for
-    // why this is not loaded when the screen opens.
+    // Signs the damage photos first, then mounts the report. The await is the
+    // whole point: the appendix exists on paper only, and a synchronous
+    // window.print() would go out before a single URL came back. See
+    // useInventoryEvidence for why this is not loaded when the screen opens, and
+    // useReportPrint for the second half of the wait -- decoding the images once
+    // they are in the DOM.
     const handlePrintReport = useCallback(
         async (orientation: PageOrientation) => {
             await loadEvidence(processedPallets);
-            // One frame so React commits the <img> tags the load above just made
-            // renderable. Without it the print snapshot is taken from the DOM as
-            // it was before the state update.
-            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-            await printWithOrientation(orientation);
+            printReport(orientation);
         },
-        [loadEvidence, processedPallets, printWithOrientation],
+        [loadEvidence, processedPallets, printReport],
     );
 
     // What the printed sheet says the rows were filtered by. Assembled here
-    // because this is the component that holds every filter's value; the
-    // PrintReportHeader primitive only lays out whatever phrases it is handed.
+    // because this is the component that holds every filter's value; the report
+    // only lays out whatever phrases it is handed.
     //
     // Built by pushing, not by mapping-then-filtering, so a filter at its default
     // contributes nothing at all rather than an empty phrase.
@@ -193,20 +200,6 @@ export const InventoryView = ({
                 The inner gap-4 is this page's own rhythm, repeated here because
                 these three are no longer direct children of the column that
                 sets it. */}
-            {/* Paper only, and the first thing on the sheet: PageHeader above is
-                print:hidden because it is a control strip, so without this the
-                report would start with an unlabelled table. `printFilters` is
-                what stops a filtered view being read as the whole fleet. */}
-            <PrintReportHeader
-                title={t.inventory.reportTitle}
-                generatedOn={t.dashboard.reportGeneratedOn(formatDateTime(new Date()))}
-                filters={
-                    printFilters.length > 0
-                        ? [`${t.common.printFilters} ${printFilters.join(' · ')}`]
-                        : undefined
-                }
-            />
-
             <StickyHeader className="flex flex-col gap-4">
                 <InventoryHeader
                     onPrintReport={handlePrintReport}
@@ -246,8 +239,6 @@ export const InventoryView = ({
 
             <InventoryTable
                 paginatedPallets={paginatedPallets}
-                processedPallets={processedPallets}
-                evidenceUrls={evidenceUrls}
                 totalProcessedCount={processedPallets.length}
                 selectedIds={selectedIds}
                 onSelectAll={handleSelectAll}
@@ -324,6 +315,28 @@ export const InventoryView = ({
                     onCancel={() => setConfirmAction(null)}
                     onError={(error) => toast.error(describeAppError(error))}
                 />
+            )}
+
+            {/* Mounted only while a print is in flight. It portals as many sheets
+                as the filtered rows need into <body>; building that on every
+                visit to this screen, for an admin who never presses the button,
+                would be pure cost -- and this is the screen most of them open
+                first every morning. */}
+            {printJob && (
+                <ReportPrintHost>
+                    <InventoryReport
+                        pallets={processedPallets}
+                        evidenceUrls={evidenceUrls}
+                        overdueThreshold={overdueThreshold}
+                        filterLine={
+                            printFilters.length > 0
+                                ? `${t.common.printFilters} ${printFilters.join(' · ')}`
+                                : undefined
+                        }
+                        generatedAt={printJob.at}
+                        orientation={printJob.orientation}
+                    />
+                </ReportPrintHost>
             )}
         </div>
     );

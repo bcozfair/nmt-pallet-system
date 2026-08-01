@@ -28,9 +28,11 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     // applying it here covers the inventory, transaction, user and location
     // screens at once, including any filter bar written after this.
     //
-    // The conditions themselves are NOT lost: the printable screens name them in
-    // PrintReportHeader, as text, which is what a reader holding the sheet needs
-    // -- an empty dropdown telling them nothing.
+    // The conditions themselves are NOT lost: each printable screen assembles
+    // them into a line of text and hands it to its report's masthead, which is
+    // what a reader holding the sheet needs -- an empty dropdown tells them
+    // nothing. Note that this rule now only matters for a bare Ctrl+P; a report
+    // is a separate document and never contains a filter bar to hide.
     <div className="flex flex-col gap-2 print:hidden">
         <div className={`${CARD_SHELL} p-3`}>
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">{children}</div>

@@ -595,7 +595,7 @@ export const exportDashboardSummaryCSV = (
     // --- Preamble ---------------------------------------------------------
     rows.push([t.dashboard.reportTitle]);
     rows.push([a.range.label, a.range[RANGE_LABEL_KEY[range]]]);
-    rows.push([t.dashboard.reportGeneratedOn(formatCsvDateTime(new Date()))]);
+    rows.push([t.common.generatedOn(formatCsvDateTime(new Date()))]);
     // The caveat that makes the rest of the file readable: the fleet block is
     // counted as of now and is deliberately NOT scoped by the range above, so a
     // reader does not take an unchanged total for a broken filter.

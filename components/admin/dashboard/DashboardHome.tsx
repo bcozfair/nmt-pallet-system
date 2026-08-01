@@ -6,8 +6,8 @@ import { useT } from '../../../hooks/useT';
 import { useOverdueThreshold } from '../../../hooks/useOverdueThreshold';
 import { useDashboardData } from '../../../hooks/dashboard/useDashboardData';
 import { SkeletonCard } from '../../ui';
-import { ReportPrintHost } from './report/ReportPrintHost';
-import { useReportPrint } from './report/useReportPrint';
+import { ReportPrintHost, useReportPrint } from '../../report';
+import { DashboardReport } from './report/DashboardReport';
 import {
     exportDashboardSummaryCSV,
     exportHistoryCSV,
@@ -240,8 +240,8 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
     // sized for a scrolling viewport, cut into sheets by an engine that left a
     // third of every page blank, and charts laid out at whatever width the
     // reader's browser window happened to be. Three rounds of print CSS moved
-    // that defect around without removing it -- report/ReportPage.tsx carries
-    // the two reasons it cannot be removed from a stylesheet at all.
+    // that defect around without removing it -- components/report/ReportPage.tsx
+    // carries the two reasons it cannot be removed from a stylesheet at all.
     //
     // So the report is a separate A4 document built from the same
     // `DashboardAnalytics` object. The button mounts it and prints it; the
@@ -252,9 +252,14 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
     // scrolled to; the report reads the analytics object directly and does not
     // care which sections happen to be on screen.
     //
-    // `printingAt` is both the render flag and the instant the sheet claims to
+    // `job` is both the render flag and the instant the sheet claims to
     // describe -- see the hook for why those are one value.
-    const { printingAt, print: printReport } = useReportPrint();
+    //
+    // Portrait is passed rather than defaulted. This report is laid out for one
+    // sheet and offers no choice, and the inventory and transaction reports do
+    // offer one -- a hook that defaulted the orientation would let one of those
+    // two forget to pass the reader's answer and still compile.
+    const { job: printJob, print: printReport } = useReportPrint();
 
     // `error` from the hook is a raw Error.message -- a Supabase string, in
     // English, with a status code in it. It is useful to whoever is debugging
@@ -289,20 +294,22 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
         // that used to be here is one of the 30 dead tailwindcss-animate classes
         // index.css:317 documents -- it never rendered a frame.
         <div className="flex flex-col gap-6">
-            {/* No PrintReportHeader here any more, and no `print:` anything: this
+            {/* No hidden print masthead here, and no `print:` anything: this
                 screen is not what gets printed. The report is its own document
                 (report/DashboardReport.tsx) with its own masthead, and leaving a
                 second, hidden one on the dashboard would be a header nobody can
                 see, on a page nobody prints, that still has to be kept in step
-                with the one that is real. The primitive stays exported -- the
-                inventory and transaction screens do still print in place. */}
+                with the one that is real. The `PrintReportHeader` primitive that
+                used to be here is deleted outright -- the inventory and
+                transaction screens were its last two callers, and they build real
+                documents now too. */}
             {/* No range control here any more -- it lives on each card the
                 range actually scopes, and its static twin (AsOfNowChip) on each
                 card it does not. See the note at the top of RangeMenu.tsx: a
                 page-level picker governed one of the five blocks on screen and
                 needed a printed disclaimer to admit it. */}
             <PageHeader
-                onOpenReport={printReport}
+                onOpenReport={() => printReport('portrait')}
                 onExportSummary={handleExportSummary}
                 onExportInventory={handleExportInventory}
                 onExportHistory={handleExportHistory}
@@ -483,13 +490,15 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                 `analytics` exists. It portals four sheets of figures into
                 <body>; building that on every dashboard load, for a reader who
                 never presses the button, would be pure cost. */}
-            {printingAt && analytics && (
-                <ReportPrintHost
-                    analytics={analytics}
-                    range={range}
-                    overdueDays={overdueDays}
-                    generatedAt={printingAt}
-                />
+            {printJob && analytics && (
+                <ReportPrintHost>
+                    <DashboardReport
+                        analytics={analytics}
+                        range={range}
+                        overdueDays={overdueDays}
+                        generatedAt={printJob.at}
+                    />
+                </ReportPrintHost>
             )}
         </div>
     );

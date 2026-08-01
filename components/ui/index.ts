@@ -83,11 +83,12 @@ export type { FilterBarProps } from './FilterBar';
 export { PageHeader } from './PageHeader';
 export type { PageHeaderProps } from './PageHeader';
 
-// The paper counterpart of PageHeader: that one is `print:hidden` because it is
-// a control strip, this one is `hidden print:block` because it is the only thing
-// on the sheet that says what the sheet is.
-export { PrintReportHeader } from './PrintReportHeader';
-export type { PrintReportHeaderProps } from './PrintReportHeader';
+// PrintReportHeader was the paper counterpart of PageHeader -- `hidden
+// print:block`, so that a screen printing itself in place had something on the
+// sheet saying what the sheet was. No screen prints itself in place any more:
+// all three build a real A4 document (components/report/), and a document's
+// masthead belongs to the document, where it can also declare its own height and
+// let the pages be paginated against it.
 
 export { SelectionBar } from './SelectionBar';
 export type { SelectionBarProps } from './SelectionBar';

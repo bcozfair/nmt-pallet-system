@@ -7,7 +7,7 @@ import {
     printableAreaMm,
     setPageOrientation,
 } from './usePageOrientation';
-import { PAGE_HEIGHT_MM, PAGE_WIDTH_MM } from '../components/admin/dashboard/report/ReportPage';
+import { PAGE_HEIGHT_MM, PAGE_WIDTH_MM, pageBoxMm } from '../components/report/ReportPage';
 
 // jsdom ไม่จัดหน้ากระดาษ จึงพิสูจน์ "พิมพ์ออกมาแล้วสวยไหม" ด้วย DOM ไม่ได้ --
 // เทสต์ชุดนี้จึงยึดสัญญาที่เป็นต้นเหตุแทน
@@ -16,7 +16,7 @@ import { PAGE_HEIGHT_MM, PAGE_WIDTH_MM } from '../components/admin/dashboard/rep
 //
 //   1. กฎ `@page`         -- ตัดสินว่ากระดาษใบจริงใหญ่แค่ไหน
 //   2. printableAreaMm()  -- ตัดสินว่ากล่องหน้ารายงานสูง/กว้างเท่าไหร่
-//                            (components/admin/dashboard/report/ReportPage.tsx)
+//                            (components/report/ReportPage.tsx)
 //
 // สองอันนี้ไม่ตรงกันคือบั๊กที่ไม่มีอาการบนหน้าจอเลย: กล่องหน้าที่สูงเกินพื้นที่พิมพ์
 // แม้แต่นิดเดียวจะดันกระดาษเปล่าออกมาต่อท้ายทุกแผ่น (4 หน้ากลายเป็น 8) ส่วนที่เตี้ย
@@ -89,5 +89,17 @@ describe('setPageOrientation -- @page กับ data-print-orientation ต้อ
         // เตี้ยกว่าพื้นที่พิมพ์ 1mm พอดี -- เผื่อไว้ให้การปัดเศษ mm -> px
         expect(PAGE_HEIGHT_MM).toBe(area.heightMm - 1);
         expect(PAGE_HEIGHT_MM).toBeLessThan(area.heightMm);
+    });
+
+    // หน้าคลังพาเลทกับหน้าประวัติรายการให้คนเลือกแนวกระดาษได้ กล่องหน้าจึงต้อง
+    // พอดีกับพื้นที่พิมพ์ของ *ทั้งสองแนว* ไม่ใช่แค่แนวตั้งที่แดชบอร์ดใช้
+    it('กล่องหน้าพอดีกับพื้นที่พิมพ์ทั้งสองแนว', () => {
+        for (const orientation of ['portrait', 'landscape'] as const) {
+            const area = printableAreaMm(orientation);
+            const box = pageBoxMm(orientation);
+
+            expect(box.widthMm).toBe(area.widthMm);
+            expect(box.heightMm).toBe(area.heightMm - 1);
+        }
     });
 });

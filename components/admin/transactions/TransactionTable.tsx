@@ -15,19 +15,17 @@ export type TxSortConfig = { key: keyof Transaction, direction: 'asc' | 'desc' }
 // TransactionView already imports.
 type TxSortKey = keyof Transaction;
 
+// This table is a SCREEN table again.
+//
+// It used to render every row that passed the filters and hide the off-page ones
+// with an inline `display: none`, so a `tr[data-print-row]` rule could bring them
+// back for print. All of it is gone: the report is a separate document now
+// (report/TransactionReport.tsx), built from the same `processedTransactions`
+// array this screen already had. With a 2000-row fetch limit, what that removes
+// is up to two thousand rows of DOM held permanently to fill a sheet nobody had
+// asked for yet.
 interface TransactionTableProps {
     paginatedTransactions: Transaction[];
-    /**
-     * Every row that passed the filters, not just the current page.
-     *
-     * Printed reports carry the whole filtered result: pagination is a screen
-     * affordance, and a history report that stopped at row 20 because that is
-     * the page somebody was on would be wrong with nothing on the sheet to
-     * admit it. Off-page rows are rendered and hidden -- see InventoryTable,
-     * which does the same, for the reasoning behind one template rather than a
-     * parallel print-only table.
-     */
-    processedTransactions: Transaction[];
     totalProcessedCount: number;
     sortConfig: TxSortConfig;
     onSort: (key: keyof Transaction) => void;
@@ -58,7 +56,6 @@ const ROW_BUTTON =
 
 export const TransactionTable: React.FC<TransactionTableProps> = ({
     paginatedTransactions,
-    processedTransactions,
     totalProcessedCount,
     sortConfig,
     onSort,
@@ -74,8 +71,6 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
     isLoading,
 }) => {
     const t = useT();
-
-    const pageIds = new Set(paginatedTransactions.map((tx) => tx.id));
 
     // Colours stay here, wording comes from the shared action table -- the same
     // one the filter dropdown, the CSV export and the mobile history read.
@@ -145,26 +140,22 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                         คอลัมน์พอดีกับ minWidth ข้างบน ข้อความเต็มยังอ่านได้ครบใน
                         โมดัลแก้ไขและในไฟล์ CSV ที่ส่งออก -- เกณฑ์เดียวกับที่หน้า
                         คลังพาเลทซ่อนคอลัมน์หมายเหตุกับเบิกออกล่าสุด */}
-                    {/* print:table-cell alongside xl:table-cell: a print media
-                        query measures the PAPER, and A4 landscape is ~1032px --
-                        under the 1280px xl breakpoint, so this column would drop
-                        off the report without saying so. */}
-                    <SortableTh<TxSortKey> label={t.common.remark} sortConfig={sortConfig} className="hidden xl:table-cell print:table-cell" />
-                    {/* Evidence and Actions are both columns of buttons, dead on
-                        paper. print:hidden goes on the HEADER and its cell as a
-                        pair -- a `display: none` cell leaves the row a column
-                        short, so hiding one without the other shifts every
-                        heading after it over the wrong data. */}
-                    <SortableTh<TxSortKey> label={t.transactions.colEvidence} sortConfig={sortConfig} align="center" className="print:hidden" />
-                    <SortableTh<TxSortKey> label={t.common.actions} sortConfig={sortConfig} align="right" className="print:hidden" />
+                    {/* Dropped below `xl` and NOT brought back for print. The
+                        report carries all seven columns on both orientations and
+                        does not consult a breakpoint to decide -- which is what
+                        the `print:table-cell` that used to be here was
+                        compensating for, since a print media query measures the
+                        paper and A4 is narrower than `xl`. */}
+                    <SortableTh<TxSortKey> label={t.common.remark} sortConfig={sortConfig} className="hidden xl:table-cell" />
+                    <SortableTh<TxSortKey> label={t.transactions.colEvidence} sortConfig={sortConfig} align="center" />
+                    <SortableTh<TxSortKey> label={t.common.actions} sortConfig={sortConfig} align="right" />
                 </tr>
             }
         >
             <tbody className="divide-y divide-slate-100">
-                {/* Every filtered row, with the off-page ones hidden until print
-                    -- see `processedTransactions` above. `pageIds` is a Set so
-                    the membership test stays O(1) per row. */}
-                {processedTransactions.map(tx => (
+                {/* One page of rows, which is now all this table ever renders --
+                    see the note above the props for what used to be here. */}
+                {paginatedTransactions.map(tx => (
                     // Body cells are `py-1.5`, the header `py-2.5` (DataTable's
                     // TH_BASE). Not drift: the row height decides how much
                     // history fits on one screen, and the header is one row that
@@ -177,12 +168,6 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     <tr
                         key={tx.id}
                         className="transition hover:bg-slate-50"
-                        // Inline `display: none` beaten by one `!important`
-                        // print rule (`tr[data-print-row]` in index.css). A
-                        // Tailwind `hidden print:table-row` pair would leave the
-                        // winner to the order of the built stylesheet.
-                        style={pageIds.has(tx.id) ? undefined : { display: 'none' }}
-                        data-print-row={pageIds.has(tx.id) ? undefined : 'true'}
                     >
                         <td className="px-3 py-1.5 text-sm text-slate-600">
                             {formatDateTime(tx.timestamp)}
@@ -212,7 +197,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                             )}
                         </td>
                         <td
-                            className="hidden max-w-[200px] truncate px-3 py-1.5 text-sm text-slate-500 xl:table-cell print:table-cell"
+                            className="hidden max-w-[200px] truncate px-3 py-1.5 text-sm text-slate-500 xl:table-cell"
                             title={tx.transaction_remark || ''}
                         >
                             {tx.transaction_remark ? (
@@ -228,7 +213,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                             โดยตั้งใจ: สิ่งที่คอลัมน์นี้ทำจริงคือให้กวาดตาลงมาแล้วรู้
                             ทันทีว่าแถวไหนมีรูปหลักฐาน และพื้นสีคือสิ่งที่ทำให้กวาดตาได้
                             เปลี่ยนเป็นไอคอนเปล่าคือถอดความสามารถนั้นออกไปเงียบ ๆ */}
-                        <td className="px-3 py-1.5 text-center print:hidden">
+                        <td className="px-3 py-1.5 text-center">
                             {tx.evidence_image_url && tx.evidence_image_url !== 'image_deleted' ? (
                                 <button
                                     onClick={() => onViewImage(tx.evidence_image_url!)}
@@ -246,7 +231,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                                 <span className="text-xs text-slate-300">-</span>
                             )}
                         </td>
-                        <td className="px-3 py-1.5 text-right print:hidden">
+                        <td className="px-3 py-1.5 text-right">
                             <div className="flex items-center justify-end gap-1">
                                 <button
                                     onClick={() => onEdit(tx)}

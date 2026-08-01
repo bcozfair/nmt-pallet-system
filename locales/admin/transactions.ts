@@ -22,10 +22,31 @@ export const transactionsEn = {
     // `exportCsv` used to sit here, reading "Export CSV" while the dashboard's
     // identical button read "Export Data". Both now read `common.exportData`.
 
-    // Heads the printed sheet (components/ui/PrintReportHeader.tsx). Its own key
-    // rather than reusing `title` above: that one names a screen you manage
-    // things on, this one names a document somebody is holding.
+    // Heads the printed sheet. Its own key rather than reusing `title` above:
+    // that one names a screen you manage things on, this one names a document
+    // somebody is holding.
     reportTitle: 'Transaction History Report',
+
+    // --- The A4 report (components/admin/transactions/report/) ---
+    //
+    // Its own group because these strings describe the DOCUMENT rather than the
+    // screen. Column headings are not repeated here -- the report reads the same
+    // `colDateTime`, `colAction`, `colPerformedBy` and `colEvidence` the table
+    // does, so a heading renamed on screen cannot say something else on paper.
+    report: {
+        subtitle: 'Check-outs, check-ins, damage reports, repairs and scrapping',
+        section: 'Transaction list',
+        scope: (count: number) => `${count} transactions`,
+        empty: 'No transactions matched these filters.',
+        // The screen caps its fetch, and a printed sheet is the one place that
+        // cap is invisible -- a reader holding 40 pages has no filter bar in
+        // front of them saying they are looking at a window. Printed in the
+        // masthead only when the fetch actually came back full.
+        windowNote: (limit: number) => `Most recent ${limit} records only`,
+        // Under the evidence column, which is a photo on screen and cannot be
+        // one in a 5mm row. The tick says a picture exists and where to find it.
+        hasEvidence: 'Yes',
+    },
 
     // --- Filters ---
     searchPlaceholder: 'Search by Pallet ID, Notes...',
@@ -104,6 +125,15 @@ export const transactionsTh: TransactionsDict = {
     subtitle: 'ดูประวัติการเบิกออก รับคืน และการซ่อมทั้งหมด',
     cleanup: 'ล้างข้อมูลเก่า',
     reportTitle: 'รายงานประวัติการทำรายการ',
+
+    report: {
+        subtitle: 'การเบิกออก รับคืน แจ้งชำรุด ซ่อม และตัดออกจากระบบ',
+        section: 'รายการทำธุรกรรม',
+        scope: (count: number) => `${count} รายการ`,
+        empty: 'ไม่พบรายการที่ตรงกับตัวกรอง',
+        windowNote: (limit: number) => `แสดงเฉพาะ ${limit} รายการล่าสุด`,
+        hasEvidence: 'มี',
+    },
 
     searchPlaceholder: 'ค้นหาด้วยรหัสพาเลท หรือหมายเหตุ...',
     allUsers: 'ผู้ใช้งานทั้งหมด',

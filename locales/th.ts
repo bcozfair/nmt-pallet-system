@@ -66,6 +66,8 @@ export const th: Dictionary = {
         printPortrait: 'พิมพ์ (แนวตั้ง)',
         exportData: 'ส่งออกข้อมูล',
         printFilters: 'ตัวกรองที่ใช้:',
+        generatedOn: (when: string) => `สร้างรายงานเมื่อ ${when}`,
+        pageOf: (page: number, total: number) => `หน้า ${page} จาก ${total}`,
 
         actions: 'จัดการ',
         all: 'ทั้งหมด',

@@ -152,15 +152,10 @@
    it. So Ctrl+P on any screen in this app produced a blank sheet, silently,
    for as long as that rule existed.
 
-   TWO SCREENS PRINT THEMSELVES IN PLACE and one does not.
+   NO SCREEN PRINTS ITSELF IN PLACE ANY MORE.
 
-   Inventory and transactions do: they are a header and a table, a table
-   paginates cleanly, and the rules below are enough to turn one into a document
-   -- hide the chrome, unfreeze the sticky header, repeat the <thead>, bring back
-   the rows pagination was hiding.
-
-   THE DASHBOARD DOES NOT, ANY MORE. It was tried three times and each attempt
-   moved the defect rather than removing it: card heights are JavaScript
+   The dashboard was the first to stop. It was tried three times and each
+   attempt moved the defect rather than removing it: card heights are JavaScript
    constants CSS cannot reach, and the engine decides where pages break, so a
    475px card meeting 460px of sheet moved whole and printed the 460px blank.
    `hooks/dashboard/usePrintLayout.ts` -- which pinned a paper-shaped width on
@@ -168,31 +163,45 @@
    along with the `.print-paper-grid` rules that forced a column count from the
    sheet instead of from the viewport.
 
-   What replaced it is a separate A4 document built from the same analytics:
-   `components/admin/dashboard/report/`. Its `.report-page` rules are above,
-   its full reasoning is at the top of ReportPage.tsx, and the block inside
-   `@media print` keyed on `data-report-open` is what makes it the only thing on
-   the paper while its preview is open.
+   Inventory and transactions followed, for a defect of their own. A table does
+   paginate cleanly, so `thead { display: table-header-group }` plus a rule
+   revealing the rows pagination had hidden really did produce a document -- but
+   one whose rows-per-sheet were whatever the engine happened to fit, and which
+   silently dropped its Remark and Last Checkout columns, because those are
+   `xl:` and a print media query measures the PAPER, which at A4 is narrower
+   than the `xl` breakpoint. `tr[data-print-row]` is gone with that attempt.
+
+   All three build a real A4 document now: components/report/ holds the sheet,
+   the print handler and the portal; each feature folder holds its own
+   report/ with what goes on the sheet. The full reasoning is at the top of
+   components/report/ReportPage.tsx.
+
+   WHAT IS LEFT IN @media print BELOW is for a bare Ctrl+P, which reaches no
+   JavaScript and therefore no report. It cannot make the app look like a
+   document, and it no longer tries; it makes the app look like a legible
+   screenshot -- no sticky bars repeating on every sheet, no shadows as grey
+   smudges, no inner scroller printing only its first screenful.
 
    The `@page` rule below and PAGE_MARGIN_MM in hooks/usePageOrientation.ts are
-   still two halves of one measurement -- the report's pages are boxes sized to
-   fit inside this margin exactly, and a box computed from a margin the printer
-   is not using either loses a column or spills a blank sheet after every real
-   one. hooks/usePageOrientation.test.ts guards the agreement. */
+   two halves of one measurement -- a report's pages are boxes sized to fit
+   inside this margin exactly, and a box computed from a margin the printer is
+   not using either loses a column or spills a blank sheet after every real one.
+   hooks/usePageOrientation.test.ts guards the agreement, in both orientations. */
 @page {
   size: A4 landscape;
   margin: 12mm;
 }
 
 /* --- รายงาน A4 ที่จัดหน้าเอง -------------------------------------------
-   (components/admin/dashboard/report/)
+   (components/report/ + report/ ในแต่ละโฟลเดอร์ฟีเจอร์)
 
-   หน้า dashboard พิมพ์ตรง ๆ ไม่สวยและแก้ด้วย CSS ไม่ได้ ด้วยเหตุผลสองข้อที่
-   บันทึกไว้เต็ม ๆ ใน ReportPage.tsx สรุปสั้น ๆ คือ ความสูงการ์ดเป็นค่าคงที่ใน
-   JavaScript ที่ CSS เอื้อมไม่ถึง และเอนจินเป็นคนตัดสินว่าหน้าจะแบ่งตรงไหน
-   ไม่ใช่เรา รายงานจึงประกาศหน้าของตัวเองเป็นกล่องขนาดคงที่
+   ทั้งสามหน้าพิมพ์ตรง ๆ ไม่สวยและแก้ด้วย CSS ไม่ได้ ด้วยเหตุผลสองข้อที่บันทึกไว้
+   เต็ม ๆ ใน components/report/ReportPage.tsx สรุปสั้น ๆ คือ ขนาดที่สำคัญเป็นค่าคงที่
+   ใน JavaScript ที่ CSS เอื้อมไม่ถึง (ความสูงการ์ดของแดชบอร์ด จำนวนแถวต่อหน้าของ
+   สองหน้าตาราง) และเอนจินเป็นคนตัดสินว่าหน้าจะแบ่งตรงไหน ไม่ใช่เรา รายงานจึง
+   ประกาศหน้าของตัวเองเป็นกล่องขนาดคงที่
 
-   ประกาศเป็นมิลลิเมตร ไม่ใช่พิกเซล: พื้นที่พิมพ์จริงคือ 186 x 273mm ซึ่งเท่ากับ
+   ประกาศเป็นมิลลิเมตร ไม่ใช่พิกเซล: พื้นที่พิมพ์แนวตั้งคือ 186 x 273mm ซึ่งเท่ากับ
    703 x 1032px ที่ความละเอียดอ้างอิงของ CSS แต่การแปลงมีการปัดเศษ และหน้าที่สูง
    เกินไปหนึ่งพิกเซลจะดันกระดาษเปล่าออกมาต่อท้ายทุกแผ่น -- มิลลิเมตรคือหน่วยที่
    กระดาษถูกกำหนดมาจริง ๆ และ 1mm ที่เหลือไว้คือส่วนที่ดูดการปัดเศษ
@@ -202,7 +211,8 @@
 .report-page {
   /* ขนาดหน้าไม่ได้อยู่ที่นี่ -- ReportPage.tsx เขียน width/height เป็น inline style
      จาก PAGE_MARGIN_MM เพราะขนาดกล่องกับระยะขอบเป็นผลลัพธ์ของเลขตัวเดียวกัน
-     ถ้าเขียนซ้ำไว้ตรงนี้ วันที่ใครแก้ระยะขอบ สองที่นี้จะไม่ตรงกันโดยไม่มีอะไรเตือน */
+     ถ้าเขียนซ้ำไว้ตรงนี้ วันที่ใครแก้ระยะขอบ สองที่นี้จะไม่ตรงกันโดยไม่มีอะไรเตือน
+     และค่าที่เขียนไว้จะถูกได้แค่แนวเดียว ทั้งที่สองหน้าตารางให้เลือกแนวกระดาษได้ */
   flex: none;
   display: flex;
   flex-direction: column;
@@ -213,7 +223,7 @@
 }
 
 /* บนจอไม่แสดงเลย -- รายงานถูก mount เฉพาะตอนกำลังพิมพ์ และกฎในบล็อก
-   `@media print` ข้างล่างคือตัวเปิดมัน (ดู report/ReportPrintHost.tsx) */
+   `@media print` ข้างล่างคือตัวเปิดมัน (ดู components/report/ReportPrintHost.tsx) */
 .report-document {
   display: none;
 }
@@ -235,9 +245,9 @@
 
   /* --- ตอนหน้าพรีวิวรายงานเปิดอยู่ กระดาษคือสิ่งเดียวที่พิมพ์ ------------
 
-     `data-report-open` ถูกเขียนบน <html> โดย report/useReportPrint.ts ตอนเริ่มพิมพ์
-     และลบทิ้งเมื่อจบ กฎทั้งก้อนนี้จึงมีผลเฉพาะตอนที่รายงานถูก mount อยู่จริง --
-     Ctrl+P บนหน้า dashboard ปกติไม่โดนอะไรเลย
+     `data-report-open` ถูกเขียนบน <html> โดย components/report/useReportPrint.ts
+     ตอนเริ่มพิมพ์ และลบทิ้งเมื่อจบ กฎทั้งก้อนนี้จึงมีผลเฉพาะตอนที่รายงานถูก mount
+     อยู่จริง -- Ctrl+P บนหน้าใดก็ตามตามปกติไม่โดนอะไรเลย
 
      ตัวเลือก `body > *` เขียนแบบนี้ได้เพราะ ReportPrintHost portal กล่องรายงาน
      ไปเป็นลูกตรงของ <body> ถ้ามันอยู่ในต้นไม้ของ dashboard มันจะโดนซ่อนไปพร้อมกัน */
@@ -273,11 +283,13 @@
     page-break-inside: avoid;
   }
 
-  /* The other half: keep a box and whatever follows it on the same sheet.
-     Applied by components/ui/PrintReportHeader.tsx, whose whole job is to say
-     what the sheet is -- a report masthead alone at the foot of page 1 with the
-     report itself starting on page 2 is the one break that must never happen.
-     `break-inside` cannot express that; it is a rule about a box's neighbours. */
+  /* The other half: keep a box and whatever follows it on the same sheet. A
+     heading alone at the foot of a page with its content starting overleaf is
+     the one break that must never happen, and `break-inside` cannot express it
+     -- it is a rule about a box's neighbours. Nothing applies this class today;
+     the report mastheads that used to are inside declared pages now, where a
+     break cannot happen at all. It stays because it is the only correct spelling
+     of that idea and the h1-h4 rule further down is the same thought. */
   .print-avoid-break-after {
     break-after: avoid;
     page-break-after: avoid;
@@ -288,8 +300,9 @@
      `table-header-group` is the CSS that tells the engine <thead> is a running
      header and must be repeated at the top of every fragment.
 
-     It has to be `!important` and it has to be here rather than on the element:
-     the print rules further down force `position: static` on everything matching
+     Ctrl+P only, now that neither table screen prints itself. It has to be
+     `!important` and it has to be here rather than on the element: the print
+     rules further down force `position: static` on everything matching
      `[class*="sticky"]`, and DataTable's <thead> is `xl:sticky` -- responsive
      variants apply on paper too. A `display` and a `position` do not fight, but
      the head does carry `xl:z-10`, and a sticky/z-indexed head is exactly the
@@ -297,7 +310,13 @@
 
      `tr` alongside it, because a row split in half across the fold was the other
      half of the same complaint. A row is a few lines tall at most, so this is a
-     rule the engine can always honour. */
+     rule the engine can always honour.
+
+     `tr[data-print-row]` used to sit here: the two table screens rendered every
+     filtered row, hid the off-page ones with an inline `display: none`, and this
+     brought them back for print. It is gone with those attempts -- the reports
+     read the same filtered array directly, so the screens hold one page of rows
+     again. */
   thead {
     display: table-header-group !important;
   }
@@ -305,16 +324,6 @@
   tr {
     break-inside: avoid;
     page-break-inside: avoid;
-  }
-
-  /* The inventory table renders every row that passed the filters and hides the
-     ones outside the current page with an inline `display: none` -- pagination
-     is a screen affordance, and a report that stopped at row 20 because that is
-     the page the reader was on would be wrong without saying so. This is the
-     rule that brings them back. `!important` because it has to beat an inline
-     style, which is the only reason the inline style is safe to use there. */
-  tr[data-print-row] {
-    display: table-row !important;
   }
 
   /* Long shadows read as grey smudges on paper, so surfaces fall back to a
@@ -443,10 +452,11 @@
      breakpoint ของ viewport -- แต่แก้สองข้อที่เป็นต้นเหตุจริงไม่ได้เลย คือความสูง
      การ์ดที่เป็นค่าคงที่ใน JavaScript และการที่เอนจินเป็นคนตัดหน้า ไม่ใช่เรา
      รายงานประกาศหน้าของตัวเองแทนแล้ว (ดู .report-page ข้างบน และบล็อกยาวใน
-     components/admin/dashboard/report/ReportPage.tsx)
+     components/report/ReportPage.tsx)
 
-     กฎที่เหลือในบล็อกนี้ยังจำเป็นอยู่: หน้าคลังพาเลทกับหน้ารายการยังพิมพ์ตัวเอง
-     ในที่ของมัน */
+     กฎที่เหลือในบล็อกนี้ไม่มีหน้าไหนพึ่งอยู่แล้ว -- ทั้งสามหน้ามีรายงานของตัวเอง
+     ที่เป็นเอกสารแยก มันอยู่ต่อเพื่อ Ctrl+P เปล่า ๆ ซึ่งไปไม่ถึง JavaScript จึงไปไม่ถึง
+     รายงาน สิ่งที่มันทำได้คือทำให้หน้าจอออกมาอ่านรู้เรื่อง ไม่ใช่ทำให้เป็นเอกสาร */
 
   /* <details> is collapsed on screen by design -- the chart is the primary
      reading, the table is the fallback. On paper there is no way to expand it,

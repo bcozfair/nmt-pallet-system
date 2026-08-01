@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { ReportPage } from './ReportPage';
+import { ReportPage } from '../../../report';
 import {
     DormantFigure,
     DwellFigure,
@@ -56,9 +56,10 @@ export interface DashboardReportProps {
     analytics: DashboardAnalytics;
     range: DashboardRange;
     overdueDays: number;
-    /** Passed in rather than read from the clock here, so the preview and the
-     *  sheet that comes out of the printer carry the same timestamp even if the
-     *  reader leaves the preview open for a while. */
+    /** Passed in rather than read from the clock here, so every sheet of one
+     *  print carries the same timestamp -- this screen re-renders on every
+     *  realtime pallet change, and a live `new Date()` would drift between the
+     *  moment the reader pressed the button and the moment the dialog opened. */
     generatedAt: Date;
 }
 
@@ -86,7 +87,7 @@ export const DashboardReport: React.FC<DashboardReportProps> = ({
                     {t.dashboard.reportTitle}
                 </h1>
                 <p className="shrink-0 text-[9px] text-slate-600">
-                    {t.dashboard.reportGeneratedOn(when)}
+                    {t.common.generatedOn(when)}
                 </p>
             </div>
             <p className="mt-1 text-[10px] text-slate-600">{r.subtitle}</p>
@@ -165,7 +166,7 @@ export const DashboardReport: React.FC<DashboardReportProps> = ({
                     total={pages.length}
                     section={page.section}
                     documentTitle={t.dashboard.reportTitle}
-                    pageLabel={r.pageOf(index + 1, pages.length)}
+                    pageLabel={t.common.pageOf(index + 1, pages.length)}
                     masthead={index === 0 ? masthead : undefined}
                 >
                     {page.body}

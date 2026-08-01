@@ -1,12 +1,10 @@
-import { useCallback } from 'react';
-
 export type PageOrientation = 'portrait' | 'landscape';
 
 /**
  * The page margin, in millimetres, on all four sides.
  *
  * It has to agree with the `@page` rule in index.css AND with the size of the
- * A4 report's pages (report/ReportPage.tsx), which are boxes drawn to fit the
+ * A4 reports' pages (components/report/ReportPage.tsx), which are boxes drawn to fit the
  * printable area exactly. Exported so neither can restate it as a literal and
  * then drift: a page box computed from a margin the printer is not using either
  * clips its own right-hand column or spills a blank sheet after every real one,
@@ -92,32 +90,23 @@ export const setPageOrientation = (orientation: PageOrientation): void => {
     document.documentElement.dataset.printOrientation = orientation;
 };
 
-/**
- * Lets a screen offer "print in portrait" / "print in landscape".
- *
- * Returns one function because the two steps must not be separable: choosing an
- * orientation without printing changes nothing a reader can see, and printing
- * without having chosen is what the browser's own Ctrl+P already does.
- *
- * The frame between the two is what makes it work. Writing `style.textContent`
- * only queues a stylesheet invalidation; `window.print()` is synchronous and
- * would otherwise snapshot the page before the new `@page` rule has been parsed,
- * so the first print after a switch would come out in the previous orientation
- * and the second would be correct -- the most confusing possible failure.
- */
-export const usePageOrientation = () => {
-    const printWithOrientation = useCallback(
-        (orientation: PageOrientation): Promise<void> => {
-            setPageOrientation(orientation);
-            return new Promise<void>((resolve) => {
-                requestAnimationFrame(() => {
-                    window.print();
-                    resolve();
-                });
-            });
-        },
-        [],
-    );
-
-    return { printWithOrientation };
-};
+// `usePageOrientation` -- the hook this file is named after -- used to live here.
+// It was `setPageOrientation` plus one frame plus `window.print()`, which is
+// exactly the right shape for a screen that prints ITSELF: the frame is
+// load-bearing, because writing `style.textContent` only queues a stylesheet
+// invalidation and a synchronous `window.print()` would otherwise snapshot the
+// page before the new `@page` rule had been parsed -- so the first print after a
+// switch came out in the previous orientation and the second was correct, which
+// is the most confusing possible failure.
+//
+// No screen prints itself any more. All three mount a real A4 document and print
+// that, and the waiting they need is longer and different: React has to commit
+// the report, and its images have to decode. That handler is
+// components/report/useReportPrint.ts, and it calls `setPageOrientation` above
+// directly -- along with putting the previous value back afterwards, which this
+// hook never did and which is why a report printed from one screen used to leave
+// the next screen's Ctrl+P rotated.
+//
+// The module keeps its name because everything left in it is still about the
+// page: the margin, the printable area, and the one `@page` rule the document
+// owns.

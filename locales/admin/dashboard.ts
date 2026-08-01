@@ -28,15 +28,17 @@ export const dashboardEn = {
     exportInventoryCsv: 'Export Inventory CSV',
     exportHistoryCsv: 'Export History CSV',
 
-    // --- Printable report ---
-    // This one opens in a window of its own, which inherits none of the app's
-    // CSS, so its wording is assembled from these keys rather than read off the
-    // screen. The window's font stack is declared inline there for the same
-    // reason -- Inter alone has no Thai glyphs.
-    reportWindowTitle: 'NMT Dashboard Report',
+    // Heads the printed sheet. Its own key rather than reusing `title` above:
+    // that one names a screen you analyse things on, this one names a document
+    // somebody is holding.
+    //
+    // `reportWindowTitle` and `printedFooter` used to sit here, for a report that
+    // opened in a popup window of its own. That window is long gone and both keys
+    // were translated, maintained and reachable from the dictionary for months
+    // without a single reader ever seeing them. `reportGeneratedOn` went to
+    // `common.generatedOn` -- three reports print a timestamp, and two of them
+    // were reaching into this block to do it.
     reportTitle: 'Dashboard Report',
-    reportGeneratedOn: (when: string) => `Generated on ${when}`,
-    printedFooter: (when: string) => `Printed from Pallet Management System on ${when}`,
 
     // --- The paginated A4 report (components/admin/dashboard/report/) ---
     //
@@ -51,7 +53,6 @@ export const dashboardEn = {
         // range picker on it, so the sheet has to state the scope itself.
         rangeLine: (range: string) => `Range: ${range}`,
         asOfLine: (when: string) => `Fleet figures as of ${when}`,
-        pageOf: (page: number, total: number) => `Page ${page} of ${total}`,
         // Printed under any table the report caps. A silently truncated list on
         // paper is indistinguishable from a complete one.
         showingTopOf: (shown: number, total: number) =>
@@ -157,11 +158,7 @@ export const dashboardTh: DashboardDict = {
     exportInventoryCsv: 'ส่งออกคลังพาเลท (CSV)',
     exportHistoryCsv: 'ส่งออกประวัติรายการ (CSV)',
 
-    // --- Printable report ---
-    reportWindowTitle: 'รายงานภาพรวม NMT',
     reportTitle: 'รายงานภาพรวม',
-    reportGeneratedOn: (when: string) => `สร้างรายงานเมื่อ ${when}`,
-    printedFooter: (when: string) => `พิมพ์จากระบบจัดการพาเลทเมื่อ ${when}`,
 
     // --- รายงาน A4 ที่จัดหน้าเอง (components/admin/dashboard/report/) ---
     report: {
@@ -169,7 +166,6 @@ export const dashboardTh: DashboardDict = {
         subtitle: 'ภาพรวมพาเลท ความเคลื่อนไหว คุณภาพ และภาระงาน',
         rangeLine: (range: string) => `ช่วงเวลา: ${range}`,
         asOfLine: (when: string) => `ตัวเลขสถานะพาเลท ณ ${when}`,
-        pageOf: (page: number, total: number) => `หน้า ${page} จาก ${total}`,
         showingTopOf: (shown: number, total: number) =>
             `แสดง ${shown} อันดับแรกจากทั้งหมด ${total} รายการ`,
         pages: {

@@ -75,23 +75,23 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             actionsBusy={isBusy}
             actions={
                 <>
-                    {/* Opens the report, it does not print it -- which is why
-                        this is not the shared PrintMenu the inventory and
-                        transaction screens use.
+                    {/* A plain button, not the shared PrintMenu the inventory and
+                        transaction screens use, and the difference is a real one
+                        rather than an inconsistency.
 
-                        Those two screens print themselves in place, so their
-                        control is a print action with a paper orientation
-                        attached. This screen cannot: a dashboard laid out for a
-                        scrolling viewport does not survive being cut into A4
-                        (see components/admin/dashboard/report/ReportPage.tsx for
-                        the two reasons it cannot be fixed with print CSS). What
-                        it has instead is a separate A4 document built from the
-                        same analytics, and the honest control for that is one
-                        that shows it to you before anything reaches a printer.
+                        All three screens build a separate A4 document now (see
+                        components/report/ReportPage.tsx for the two reasons none
+                        of them can be printed in place). But those two are a
+                        TABLE: the same seven columns fit on either sheet, and a
+                        landscape page just gives each of them more width and each
+                        page more rows, so the choice is a real choice and their
+                        control offers it.
 
-                        No orientation choice either: the report is designed at
-                        A4 portrait and its pages are boxes of that exact size.
-                        Offering landscape would offer to rotate them. */}
+                        This report is not. Its figures are laid out at sizes
+                        chosen for a 186mm column, and its four pages are boxes of
+                        exactly that shape. Offering landscape here would offer to
+                        rotate them, which is not an option -- it is a defect with
+                        a menu item. */}
                     <Button
                         variant="secondary"
                         icon={Printer}

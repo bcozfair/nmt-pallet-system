@@ -12,16 +12,15 @@ import { getEvidenceSignedUrlMap } from '../../services/storageService';
  *
  * Signing costs one network round-trip per object, and the inventory screen is
  * the first thing an admin opens every morning. Paying for every damage photo in
- * the fleet on every visit, to fill a column that only exists on paper, would be
- * the screen's slowest request and would be wasted every time nobody prints.
+ * the fleet on every visit, to fill an appendix that only exists on paper, would
+ * be the screen's slowest request and would be wasted every time nobody prints.
  *
- * So `load()` is called by the print handler, which awaits it before it opens
- * the print dialog. The cost lands on the action that needs it.
+ * So `load()` is called by the print handler, which awaits it before it mounts
+ * the report. The cost lands on the action that needs it.
  *
- * The consequence, stated plainly: a bare Ctrl+P prints the sheet WITHOUT the
- * photos, because nothing can await a fetch inside a synchronous print. It does
- * populate the map for the next attempt. DashboardHome records the same
- * limitation for its deferred chart sections and resolves it the same way.
+ * The consequence, stated plainly: a bare Ctrl+P produces no report at all --
+ * it reaches no JavaScript, so there is nothing to await and nothing to mount.
+ * That is not a regression from this hook; it is true of all three reports.
  * ---------------------------------------------------------------------------
  */
 export const useInventoryEvidence = () => {

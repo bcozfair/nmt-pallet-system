@@ -16,12 +16,37 @@ export const inventoryEn = {
     // `exportList` used to sit here, reading "Export List" while the dashboard's
     // identical button read "Export Data". Both now read `common.exportData`.
 
-    // Heads the printed sheet (components/ui/PrintReportHeader.tsx). Its own key
-    // rather than reusing `title` above: that one names a screen you manage
-    // things on, this one names a document somebody is holding.
+    // Heads the printed sheet. Its own key rather than reusing `title` above:
+    // that one names a screen you manage things on, this one names a document
+    // somebody is holding.
     reportTitle: 'Inventory Report',
-    // The evidence column, which exists on paper only -- see InventoryTable.
+    // The evidence photos, which exist on paper only -- see report/.
     evidencePhoto: 'Evidence',
+
+    // --- The A4 report (components/admin/inventory/report/) ---
+    //
+    // Its own group because these strings describe the DOCUMENT rather than the
+    // screen: a running head, the sentence naming how many rows a reader is
+    // holding, the line a sheet with no rows on it needs. Column headings are
+    // NOT repeated here -- the report reads the same `lastUpdated`,
+    // `lastCheckout` and `overdue` the table does, so a heading renamed on
+    // screen cannot end up saying something else on paper.
+    report: {
+        subtitle: 'Status, location and overdue days for every pallet listed',
+        // The running head on every sheet, and what the table is.
+        section: 'Pallet list',
+        // Under the masthead: what the reader is holding a list of. Says
+        // "pallets" rather than "rows" because one row is one pallet, and the
+        // number is the one somebody will check against a physical count.
+        scope: (count: number) => `${count} pallets`,
+        empty: 'No pallets matched these filters.',
+        // The appendix. Damage photos used to print as 20px thumbnails inside
+        // the table, at a size nothing could be seen in; they get their own
+        // sheets now, and the pallet id under each one is what ties a picture
+        // back to its row.
+        photoSection: 'Damage evidence',
+        photoScope: (count: number) => `${count} damage photos`,
+    },
     printAllQr: 'Print QR',
     addPallet: 'Add Pallet',
     selectedCount: (count: number) => `${count} Selected`,
@@ -184,6 +209,15 @@ export const inventoryTh: InventoryDict = {
     subtitle: 'จัดการพาเลท ติดตามสถานที่ และตรวจสอบสถานะ',
     reportTitle: 'รายงานคลังพาเลท',
     evidencePhoto: 'รูปหลักฐาน',
+
+    report: {
+        subtitle: 'สถานะ สถานที่ และจำนวนวันที่เกินกำหนดของพาเลททุกใบในรายการ',
+        section: 'รายการพาเลท',
+        scope: (count: number) => `พาเลท ${count} ใบ`,
+        empty: 'ไม่พบพาเลทที่ตรงกับตัวกรอง',
+        photoSection: 'รูปหลักฐานความเสียหาย',
+        photoScope: (count: number) => `รูปหลักฐาน ${count} รูป`,
+    },
     printAllQr: 'พิมพ์ QR',
     addPallet: 'เพิ่มพาเลท',
     selectedCount: (count: number) => `เลือกไว้ ${count} รายการ`,
