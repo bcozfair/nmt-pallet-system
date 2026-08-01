@@ -13,7 +13,9 @@ export const inventoryEn = {
     // --- Header ---
     title: 'Inventory Management',
     subtitle: 'Manage assets, track location, and monitor status.',
-    exportList: 'Export List',
+    // `exportList` used to sit here, reading "Export List" while the dashboard's
+    // identical button read "Export Data". Both now read `common.exportData`.
+
     // Heads the printed sheet (components/ui/PrintReportHeader.tsx). Its own key
     // rather than reusing `title` above: that one names a screen you manage
     // things on, this one names a document somebody is holding.
@@ -180,7 +182,6 @@ export const inventoryTh: InventoryDict = {
     // --- Header ---
     title: 'จัดการคลังพาเลท',
     subtitle: 'จัดการพาเลท ติดตามสถานที่ และตรวจสอบสถานะ',
-    exportList: 'ส่งออกรายการ',
     reportTitle: 'รายงานคลังพาเลท',
     evidencePhoto: 'รูปหลักฐาน',
     printAllQr: 'พิมพ์ QR ทั้งหมด',

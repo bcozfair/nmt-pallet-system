@@ -19,7 +19,9 @@ export const transactionsEn = {
     title: 'Transaction Management',
     subtitle: 'View full history of check-ins, check-outs, and repairs.',
     cleanup: 'Cleanup Data',
-    exportCsv: 'Export CSV',
+    // `exportCsv` used to sit here, reading "Export CSV" while the dashboard's
+    // identical button read "Export Data". Both now read `common.exportData`.
+
     // Heads the printed sheet (components/ui/PrintReportHeader.tsx). Its own key
     // rather than reusing `title` above: that one names a screen you manage
     // things on, this one names a document somebody is holding.
@@ -46,8 +48,10 @@ export const transactionsEn = {
     resultCount: (count: number) => `${count} results`,
 
     // --- Table ---
-    // Doubles as the "Timestamp" column of this screen's CSV export: one column
-    // holding formatDateTime output deserves the same heading in both places.
+    // On-screen only now. It used to double as the CSV's timestamp heading, back
+    // when this screen built its own export and wrote one combined cell; that
+    // export is exportHistoryCSV, which splits the stamp into a `csv.header.date`
+    // column and a `csv.header.time` column.
     colDateTime: 'Date & Time',
     colAction: 'Action',
     colPerformedBy: 'Performed By',
@@ -99,7 +103,6 @@ export const transactionsTh: TransactionsDict = {
     title: 'จัดการประวัติรายการ',
     subtitle: 'ดูประวัติการเบิกออก รับคืน และการซ่อมทั้งหมด',
     cleanup: 'ล้างข้อมูลเก่า',
-    exportCsv: 'ส่งออก CSV',
     reportTitle: 'รายงานประวัติการทำรายการ',
 
     searchPlaceholder: 'ค้นหาด้วยรหัสพาเลท หรือหมายเหตุ...',

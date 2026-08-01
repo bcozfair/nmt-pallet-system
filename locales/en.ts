@@ -75,6 +75,12 @@ export const en = {
         printReport: 'Print Report',
         printLandscape: 'Print (Landscape)',
         printPortrait: 'Print (Portrait)',
+        // The export control, on all three screens that have one. It was three
+        // separate keys saying three things -- "Export Data" on the dashboard,
+        // "Export List" on inventory, "Export CSV" on transactions -- for a
+        // button that does the same job in the same place in the same header.
+        // A reader should not have to work out that they are the same control.
+        exportData: 'Export Data',
         // Prefixes the filter conditions on the printed sheet, so a filtered
         // report cannot be mistaken for the whole data set.
         printFilters: 'Filters:',

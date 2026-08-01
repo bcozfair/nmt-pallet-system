@@ -15,11 +15,15 @@ export const dashboardEn = {
     // --- Header ---
     title: 'Dashboard Overview',
     subtitle: 'Operational Analytics & Risk Monitoring',
-    // `printReport` used to sit here. It moved to `common` in locales/en.ts
-    // when the inventory and transaction screens grew the same control: three
-    // screens naming one action, and a per-screen key is three chances for one
-    // of them to word it differently.
-    exportData: 'Export Data',
+    // `printReport` and `exportData` used to sit here. Both moved to `common` in
+    // locales/en.ts once the inventory and transaction screens grew the same two
+    // controls: three screens naming one action, and a per-screen key is three
+    // chances for one of them to word it differently -- which is exactly what
+    // happened. This one said "Export Data", inventory said "Export List",
+    // transactions said "Export CSV".
+    //
+    // The three `export*Csv` keys below stay: they are the ITEMS in this
+    // screen's dropdown, and no other screen has them.
     exportSummary: 'Export Summary (Stats)',
     exportInventoryCsv: 'Export Inventory CSV',
     exportHistoryCsv: 'Export History CSV',
@@ -118,7 +122,6 @@ export const dashboardTh: DashboardDict = {
     // --- Header ---
     title: 'ภาพรวมระบบ',
     subtitle: 'วิเคราะห์การใช้งานและเฝ้าระวังความเสี่ยง',
-    exportData: 'ส่งออกข้อมูล',
     exportSummary: 'ส่งออกสรุปภาพรวม',
     exportInventoryCsv: 'ส่งออกคลังพาเลท (CSV)',
     exportHistoryCsv: 'ส่งออกประวัติรายการ (CSV)',

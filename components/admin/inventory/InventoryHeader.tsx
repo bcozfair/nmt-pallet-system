@@ -35,12 +35,17 @@ export const InventoryHeader: React.FC<InventoryHeaderProps> = ({
             icon={Package}
             actions={
                 <>
-                    {/* The same control the dashboard header carries, so an
-                        admin who learned it there finds it here unchanged.
-                        Export stays a plain button rather than becoming a
-                        dropdown to match the dashboard's: this screen has one
-                        export, and a menu with a single item is a second click
-                        that offers no choice. */}
+                    {/* Both controls read from `common`, the same keys the
+                        dashboard and transaction headers read, so an admin who
+                        learned them on one screen finds them unchanged on the
+                        others.
+
+                        Export stays a plain button rather than a dropdown like
+                        the dashboard's: this screen has one export, and a menu
+                        with a single item is a second click that offers no
+                        choice. Same label, same position, same result -- the
+                        shape differs only where there is genuinely a choice to
+                        make. */}
                     <PrintMenu
                         label={t.common.printReport}
                         landscapeLabel={t.common.printLandscape}
@@ -48,7 +53,7 @@ export const InventoryHeader: React.FC<InventoryHeaderProps> = ({
                         onPrint={onPrintReport}
                     />
                     <Button variant="secondary" icon={Download} onClick={onExport}>
-                        {t.inventory.exportList}
+                        {t.common.exportData}
                     </Button>
                     <Button variant="accentSoft" icon={QrCode} onClick={onPrintQrAll}>
                         {t.inventory.printAllQr}

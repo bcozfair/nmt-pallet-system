@@ -64,6 +64,7 @@ export const th: Dictionary = {
         printReport: 'พิมพ์รายงาน',
         printLandscape: 'พิมพ์ (แนวนอน)',
         printPortrait: 'พิมพ์ (แนวตั้ง)',
+        exportData: 'ส่งออกข้อมูล',
         printFilters: 'ตัวกรองที่ใช้:',
 
         actions: 'จัดการ',

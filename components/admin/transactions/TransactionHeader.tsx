@@ -40,7 +40,7 @@ export const TransactionHeader: React.FC<TransactionHeaderProps> = ({
                         onPrint={onPrintReport}
                     />
                     <Button variant="secondary" icon={Download} onClick={onExport}>
-                        {t.transactions.exportCsv}
+                        {t.common.exportData}
                     </Button>
                 </>
             }

@@ -76,7 +76,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                         onPrint={onPrint}
                         disabled={isBusy}
                     />
-                    <Menu label={t.dashboard.exportData} icon={FileText} items={exportItems} disabled={isBusy} />
+                    {/* `t.common.exportData`, the same key the inventory and
+                        transaction headers read. See the note beside it. */}
+                    <Menu label={t.common.exportData} icon={FileText} items={exportItems} disabled={isBusy} />
                 </>
             }
         />
