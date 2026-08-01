@@ -39,7 +39,11 @@ export const TransactionHeader: React.FC<TransactionHeaderProps> = ({
                         portraitLabel={t.common.printPortrait}
                         onPrint={onPrintReport}
                     />
-                    <Button variant="secondary" icon={Download} onClick={onExport}>
+                    {/* `primary` ตัวเดียวของหน้านี้ตามที่เจ้าของงานสั่ง -- ต่างจากหัวหน้าคลัง
+                        กับแดชบอร์ดที่ปุ่มส่งออกเป็น `secondary` เพราะสองหน้านั้นมีปุ่มหลักของ
+                        ตัวเองอยู่แล้ว ("เพิ่มพาเลท") ส่วนหน้านี้ไม่มี ปุ่มส่งออกจึงรับตำแหน่ง
+                        ปุ่มหลักไปได้โดยไม่แย่งความสนใจกับใคร */}
+                    <Button variant="primary" icon={Download} onClick={onExport}>
                         {t.common.exportData}
                     </Button>
                 </>
