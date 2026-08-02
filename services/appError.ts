@@ -70,8 +70,9 @@ export const describeAppError = (e: unknown): string => {
         // Postgres 42501, "new row violates row-level security policy (USING
         // expression)" -- a message that names the cause outright. The screen
         // showed "เกิดข้อผิดพลาด" and the console showed nothing, so the only
-        // surviving evidence was a bare 403 in the network tab. See
-        // 20260729_02_update_secret_setting.sql for what it took to find it.
+        // surviving evidence was a bare 403 in the network tab. The comment above
+        // update_secret_setting() in 00_current_schema.sql records what it took
+        // to find it.
         //
         // Deliberately only this branch: an AppError is one we raised on
         // purpose, its message is already displayed in full, and logging those

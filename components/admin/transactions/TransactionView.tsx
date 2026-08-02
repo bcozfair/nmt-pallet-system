@@ -354,8 +354,8 @@ export const TransactionView = () => {
             confirmPhraseLabel: c.transactions.cleanupPhraseLabel(c.transactions.cleanupPhrase),
             onConfirm: async () => {
                 try {
-                    const count = await cleanupOldData(2);
-                    toast.success(dict().transactions.cleanupDone(count));
+                    const { transactions: rows, images } = await cleanupOldData(2);
+                    toast.success(dict().transactions.cleanupDone(rows, images));
                     loadData();
                 } catch (e: any) {
                     toast.error(dict().transactions.cleanupFailed(describeAppError(e)));

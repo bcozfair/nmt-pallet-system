@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { ActionType, Pallet, Transaction } from '../types';
 import { fetchPallets } from './palletService';
-import { DAMAGE_BUCKET, IMAGE_DELETED, extractObjectName } from './storageService';
+import { DAMAGE_BUCKET, IMAGE_DELETED, extractObjectName, removeEvidenceObjects } from './storageService';
 import { AppError } from './appError';
 
 // --- TRANSACTIONS (Check In/Out/Damage) ---
@@ -542,10 +542,74 @@ export const createBulkTransaction = async (
     return { success, failed };
 };
 
-export const cleanupOldData = async (yearsToKeep: number = 2): Promise<number> => {
+/**
+ * ค่า evidence_image_url ทุกตัวของแถวที่เก่ากว่า cutoff -- อ่านให้ครบก่อนใครลบอะไร
+ *
+ * ไล่ทีละหน้าด้วยเหตุผลเดียวกับ fetchTransactions ข้างบน: select ที่ขอเกิน
+ * db.max_rows กลับมาโดนตัดเงียบ ๆ ไม่มี error ไม่มีสัญญาณอะไรเลย ตรงนี้อันตราย
+ * กว่าที่อื่นด้วยซ้ำ เพราะสิ่งที่อ่านไม่ครบคือ "รายการไฟล์ที่ต้องลบ" แล้วขั้นถัดไป
+ * ลบแถวที่ชี้มาหาไฟล์เหล่านั้นทิ้งทั้งหมด ไฟล์ที่ตกหล่นจึงกลายเป็นไฟล์กำพร้าถาวร
+ * ที่ไม่มีทางตามหาเจอว่าเป็นของใคร
+ */
+const collectEvidenceOlderThan = async (cutoffIso: string): Promise<string[]> => {
+    const values: string[] = [];
+    let offset = 0;
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+        const { data, error } = await supabase
+            .from('transactions')
+            .select('evidence_image_url')
+            // แถวส่วนใหญ่ไม่มีรูป (เบิกออก/รับคืนไม่แนบหลักฐาน) การกรองตั้งแต่ใน
+            // คำขอทำให้จำนวนหน้าที่ต้องไล่เท่ากับจำนวน "แถวที่มีรูป" ไม่ใช่จำนวน
+            // แถวเก่าทั้งหมด
+            .not('evidence_image_url', 'is', null)
+            .lt('timestamp', cutoffIso)
+            // เรียงด้วยคีย์หลักเพื่อให้การไล่หน้าไม่คืนแถวซ้ำหรือข้ามแถว
+            .order('id', { ascending: true })
+            .range(offset, offset + PAGE_SIZE - 1);
+
+        if (error) throw error;
+
+        const batch = data ?? [];
+        // offset เดินตามจำนวนแถวที่ได้มาจริง ไม่ใช่จำนวนค่าที่เก็บเข้า values --
+        // ถ้ามีแถวที่เป็นสตริงว่างหลุดมา สองตัวนี้จะไม่เท่ากันแล้วหน้าถัดไปเลื่อนผิด
+        offset += batch.length;
+        for (const row of batch) {
+            if (row.evidence_image_url) values.push(row.evidence_image_url);
+        }
+
+        if (batch.length < PAGE_SIZE) return values;
+    }
+
+    console.warn(`[cleanupOldData] Stopped at the ${MAX_PAGES}-page guard with ${values.length} evidence rows. Some images may be left behind.`);
+    return values;
+};
+
+export interface CleanupResult {
+    /** จำนวนแถวที่ถูกลบ */
+    transactions: number;
+    /** จำนวนไฟล์หลักฐานที่ถูกลบออกจากถัง */
+    images: number;
+}
+
+/**
+ * ลบประวัติที่เก่ากว่า yearsToKeep ปี พร้อมรูปหลักฐานของแถวเหล่านั้น
+ *
+ * ของเดิมลบเฉพาะแถว ไฟล์ในถังอยู่ต่อโดยไม่มีใครอ้างถึง และเมื่อแถวที่เคยชี้ไปหามัน
+ * หายไปแล้ว ก็ไม่เหลือทางบอกได้อีกว่าไฟล์ไหนกำพร้า -- ยิ่งกดล้างข้อมูล พื้นที่ยิ่ง
+ * ถูกจองถาวรมากขึ้น ซึ่งตรงข้ามกับสิ่งที่ปุ่มนี้บอกว่าจะทำ
+ *
+ * ลำดับคือ "ลบไฟล์ก่อน แล้วค่อยลบแถว" เหมือน resolveDamage() เพราะความล้มเหลว
+ * สองแบบนี้ไม่เท่ากัน: ลบไฟล์ไม่ผ่านแล้วหยุด = ข้อมูลยังครบ กดใหม่ได้ ส่วนลบแถว
+ * ผ่านแล้วลบไฟล์ไม่ผ่าน = ไฟล์กำพร้าถาวรอย่างเงียบ ๆ
+ */
+export const cleanupOldData = async (yearsToKeep: number = 2): Promise<CleanupResult> => {
     const today = new Date();
     const cutoffDate = new Date(today.setFullYear(today.getFullYear() - yearsToKeep));
     const cutoffIso = cutoffDate.toISOString();
+
+    const doomedEvidence = await collectEvidenceOlderThan(cutoffIso);
+    const images = await removeEvidenceObjects(doomedEvidence);
 
     const { error, count } = await supabase
         .from('transactions')
@@ -553,7 +617,7 @@ export const cleanupOldData = async (yearsToKeep: number = 2): Promise<number> =
         .lt('timestamp', cutoffIso);
 
     if (error) throw error;
-    return count || 0;
+    return { transactions: count || 0, images };
 };
 
 // --- EDITING & DELETING ---
@@ -598,6 +662,20 @@ export const updateTransaction = async (
 export const deleteTransaction = async (transactionId: string): Promise<boolean> => {
     // We strictly delete the record. We DO NOT automatically revert pallet state because it's ambiguous.
     // The admin can manually fix the pallet status/location if needed.
+
+    // รูปหลักฐานของแถวนี้ต้องไปพร้อมกับแถว -- ของเดิมลบแต่แถว ไฟล์จึงค้างอยู่ในถัง
+    // โดยไม่มีอะไรอ้างถึงอีกเลย เหตุผลเต็มอยู่ที่ removeEvidenceObjects()
+    //
+    // maybeSingle ไม่ใช่ single: แถวที่หายไปแล้ว (แอดมินอีกคนลบตัดหน้า) ต้องเดินต่อ
+    // ไปลบซ้ำได้เงียบ ๆ ไม่ใช่โยน error ว่าหาแถวไม่เจอ
+    const { data: row, error: readError } = await supabase.from('transactions')
+        .select('evidence_image_url')
+        .eq('id', transactionId)
+        .maybeSingle();
+
+    if (readError) throw readError;
+    await removeEvidenceObjects([row?.evidence_image_url]);
+
     const { error } = await supabase.from('transactions')
         .delete()
         .eq('id', transactionId);

@@ -303,6 +303,7 @@ export const th: Dictionary = {
         openCamera: 'เปิดกล้อง',
         removePhoto: 'ลบรูป',
         compressing: 'กำลังบีบอัดรูป...',
+        tooLarge: 'รูปนี้ใหญ่เกินไป กรุณาถ่ายใหม่โดยลดความละเอียดกล้องลง',
         submitting: 'กำลังส่ง...',
         submit: 'ส่งรายงาน',
         reported: (palletId: string) => `แจ้งชำรุดพาเลท ${palletId} แล้ว`,

@@ -3,6 +3,7 @@ import { AlertTriangle, Upload, Info, Keyboard } from 'lucide-react';
 import { reportDamage } from '../../services/transactionService';
 import { toast } from '../../services/toast';
 import { compressImage } from '../../utils/imageCompression';
+import { MAX_EVIDENCE_BYTES } from '../../services/storageService';
 import { useT } from '../../hooks/useT';
 import { StaffHeader } from './StaffHeader';
 import { Button } from '../ui/Button';
@@ -95,18 +96,39 @@ export const DamageForm = ({ palletId, userId, onSuccess, onCancel }: DamageForm
                                 accept="image/*"
                                 capture="environment"
                                 onChange={async (e) => {
-                                    if (e.target.files && e.target.files[0]) {
-                                        try {
-                                            // info ไม่ใช่ success: "กำลังบีบอัดรูป" เป็น
-                                            // สถานะระหว่างทาง ไม่ใช่ผลสำเร็จ
-                                            toast.info(t.damage.compressing);
-                                            const compressed = await compressImage(e.target.files[0]);
-                                            setDamageFile(compressed);
-                                        } catch (err) {
-                                            console.error('Compression failed', err);
-                                            setDamageFile(e.target.files[0]);
-                                        }
+                                    const picked = e.target.files?.[0];
+                                    if (!picked) return;
+
+                                    // info ไม่ใช่ success: "กำลังบีบอัดรูป" เป็น
+                                    // สถานะระหว่างทาง ไม่ใช่ผลสำเร็จ
+                                    toast.info(t.damage.compressing);
+
+                                    let file = picked;
+                                    try {
+                                        file = await compressImage(picked);
+                                    } catch (err) {
+                                        // บีบอัดพังแล้วใช้ไฟล์ต้นฉบับต่อ ยังเป็น
+                                        // พฤติกรรมเดิม -- รูปหลักฐานที่ส่งไม่ได้เลย
+                                        // แย่กว่ารูปที่ใหญ่กว่าที่ควร แต่ต้องผ่าน
+                                        // ด่านขนาดข้างล่างเหมือนกัน ไม่ใช่ผ่านฟรี
+                                        console.error('Compression failed', err);
                                     }
+
+                                    // ด่านนี้ไม่ได้แทนเพดานของถัง (150KB, ตั้งไว้ใน
+                                    // 00_current_schema.sql ตอนที่ 8) -- ตัวนั้นคือ
+                                    // ตัวบังคับจริงและอยู่ฝั่งที่พังไม่ได้ ตรงนี้มีไว้
+                                    // ให้คนถ่ายรูปรู้ตั้งแต่ตอนเลือกรูปว่าส่งไม่ได้
+                                    // แทนที่จะรู้ตอนกดส่งแล้วเจอ error ดิบของ Supabase
+                                    if (file.size > MAX_EVIDENCE_BYTES) {
+                                        toast.error(t.damage.tooLarge);
+                                        // ล้างค่าใน input เพื่อให้เลือกไฟล์เดิมซ้ำแล้ว
+                                        // onChange ยิงอีกครั้ง -- ถ้าไม่ล้าง คนที่กด
+                                        // ถ่ายใหม่แล้วได้ไฟล์ชื่อเดิมจะกดแล้วไม่เกิดอะไร
+                                        e.target.value = '';
+                                        return;
+                                    }
+
+                                    setDamageFile(file);
                                 }}
                                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                             />

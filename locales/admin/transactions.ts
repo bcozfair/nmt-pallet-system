@@ -123,7 +123,12 @@ export const transactionsEn = {
     cleanupPhrase: 'DELETE',
     cleanupPhraseLabel: (phrase: string) => `Type "${phrase}" to confirm`,
     cleanupConfirm: 'Clean Data',
-    cleanupDone: (count: number) => `Cleanup complete. Deleted ${count} old records.`,
+    // Reports the images too, not just the rows. On a 50MB storage quota the
+    // number that actually matters to whoever pressed the button is how much
+    // space came back -- and it is also the only visible proof that the evidence
+    // files went with their rows instead of being left behind in the bucket.
+    cleanupDone: (count: number, images: number) =>
+        `Cleanup complete. Deleted ${count} old records and ${images} evidence images.`,
     cleanupFailed: (reason: string) => `Cleanup failed: ${reason}`,
 };
 
@@ -191,6 +196,7 @@ export const transactionsTh: TransactionsDict = {
     cleanupPhrase: 'ลบถาวร',
     cleanupPhraseLabel: (phrase: string) => `พิมพ์คำว่า "${phrase}" เพื่อยืนยัน`,
     cleanupConfirm: 'ล้างข้อมูล',
-    cleanupDone: (count: number) => `ล้างข้อมูลเสร็จแล้ว ลบรายการเก่า ${count} รายการ`,
+    cleanupDone: (count: number, images: number) =>
+        `ล้างข้อมูลเสร็จแล้ว ลบรายการเก่า ${count} รายการ และรูปหลักฐาน ${images} รูป`,
     cleanupFailed: (reason: string) => `ล้างข้อมูลไม่สำเร็จ: ${reason}`,
 };

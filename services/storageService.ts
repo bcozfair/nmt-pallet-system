@@ -9,6 +9,28 @@ export const IMAGE_DELETED = 'image_deleted';
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour
 
 /**
+ * เพดานขนาดไฟล์หลักฐานหนึ่งรูป
+ *
+ * ต้องตรงกับ `file_size_limit` ของถัง damage_reports (ตอนที่ 8 ของ
+ * supabase/migrations/00_current_schema.sql) -- ตัวที่บังคับจริงคือฝั่งเซิร์ฟเวอร์
+ * ค่าตรงนี้มีไว้ให้ฝั่งเบราว์เซอร์บอกคนใช้ได้ก่อนว่าไฟล์ใหญ่เกิน แทนที่จะปล่อยให้
+ * อัปโหลดขึ้นไปแล้วเด้งกลับมาเป็นข้อความดิบของ Supabase
+ *
+ * 150KB ไม่ใช่ 100KB ทั้งที่ utils/imageCompression.ts เล็งไว้ที่ 100KB: มันหยุด
+ * ไล่คุณภาพลงที่ quality 0.2 รูปที่รายละเอียดจัดจริง ๆ จึงออกมาเกิน 100KB ได้โดย
+ * ไม่มีอะไรผิด เพดานนี้มีไว้กันไฟล์ที่ "ไม่ผ่านการบีบอัดเลย" (หลาย MB) ไม่ใช่ไว้
+ * เถียงกับตัวบีบอัดเรื่องหลักสิบ KB
+ *
+ * โควตา Free plan ที่โปรเจคนี้ใช้อยู่คือ 50MB -- ที่ 150KB ต่อรูปคือราว 340 รูป
+ * ส่วนรูปที่ผ่านการบีบอัดตามปกติ (~100KB) คือราว 500 รูป
+ */
+export const MAX_EVIDENCE_BYTES = 150 * 1024;
+
+// Supabase รับ path ได้หลายตัวต่อคำขอ แต่ไม่ใช่ไม่จำกัด -- ตัดเป็นชุดไว้เพื่อให้
+// การล้างข้อมูลสองปีที่มีรูปเป็นพันไม่กลายเป็นคำขอเดียวที่ยาวเกินจน timeout
+const REMOVE_BATCH_SIZE = 100;
+
+/**
  * The lifetime a link written into an exported CSV gets.
  *
  * The default hour above is sized for a link the screen is about to render and
@@ -110,4 +132,42 @@ export const getEvidenceSignedUrlMap = async (
         if (entry) acc[entry[0]] = entry[1];
         return acc;
     }, {});
+};
+
+/**
+ * ลบไฟล์หลักฐานออกจากถังตามค่าที่เก็บอยู่ใน transactions.evidence_image_url
+ *
+ * รับค่าดิบทั้งก้อนได้เลย ทั้ง null, sentinel `image_deleted` และ URL เต็มแบบเก่า
+ * -- extractObjectName คัดให้เอง คนเรียกจึงไม่ต้องกรองซ้ำอีกชั้น
+ *
+ * ตัดค่าซ้ำก่อนส่ง เพราะสองแถวชี้ไปไฟล์เดียวกันได้ (แถวหนึ่งเก็บ URL เต็มแบบเก่า
+ * อีกแถวเก็บชื่อไฟล์เปล่า) การส่งชื่อซ้ำในคำขอเดียวไม่พัง แต่ทำให้จำนวนที่รายงาน
+ * กลับไปเกินจริง
+ *
+ * โยน error ต่อ ไม่กลืน: คนเรียกทุกคนกำลังจะลบแถวที่ชี้มาหาไฟล์เหล่านี้ทิ้งต่อจากนี้
+ * ถ้าลบไฟล์ไม่สำเร็จแล้วยังลบแถวต่อ ไฟล์นั้นจะไม่มีอะไรอ้างถึงอีกเลยตลอดกาล และ
+ * หาไม่เจอด้วยซ้ำว่ามันเคยเป็นของแถวไหน -- นี่คือรูปแบบการรั่วที่ทำให้พื้นที่เก็บ
+ * โตทางเดียวไม่มีวันลด ซึ่งเป็นเรื่องคอขาดบาดตายเมื่อโควตาทั้งโปรเจคมี 50MB
+ */
+export const removeEvidenceObjects = async (
+    storedValues: (string | null | undefined)[],
+): Promise<number> => {
+    const names = Array.from(
+        new Set(
+            storedValues.map(extractObjectName).filter((name): name is string => name !== null),
+        ),
+    );
+
+    if (names.length === 0) return 0;
+
+    let removed = 0;
+    for (let i = 0; i < names.length; i += REMOVE_BATCH_SIZE) {
+        const batch = names.slice(i, i + REMOVE_BATCH_SIZE);
+        const { data, error } = await supabase.storage.from(DAMAGE_BUCKET).remove(batch);
+        if (error) throw error;
+        // นับจากสิ่งที่เซิร์ฟเวอร์บอกว่าลบไปจริง ไม่ใช่ batch.length -- ไฟล์ที่หายไป
+        // ก่อนหน้าแล้วจะไม่อยู่ในคำตอบ การนับมันด้วยคือการรายงานเกินจริง
+        removed += data?.length ?? 0;
+    }
+    return removed;
 };

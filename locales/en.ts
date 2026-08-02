@@ -370,6 +370,11 @@ export const en = {
         openCamera: 'Open Camera',
         removePhoto: 'Remove Photo',
         compressing: 'Compressing image...',
+        // Shown when the photo is still too large after compression -- in
+        // practice, when compression failed outright and the raw camera file is
+        // several megabytes. Says what to do, because "too large" alone leaves
+        // somebody standing in a warehouse with a broken pallet and no next step.
+        tooLarge: 'This photo is too large to send. Please take it again in lower resolution.',
         submitting: 'Submitting...',
         submit: 'Submit Report',
         reported: (palletId: string) => `Damage reported for ${palletId}`,

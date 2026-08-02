@@ -15,12 +15,21 @@
 -- triggers -> policies. The policies call is_admin(), so the function has to
 -- exist first; the foreign keys require their target tables first.
 --
--- The 20260720_* files beside it are the ALTER form of the same changes, for
--- databases that already hold data and so cannot be recreated from this file.
--- Their content is folded in here as well, which is why running this file and
--- then those three in order is a no-op rather than an error -- all three are
--- written to be re-runnable. Unlike the 16 files above they are kept, not
--- deleted, because other environments still need them.
+-- This is now the ONLY schema file. The 20260720_*, 20260729_* and 20260802_*
+-- files that used to sit beside it were the ALTER form of changes made after
+-- this file was generated -- scrapped status, transaction indexes, the
+-- case-insensitive department name index, the two LINE settings RPCs, and the
+-- storage bucket ceilings. Every one of them has been folded in below and
+-- applied to the live project, so they had nothing left to do. They were
+-- deleted rather than kept because this project runs against a single Supabase
+-- project: there is no second environment that still needs the ALTER form, and
+-- a directory of files that must not be run is a trap for whoever opens it
+-- next. Their text is still in git history.
+--
+-- What that means going forward: a change to the database is a change to THIS
+-- file, plus the equivalent statement run by hand against the live project.
+-- Adding a new dated file beside it is fine too -- but then fold it in here as
+-- well, or a project rebuilt from this file alone comes back missing it.
 -- =============================================================================
 
 
@@ -627,10 +636,35 @@ alter publication supabase_realtime add table public.users;
 -- Private bucket. Object names are `{palletId}_{timestamp}.jpg`, which is
 -- guessable, so "nobody knows the URL" was never a defence -- the app mints
 -- short-lived signed URLs at display time instead (services/storageService.ts).
+--
+-- The size and MIME ceilings are the only thing standing between a 50MB storage
+-- quota and a single 8MB phone photo that skipped compression.
+--
+-- Why a server-side ceiling at all: components/mobile/DamageForm.tsx compresses
+-- before uploading, but when compression fails (canvas cannot decode HEIC, an
+-- old browser, an image too large to hold in memory) it falls back to the file
+-- the camera produced. Phone cameras write 3-8MB per shot -- one of those costs
+-- as much room as 50-80 compressed photos, and 6-16% of the whole project quota
+-- in a single tap. The side that breaks is the browser, so the guard cannot
+-- live there.
+--
+-- 150KB (153600 bytes), not 100KB: utils/imageCompression.ts aims at 100KB but
+-- stops lowering quality at 0.2, so a genuinely detailed photo can come out
+-- slightly over without anything being wrong. This ceiling exists to reject
+-- files that skipped compression entirely, not to argue with the compressor
+-- over tens of kilobytes. The same number lives at MAX_EVIDENCE_BYTES in
+-- services/storageService.ts -- change one, change the other.
+--
+-- image/jpeg only: canvas always returns image/jpeg, so every normal upload
+-- passes. The accepted side effect is that the fallback path is rejected when
+-- the camera file is HEIC -- which is the kind of file we did not want anyway.
 -- =============================================================================
-insert into storage.buckets (id, name, public)
-values ('damage_reports', 'damage_reports', false)
-on conflict (id) do update set public = false;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('damage_reports', 'damage_reports', false, 153600, array['image/jpeg'])
+on conflict (id) do update set
+    public = false,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
 
 create policy "damage_reports_select_authenticated" on storage.objects
     for select to authenticated using (bucket_id = 'damage_reports');
