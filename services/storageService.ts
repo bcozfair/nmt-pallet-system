@@ -134,6 +134,87 @@ export const getEvidenceSignedUrlMap = async (
     }, {});
 };
 
+// เพดานเดียวกับ PAGE_SIZE/MAX_PAGES ใน transactionService และด้วยเหตุผลเดียวกัน:
+// PostgREST ตัดผลลัพธ์ที่ db.max_rows เงียบ ๆ ไม่มี error ไม่มีสัญญาณอะไรเลย
+const EVIDENCE_PAGE_SIZE = 1000;
+const EVIDENCE_MAX_PAGES = 100;
+
+type EvidenceRow = { evidence_image_url: string | null };
+
+/**
+ * ไล่อ่าน evidence_image_url ทีละหน้าจนครบ
+ *
+ * รับ "วิธีขอหนึ่งหน้า" มาแทนที่จะรับเงื่อนไข เพราะเงื่อนไขของแต่ละคนเรียกไม่เหมือนกัน
+ * (ตามพาเลท / ตามวันที่) แต่สิ่งที่ต้องไม่ผิดคือการไล่หน้า -- อ่านรายชื่อไฟล์ไม่ครบ
+ * แล้วเดินหน้าลบแถวต่อ คือการสร้างไฟล์กำพร้าด้วยมือตัวเอง เขียนซ้ำสองที่เมื่อไหร่ก็
+ * มีที่หนึ่งที่ลืมไล่หน้าเมื่อนั้น
+ */
+const collectEvidence = async (
+    caller: string,
+    fetchPage: (
+        from: number,
+        to: number,
+    ) => PromiseLike<{ data: EvidenceRow[] | null; error: unknown }>,
+): Promise<string[]> => {
+    const values: string[] = [];
+    let offset = 0;
+
+    for (let page = 0; page < EVIDENCE_MAX_PAGES; page++) {
+        const { data, error } = await fetchPage(offset, offset + EVIDENCE_PAGE_SIZE - 1);
+        if (error) throw error;
+
+        const batch = data ?? [];
+        // offset เดินตามจำนวนแถวที่ได้มาจริง ไม่ใช่จำนวนค่าที่เก็บเข้า values --
+        // ถ้ามีแถวที่เป็นสตริงว่างหลุดมา สองตัวนี้จะไม่เท่ากันแล้วหน้าถัดไปเลื่อนผิด
+        offset += batch.length;
+        for (const row of batch) {
+            if (row.evidence_image_url) values.push(row.evidence_image_url);
+        }
+
+        if (batch.length < EVIDENCE_PAGE_SIZE) return values;
+    }
+
+    console.warn(`[${caller}] Stopped at the ${EVIDENCE_MAX_PAGES}-page guard with ${values.length} evidence rows. Some images may be left behind.`);
+    return values;
+};
+
+/**
+ * รูปหลักฐานทั้งหมดของแถวที่เก่ากว่า cutoff -- ให้ cleanupOldData() ใช้
+ *
+ * กรอง null ตั้งแต่ในคำขอ เพราะแถวส่วนใหญ่ไม่มีรูป (เบิกออก/รับคืนไม่แนบหลักฐาน)
+ * จำนวนหน้าที่ต้องไล่จึงเท่ากับจำนวน "แถวที่มีรูป" ไม่ใช่จำนวนแถวเก่าทั้งหมด
+ */
+export const collectEvidenceOlderThan = (cutoffIso: string): Promise<string[]> =>
+    collectEvidence('collectEvidenceOlderThan', (from, to) =>
+        supabase
+            .from('transactions')
+            .select('evidence_image_url')
+            .not('evidence_image_url', 'is', null)
+            .lt('timestamp', cutoffIso)
+            // เรียงด้วยคีย์หลักเพื่อให้การไล่หน้าไม่คืนแถวซ้ำหรือข้ามแถว
+            .order('id', { ascending: true })
+            .range(from, to),
+    );
+
+/**
+ * รูปหลักฐานทั้งหมดของพาเลทหนึ่งใบ -- ให้ deletePallet() ใช้
+ *
+ * ต้องมีเพราะ transactions.pallet_id เป็น ON DELETE CASCADE: การลบพาเลทหนึ่งแถว
+ * ทำให้ Postgres ลบประวัติทั้งหมดของมันทิ้งเองในระดับฐานข้อมูล โดยที่โค้ดฝั่งแอป
+ * ไม่เคยเห็นแถวเหล่านั้นเลยสักแถว ไฟล์ในถังจึงไม่มีใครลบและไม่มีใครรู้ด้วยซ้ำว่า
+ * มันเคยเป็นของแถวไหน -- ต้องอ่านชื่อไฟล์เก็บไว้ก่อน cascade จะทำงาน
+ */
+export const collectEvidenceForPallet = (palletId: string): Promise<string[]> =>
+    collectEvidence('collectEvidenceForPallet', (from, to) =>
+        supabase
+            .from('transactions')
+            .select('evidence_image_url')
+            .not('evidence_image_url', 'is', null)
+            .eq('pallet_id', palletId)
+            .order('id', { ascending: true })
+            .range(from, to),
+    );
+
 /**
  * ลบไฟล์หลักฐานออกจากถังตามค่าที่เก็บอยู่ใน transactions.evidence_image_url
  *

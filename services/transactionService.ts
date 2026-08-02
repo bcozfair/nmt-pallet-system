@@ -1,7 +1,13 @@
 import { supabase } from './supabase';
 import { ActionType, Pallet, Transaction } from '../types';
 import { fetchPallets } from './palletService';
-import { DAMAGE_BUCKET, IMAGE_DELETED, extractObjectName, removeEvidenceObjects } from './storageService';
+import {
+    DAMAGE_BUCKET,
+    IMAGE_DELETED,
+    extractObjectName,
+    removeEvidenceObjects,
+    collectEvidenceOlderThan,
+} from './storageService';
 import { AppError } from './appError';
 
 // --- TRANSACTIONS (Check In/Out/Damage) ---
@@ -540,49 +546,6 @@ export const createBulkTransaction = async (
     }
 
     return { success, failed };
-};
-
-/**
- * ค่า evidence_image_url ทุกตัวของแถวที่เก่ากว่า cutoff -- อ่านให้ครบก่อนใครลบอะไร
- *
- * ไล่ทีละหน้าด้วยเหตุผลเดียวกับ fetchTransactions ข้างบน: select ที่ขอเกิน
- * db.max_rows กลับมาโดนตัดเงียบ ๆ ไม่มี error ไม่มีสัญญาณอะไรเลย ตรงนี้อันตราย
- * กว่าที่อื่นด้วยซ้ำ เพราะสิ่งที่อ่านไม่ครบคือ "รายการไฟล์ที่ต้องลบ" แล้วขั้นถัดไป
- * ลบแถวที่ชี้มาหาไฟล์เหล่านั้นทิ้งทั้งหมด ไฟล์ที่ตกหล่นจึงกลายเป็นไฟล์กำพร้าถาวร
- * ที่ไม่มีทางตามหาเจอว่าเป็นของใคร
- */
-const collectEvidenceOlderThan = async (cutoffIso: string): Promise<string[]> => {
-    const values: string[] = [];
-    let offset = 0;
-
-    for (let page = 0; page < MAX_PAGES; page++) {
-        const { data, error } = await supabase
-            .from('transactions')
-            .select('evidence_image_url')
-            // แถวส่วนใหญ่ไม่มีรูป (เบิกออก/รับคืนไม่แนบหลักฐาน) การกรองตั้งแต่ใน
-            // คำขอทำให้จำนวนหน้าที่ต้องไล่เท่ากับจำนวน "แถวที่มีรูป" ไม่ใช่จำนวน
-            // แถวเก่าทั้งหมด
-            .not('evidence_image_url', 'is', null)
-            .lt('timestamp', cutoffIso)
-            // เรียงด้วยคีย์หลักเพื่อให้การไล่หน้าไม่คืนแถวซ้ำหรือข้ามแถว
-            .order('id', { ascending: true })
-            .range(offset, offset + PAGE_SIZE - 1);
-
-        if (error) throw error;
-
-        const batch = data ?? [];
-        // offset เดินตามจำนวนแถวที่ได้มาจริง ไม่ใช่จำนวนค่าที่เก็บเข้า values --
-        // ถ้ามีแถวที่เป็นสตริงว่างหลุดมา สองตัวนี้จะไม่เท่ากันแล้วหน้าถัดไปเลื่อนผิด
-        offset += batch.length;
-        for (const row of batch) {
-            if (row.evidence_image_url) values.push(row.evidence_image_url);
-        }
-
-        if (batch.length < PAGE_SIZE) return values;
-    }
-
-    console.warn(`[cleanupOldData] Stopped at the ${MAX_PAGES}-page guard with ${values.length} evidence rows. Some images may be left behind.`);
-    return values;
 };
 
 export interface CleanupResult {

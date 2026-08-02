@@ -1,6 +1,10 @@
 import { supabase } from './supabase';
 import { Pallet } from '../types';
 import { AppError } from './appError';
+// ตรงจาก storageService ไม่ผ่าน transactionService โดยตั้งใจ -- transactionService
+// import fetchPallets จากไฟล์นี้อยู่แล้ว การ import กลับไปจะเป็นวงกลม ส่วน
+// storageService รู้จักแค่ supabase จึงเป็นที่ที่ตัวช่วยเรื่องรูปควรอยู่
+import { collectEvidenceForPallet, removeEvidenceObjects } from './storageService';
 
 // --- PALLET OPERATIONS ---
 
@@ -184,7 +188,28 @@ export const updatePallet = async (currentId: string, updates: { pallet_id?: str
     }
 };
 
+/**
+ * ลบพาเลทถาวร พร้อมรูปหลักฐานของประวัติทั้งหมดที่จะถูก cascade ลบตามไปด้วย
+ *
+ * transactions.pallet_id เป็น ON DELETE CASCADE (00_current_schema.sql ตอนที่ 2)
+ * การลบพาเลทหนึ่งแถวจึงลบประวัติทั้งหมดของมันทิ้งด้วย -- เกิดขึ้นฝั่งฐานข้อมูล
+ * โดยที่โค้ดฝั่งแอปไม่เคยเห็นแถวเหล่านั้นเลยสักแถว
+ *
+ * ของเดิมจึงเป็นรูรั่วที่เงียบที่สุดในสามทางที่ลบแถวได้: cleanupOldData() กับ
+ * deleteTransaction() อย่างน้อยยังมีแถวอยู่ตรงหน้าให้อ่านชื่อไฟล์ก่อนลบ ส่วนทางนี้
+ * ไม่มีอะไรใน JS ที่แตะแถว transactions เลย ไฟล์รูปจึงค้างอยู่ในถังตลอดกาลโดยไม่มี
+ * ใครรู้ด้วยซ้ำว่ามันเคยเป็นของพาเลทใบไหน
+ *
+ * ลำดับคือ "อ่านชื่อไฟล์ -> ลบไฟล์ -> ลบแถว" เหมือนอีกสองทาง: ลบไฟล์พลาดแล้วหยุด
+ * = ข้อมูลยังครบ กดใหม่ได้ ส่วนลบแถวผ่านแล้วลบไฟล์พลาด = กำพร้าถาวรอย่างเงียบ ๆ
+ *
+ * ไม่กระทบการ "ตัดออกจากระบบ" (scrapPallet) ซึ่งเป็นทางที่ควรใช้ตามปกติ -- ทางนั้น
+ * ตั้ง status = 'scrapped' เก็บทั้งแถวและรูปไว้
+ */
 export const deletePallet = async (palletId: string): Promise<void> => {
+    const evidence = await collectEvidenceForPallet(palletId);
+    await removeEvidenceObjects(evidence);
+
     const { error } = await supabase.from('pallets').delete().eq('pallet_id', palletId);
     if (error) throw error;
 };
