@@ -1,7 +1,7 @@
 import React from 'react';
-import { History, Trash2, Download, Printer } from 'lucide-react';
+import { History, MoreVertical, Trash2, Download, Printer } from 'lucide-react';
 import { useT } from '../../../hooks/useT';
-import { Button, PageHeader } from '../../ui';
+import { Button, Menu, PageHeader } from '../../ui';
 
 interface TransactionHeaderProps {
     onCleanup: () => void;
@@ -10,10 +10,18 @@ interface TransactionHeaderProps {
     onPrintReport: () => void;
 }
 
-// ปุ่มลบข้อมูลเก่าของหน้านี้คือต้นทางของ `Button` variant `danger` -- ขอบแดงอ่อน
-// บนพื้นขาว ไม่ใช่ปุ่มแดงทึบ เพราะเป็นคำสั่งที่แอดมินกดตามรอบปกติ ไม่ใช่ปุ่มฉุกเฉิน
-// (ดูคอมเมนต์ใน components/ui/Button.tsx) หน้านี้จึงได้สีเดิมกลับมาเป๊ะ ๆ
-// เปลี่ยนแค่ทรงปุ่มกับหัวเรื่องให้ตรงกับอีกห้าหน้า
+// ล้างข้อมูลเก่าเคยเป็นปุ่ม `danger` ยืนอยู่หัวแถวเดียวกับพิมพ์รายงานและส่งออก
+// ตอนนี้อยู่หลังปุ่ม "..." ตัวเดียวท้ายแถว ด้วยเหตุผลสองข้อ:
+//
+// 1. มันไม่ใช่คำสั่งที่ใครเปิดหน้านี้มาเพื่อกด อีกสองปุ่มคือสิ่งที่คนมาทำจริง ๆ
+//    ทุกวัน ส่วนอันนี้ทำปีละครั้งและลบข้อมูลถาวร ปุ่มที่เห็นตลอดเวลาแต่ต้องไม่กด
+//    คือปุ่มที่รอวันถูกกดผิด
+// 2. ระยะห่างจากนิ้วเป็นด่านแรก ด่านที่สองคือกล่องยืนยันที่บังคับพิมพ์คำ
+//    (`confirmPhrase` ใน components/ui/ConfirmDialog.tsx) -- ด่านเดียวไม่พอ
+//    เพราะการกดปุ่มแดงแล้วกดยืนยันคือการกดสองครั้งที่ใช้ความตั้งใจเท่ากับครั้งเดียว
+//
+// เมนูยังคงสีแดงไว้ที่ตัวรายการ (`tone: 'danger'`) ไม่ใช่ที่ปุ่ม "..." -- คำเตือน
+// ควรอยู่ตรงที่มือกำลังจะกด ไม่ใช่กระจายไปทั่วหัวเพจ
 export const TransactionHeader: React.FC<TransactionHeaderProps> = ({
     onCleanup,
     onExport,
@@ -28,9 +36,6 @@ export const TransactionHeader: React.FC<TransactionHeaderProps> = ({
             icon={History}
             actions={
                 <>
-                    <Button variant="danger" icon={Trash2} onClick={onCleanup}>
-                        {t.transactions.cleanup}
-                    </Button>
                     {/* Same control, same wording, same icon and same position as
                         the dashboard and inventory headers. All three build an A4
                         portrait document, so all three are one button -- the
@@ -46,6 +51,23 @@ export const TransactionHeader: React.FC<TransactionHeaderProps> = ({
                     <Button variant="primary" icon={Download} onClick={onExport}>
                         {t.common.exportData}
                     </Button>
+                    {/* `secondary` ไม่ใช่ `danger`: ปุ่มนี้ยังไม่ได้ทำอะไรเลย
+                        มันแค่เปิดเมนู สีแดงตรงนี้จะเป็นคำเตือนที่ค้างอยู่บนหน้าจอ
+                        ตลอดเวลาจนคนเลิกมองเห็นมัน */}
+                    <Menu
+                        label={t.transactions.moreActions}
+                        icon={MoreVertical}
+                        iconOnly
+                        variant="secondary"
+                        items={[
+                            {
+                                label: t.transactions.cleanup,
+                                icon: Trash2,
+                                tone: 'danger',
+                                onClick: onCleanup,
+                            },
+                        ]}
+                    />
                 </>
             }
         />

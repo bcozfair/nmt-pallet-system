@@ -85,6 +85,9 @@ export const TransactionView = () => {
         message: string;
         confirmLabel: string;
         isDestructive?: boolean;
+        /** ตั้งเฉพาะคำสั่งที่ลบทีละหลายแถว -- ดู ConfirmDialog.confirmPhrase */
+        confirmPhrase?: string;
+        confirmPhraseLabel?: string;
         onConfirm: () => Promise<void>;
     } | null>(null);
 
@@ -345,6 +348,10 @@ export const TransactionView = () => {
             message: c.transactions.cleanupMessage,
             confirmLabel: c.transactions.cleanupConfirm,
             isDestructive: true,
+            // ด่านพิมพ์คำ -- คำสั่งเดียวในหน้านี้ที่ลบหลายแถวรวดเดียวและเลือกแถว
+            // ไม่ได้ ต่างจากปุ่มลบรายแถวที่คนกดหลังจากมองรายการนั้นอยู่แล้ว
+            confirmPhrase: c.transactions.cleanupPhrase,
+            confirmPhraseLabel: c.transactions.cleanupPhraseLabel(c.transactions.cleanupPhrase),
             onConfirm: async () => {
                 try {
                     const count = await cleanupOldData(2);
@@ -484,6 +491,8 @@ export const TransactionView = () => {
                     closeLabel={t.common.closeDialog}
                     workingLabel={t.common.working}
                     isDestructive={confirmAction.isDestructive}
+                    confirmPhrase={confirmAction.confirmPhrase}
+                    confirmPhraseLabel={confirmAction.confirmPhraseLabel}
                     onConfirm={confirmAction.onConfirm}
                     onCancel={() => setConfirmAction(null)}
                     onError={(error) => toast.error(describeAppError(error))}

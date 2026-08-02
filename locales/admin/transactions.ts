@@ -19,6 +19,10 @@ export const transactionsEn = {
     title: 'Transaction Management',
     subtitle: 'View full history of check-ins, check-outs, and repairs.',
     cleanup: 'Cleanup Data',
+    // aria-label ของปุ่ม "..." ที่เก็บคำสั่งล้างข้อมูลไว้ข้างใน ไม่ถูกอ่านออกมา
+    // เป็นข้อความบนปุ่มเพราะปุ่มมีแต่ไอคอน (ดู `iconOnly` ใน Menu.tsx) --
+    // คำเดียวกับที่หน้าคลังใช้ในแถบเลือกหลายรายการ
+    moreActions: 'More actions',
     // `exportCsv` used to sit here, reading "Export CSV" while the dashboard's
     // identical button read "Export Data". Both now read `common.exportData`.
 
@@ -113,6 +117,11 @@ export const transactionsEn = {
     deleteFailed: 'Failed to delete transaction',
     cleanupTitle: 'Clean Old Data?',
     cleanupMessage: 'This will permanently delete transactions older than 2 years from the database. This action cannot be undone.',
+    // The word that has to be typed before the confirm button unlocks. Deliberately
+    // NOT the same string as `cleanupConfirm` below: copying the button label sitting
+    // right there is not reading, and this gate exists to make somebody read.
+    cleanupPhrase: 'DELETE',
+    cleanupPhraseLabel: (phrase: string) => `Type "${phrase}" to confirm`,
     cleanupConfirm: 'Clean Data',
     cleanupDone: (count: number) => `Cleanup complete. Deleted ${count} old records.`,
     cleanupFailed: (reason: string) => `Cleanup failed: ${reason}`,
@@ -124,6 +133,7 @@ export const transactionsTh: TransactionsDict = {
     title: 'จัดการประวัติรายการ',
     subtitle: 'ดูประวัติการเบิกออก รับคืน และการซ่อมทั้งหมด',
     cleanup: 'ล้างข้อมูลเก่า',
+    moreActions: 'การทำงานอื่น',
     reportTitle: 'รายงานประวัติการทำรายการ',
 
     report: {
@@ -178,6 +188,8 @@ export const transactionsTh: TransactionsDict = {
     deleteFailed: 'ลบรายการไม่สำเร็จ',
     cleanupTitle: 'ล้างข้อมูลเก่า?',
     cleanupMessage: 'ระบบจะลบรายการที่เก่ากว่า 2 ปีออกจากฐานข้อมูลอย่างถาวร เมื่อลบแล้วไม่สามารถย้อนกลับได้',
+    cleanupPhrase: 'ลบถาวร',
+    cleanupPhraseLabel: (phrase: string) => `พิมพ์คำว่า "${phrase}" เพื่อยืนยัน`,
     cleanupConfirm: 'ล้างข้อมูล',
     cleanupDone: (count: number) => `ล้างข้อมูลเสร็จแล้ว ลบรายการเก่า ${count} รายการ`,
     cleanupFailed: (reason: string) => `ล้างข้อมูลไม่สำเร็จ: ${reason}`,

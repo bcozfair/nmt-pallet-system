@@ -75,6 +75,91 @@ describe('ConfirmDialog', () => {
         expect(onCancel).toHaveBeenCalledTimes(1);
     });
 
+    // ด่านพิมพ์คำ -- ใช้กับคำสั่งที่ลบหลายแถวรวดเดียว เช่นล้างประวัติเก่าในหน้า
+    // จัดการประวัติ ปุ่มยืนยันต้องกดไม่ได้จนกว่าคำจะตรง
+    describe('confirmPhrase', () => {
+        const gated = {
+            ...base,
+            confirmPhrase: 'ลบถาวร',
+            confirmPhraseLabel: 'พิมพ์คำว่า "ลบถาวร" เพื่อยืนยัน',
+        };
+
+        it('ปุ่มยืนยันกดไม่ได้ตอนยังไม่พิมพ์', () => {
+            render(<ConfirmDialog {...gated} isOpen />);
+            expect(screen.getByLabelText('พิมพ์คำว่า "ลบถาวร" เพื่อยืนยัน')).toBeTruthy();
+            expect((screen.getByRole('button', { name: 'ลบ' }) as HTMLButtonElement).disabled).toBe(
+                true,
+            );
+        });
+
+        it('พิมพ์ผิดก็ยังกดไม่ได้ และกดแล้วไม่เรียก onConfirm', async () => {
+            const onConfirm = vi.fn();
+            const user = userEvent.setup();
+            render(<ConfirmDialog {...gated} isOpen onConfirm={onConfirm} />);
+            await user.type(screen.getByLabelText(gated.confirmPhraseLabel), 'ลบ');
+            const confirm = screen.getByRole('button', { name: 'ลบ' }) as HTMLButtonElement;
+            expect(confirm.disabled).toBe(true);
+            await user.click(confirm);
+            expect(onConfirm).not.toHaveBeenCalled();
+        });
+
+        it('พิมพ์ตรงแล้วกดยืนยันได้', async () => {
+            const onConfirm = vi.fn().mockResolvedValue(undefined);
+            const user = userEvent.setup();
+            render(<ConfirmDialog {...gated} isOpen onConfirm={onConfirm} />);
+            await user.type(screen.getByLabelText(gated.confirmPhraseLabel), 'ลบถาวร');
+            await user.click(screen.getByRole('button', { name: 'ลบ' }));
+            expect(onConfirm).toHaveBeenCalledTimes(1);
+        });
+
+        // ช่องว่างหัวท้ายกับตัวพิมพ์ใหญ่ไม่ใช่สิ่งที่ด่านนี้ตั้งใจกัน -- คนที่อ่านแล้ว
+        // พิมพ์ตามผ่านได้ ส่วนคนที่กดรัวยังติดอยู่ดี
+        it('ตัดช่องว่างหัวท้ายและไม่สนตัวพิมพ์เล็กใหญ่', async () => {
+            const onConfirm = vi.fn().mockResolvedValue(undefined);
+            const user = userEvent.setup();
+            render(
+                <ConfirmDialog
+                    {...base}
+                    isOpen
+                    confirmPhrase="DELETE"
+                    confirmPhraseLabel="Type DELETE to confirm"
+                    onConfirm={onConfirm}
+                />,
+            );
+            await user.type(screen.getByLabelText('Type DELETE to confirm'), '  delete  ');
+            await user.click(screen.getByRole('button', { name: 'ลบ' }));
+            expect(onConfirm).toHaveBeenCalledTimes(1);
+        });
+
+        // อาการที่กัน: กล่องที่ถูกเรนเดอร์ค้างไว้แล้วสลับด้วย isOpen จะพกคำที่พิมพ์
+        // ค้างจากรอบก่อนมาให้รอบใหม่ ปุ่มยืนยันของรอบใหม่จึงกดได้ทันทีตั้งแต่เปิด
+        it('ปิดแล้วเปิดใหม่ต้องพิมพ์ใหม่', async () => {
+            const user = userEvent.setup();
+            const { rerender } = render(<ConfirmDialog {...gated} isOpen />);
+            await user.type(screen.getByLabelText(gated.confirmPhraseLabel), 'ลบถาวร');
+            expect((screen.getByRole('button', { name: 'ลบ' }) as HTMLButtonElement).disabled).toBe(
+                false,
+            );
+
+            rerender(<ConfirmDialog {...gated} isOpen={false} />);
+            rerender(<ConfirmDialog {...gated} isOpen />);
+
+            expect((screen.getByLabelText(gated.confirmPhraseLabel) as HTMLInputElement).value).toBe(
+                '',
+            );
+            expect((screen.getByRole('button', { name: 'ลบ' }) as HTMLButtonElement).disabled).toBe(
+                true,
+            );
+        });
+
+        // กล่องยืนยันที่ไม่ได้ตั้ง confirmPhrase ต้องไม่มีช่องกรอกโผล่มา -- อีกสี่หน้า
+        // ของแอดมินใช้ตัวเดียวกันนี้อยู่
+        it('ไม่ตั้ง confirmPhrase = ไม่มีช่องกรอก', () => {
+            render(<ConfirmDialog {...base} isOpen />);
+            expect(screen.queryByRole('textbox')).toBeNull();
+        });
+    });
+
     it('คลิกพื้นหลังไม่ปิด -- กล่องยืนยันต้องถูกตอบ ไม่ใช่ถูกปัดทิ้ง', async () => {
         const onCancel = vi.fn();
         const user = userEvent.setup();
