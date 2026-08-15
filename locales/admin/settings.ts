@@ -56,10 +56,14 @@ export const settingsEn = {
 
     // The label on the menu trigger holding the two send actions. A dropdown
     // rather than two buttons because two full buttons cost ~300px of a row that
-    // has none to spare -- and one word rather than two because the trigger has
-    // 96px to live in. The panel it opens still says "Send Alert" / "Send
-    // Summary" in full, so the short label never has to carry the whole meaning.
-    testSendTitle: 'Test',
+    // has none to spare -- and kept this short because the trigger has 96px to
+    // live in. The panel it opens still says "Send Alert" / "Send Summary" in
+    // full, so the short label never has to carry the whole meaning.
+    //
+    // It used to say "Test". That named the admin's intent, not what the click
+    // does: both items send a real report to the real LINE group, so an admin
+    // reading "Test" could reasonably expect a dry run and be wrong.
+    testSendTitle: 'Send Now',
 
     // The two buttons call an edge function that reads system_settings from the
     // database. They do not see the state of this screen, so a token typed into
@@ -159,7 +163,7 @@ export const settingsTh: SettingsDict = {
     sendingOverdueReport: 'กำลังส่งรายงานรอบเช้า...',
     sendingSummaryReport: 'กำลังส่งรายงานรอบเย็น...',
 
-    testSendTitle: 'ทดสอบ',
+    testSendTitle: 'ส่งทันที',
 
     lineTitle: 'LINE Messaging API',
     lineSubtitle: 'ปลายทางที่ระบบจะส่งรายงานไปให้ คัดลอกค่าทั้งสองช่องจาก LINE Developers Console',
