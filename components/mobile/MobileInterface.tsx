@@ -314,13 +314,29 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
   if (['checkout_scanning', 'checkin_scanning', 'damage_scanning'].includes(mode)) {
     return (
       <>
+        {/* แผ่นล่างส่งเป็น children ไม่ใช่พี่น้องแบบ fixed: QRScanner จะได้
+            จัดกรอบสแกนให้อยู่กลางพื้นที่ดำที่เหลือจริง ๆ ทุกขนาดหน้าจอ */}
         <QRScanner
           onScanSuccess={handleScan}
           onClose={() => {
             setModeState('idle');
             updateUrl('idle');
           }}
-        />
+        >
+          {/* BOTTOM SHEET / DAMAGE MANUAL ENTRY */}
+          {mode === 'damage_scanning' ? (
+            <DamageManualEntry onSubmit={(id) => handleScan(id)} />
+          ) : (
+            <BatchScanList
+              mode={mode}
+              pendingScans={pendingScans}
+              selectedDept={selectedDept}
+              isSubmitting={isSubmitting}
+              onRemoveItem={removeItem}
+              onConfirm={handleBatchConfirm}
+            />
+          )}
+        </QRScanner>
 
         {/* VISUAL FEEDBACK OVERLAY */}
         {feedbackOverlay && (
@@ -328,20 +344,6 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
             status={feedbackOverlay.status}
             text={feedbackOverlay.text}
             onDismiss={dismissError} // Only used for error status inside the component logic
-          />
-        )}
-
-        {/* BOTTOM SHEET / DAMAGE MANUAL ENTRY */}
-        {mode === 'damage_scanning' ? (
-          <DamageManualEntry onSubmit={(id) => handleScan(id)} />
-        ) : (
-          <BatchScanList
-            mode={mode}
-            pendingScans={pendingScans}
-            selectedDept={selectedDept}
-            isSubmitting={isSubmitting}
-            onRemoveItem={removeItem}
-            onConfirm={handleBatchConfirm}
           />
         )}
       </>

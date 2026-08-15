@@ -36,9 +36,13 @@ export const BatchScanList = ({
         // ตรงกับบันไดที่ Modal.tsx:77-78 ใช้อยู่
         //
         // max-w-md mx-auto เพื่อให้แผ่นไม่ยืดเต็มจอกว้าง เหมือนหน้าอื่น ๆ
+        //
+        // ไม่ใช้ fixed แล้ว: แผ่นนี้เป็นลูกในคอลัมน์ของ QRScanner เวทีกล้อง
+        // ด้านบนจึงหักความสูงของแผ่นออกได้เอง และ h-[40%] (ไม่ใช่ max-h) ทำให้
+        // ความสูงคงที่ตั้งแต่เปิดกล้อง กรอบสแกนจะได้ไม่ขยับตอนรายการยาวขึ้น
         <div
             className={
-                'fixed inset-x-0 bottom-0 z-[60] mx-auto flex max-h-[40vh] w-full max-w-md ' +
+                'relative z-[60] mx-auto flex h-[40%] min-h-[15rem] w-full max-w-md shrink-0 ' +
                 'flex-col rounded-t-3xl border-t border-slate-200 bg-white ' +
                 'shadow-[0_-24px_60px_-24px_rgba(15,42,82,0.45)] animate-surface-in'
             }
@@ -59,7 +63,7 @@ export const BatchScanList = ({
                 </span>
             </div>
 
-            <div className="min-h-[150px] space-y-3 overflow-y-auto p-4">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                 {pendingScans.length === 0 ? (
                     <EmptyState icon={ScanLine} title={t.batch.empty} />
                 ) : (

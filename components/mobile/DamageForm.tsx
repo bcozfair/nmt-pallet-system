@@ -174,7 +174,8 @@ export const DamageManualEntry: React.FC<DamageManualEntryProps> = ({ onSubmit }
     return (
         <div
             className={
-                'fixed inset-x-0 bottom-0 z-[60] mx-auto flex max-h-[60vh] w-full max-w-md ' +
+                // เป็นลูกในคอลัมน์ของ QRScanner เหมือน BatchScanList ไม่ใช่ fixed
+                'relative z-[60] mx-auto flex max-h-[60%] w-full max-w-md shrink-0 ' +
                 'flex-col gap-4 overflow-y-auto rounded-t-3xl border-t border-slate-200 ' +
                 'bg-white p-6 pb-10 shadow-[0_-24px_60px_-24px_rgba(15,42,82,0.45)] animate-surface-in'
             }
