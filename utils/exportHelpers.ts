@@ -414,6 +414,9 @@ export const exportHistoryCSV = async (transactions?: Transaction[]) => {
             h.palletId,
             h.actionType,
             h.performedBy,
+            // ต้นทางมาก่อนปลายทาง เรียงเหมือนบนหน้าจอ -- คนที่เปิดไฟล์นี้คือคนที่เพิ่ง
+            // กดปุ่มบนหน้านั้น ลำดับคอลัมน์ที่สลับกันคือสิ่งที่ทำให้ต้องอ่านหัวตารางใหม่
+            h.locationOrigin,
             h.locationDest,
             // Carried over from the transactions screen's own export, which is
             // the only place it existed. Dropping a column while merging two
@@ -442,10 +445,16 @@ export const exportHistoryCSV = async (transactions?: Transaction[]) => {
                 tx.pallet_id,
                 action,
                 userName,
+                tx.department_origin || CSV_EMPTY,
                 // A check-in carries no destination because the destination is
                 // the warehouse. Naming it is more use than an empty cell here,
                 // and it is what this export has always written.
-                tx.department_dest || t.csv.warehouse,
+                //
+                // เฉพาะการรับคืนเท่านั้น: แถวแจ้งชำรุด/ซ่อมแล้ว/ตัดออกก็มีปลายทางเป็น
+                // null เหมือนกัน แต่เป็น null เพราะ "ไม่ได้ย้ายของไปไหน" ไม่ใช่เพราะ
+                // ปลายทางคือคลัง การเติมคำว่าคลังให้ทุกแถวที่ว่างจึงทำให้ไฟล์บอกว่า
+                // พาเลทชำรุดที่คลังกลาง ทั้งที่มันชำรุดอยู่ที่หน่วยงานปลายทาง
+                tx.department_dest || (tx.action_type === 'check_in' ? t.csv.warehouse : CSV_EMPTY),
                 tx.transaction_remark || CSV_EMPTY,
                 evidence
             ];

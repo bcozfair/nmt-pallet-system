@@ -14,6 +14,8 @@ import { ConfirmDialog, StickyHeader } from '../../ui';
 import { ReportPrintHost, useReportPrint } from '../../report';
 import { TransactionReport } from './report/TransactionReport';
 import { exportHistoryCSV } from '../../../utils/exportHelpers';
+import { matchesTransactionFilters } from '../../../services/transactionFilters';
+import { scrapEvidenceByTxId } from '../../../services/transactionEvidence';
 import { getEvidenceSignedUrl } from '../../../services/storageService';
 import { useT } from '../../../hooks/useT';
 import { dict } from '../../../services/i18n';
@@ -157,40 +159,13 @@ export const TransactionView = () => {
         setCurrentPage(1);
     }, [searchTerm, actionFilter, locationFilter, userFilter, dateRange]);
 
-    // Data Processing needs to handle newly added 'notes' if needed for search?
-    // Yes, let's add notes to search
+    // เงื่อนไขทั้งห้าอยู่ใน services/transactionFilters.ts ไม่ใช่ในนี้ -- ที่นั่นเป็นฟังก์ชัน
+    // บริสุทธิ์ที่เขียนเทสต์ครอบได้โดยไม่ต้องเมานต์ทั้งหน้า และเป็นที่เดียวที่อธิบายว่า
+    // ทำไมช่องค้นหาจึงต้องรับชื่อคน และทำไมตัวกรองสถานที่จึงตรงได้ทั้งต้นทางและปลายทาง
     const processedTransactions = useMemo(() => {
-        let data = transactions.filter(tx => {
-            const term = searchTerm.toLowerCase();
-            const matchesSearch =
-                tx.pallet_id.toLowerCase().includes(term) ||
-                (tx.department_dest || '').toLowerCase().includes(term) ||
-                (tx.transaction_remark || '').toLowerCase().includes(term);
-
-            // Action Filter
-            const matchesAction = actionFilter === 'all' || tx.action_type === actionFilter;
-
-            // Location Filter (Destination)
-            const matchesLocation = locationFilter === 'all' || (tx.department_dest === locationFilter);
-
-            // Date Filter
-            let matchesDate = true;
-            if (dateRange.start) {
-                const start = new Date(dateRange.start);
-                start.setHours(0, 0, 0, 0);
-                matchesDate = matchesDate && new Date(tx.timestamp) >= start;
-            }
-            if (dateRange.end) {
-                const end = new Date(dateRange.end);
-                end.setHours(23, 59, 59, 999);
-                matchesDate = matchesDate && new Date(tx.timestamp) <= end;
-            }
-
-            // User Filter
-            const matchesUser = userFilter === 'all' || tx.user_id === userFilter;
-
-            return matchesSearch && matchesAction && matchesLocation && matchesDate && matchesUser;
-        });
+        const criteria = { searchTerm, actionFilter, locationFilter, userFilter, dateRange };
+        // ส่งชื่อที่ resolve แล้วเข้าไป ตัวฟังก์ชันจึงไม่ต้องรู้จัก userMap
+        let data = transactions.filter(tx => matchesTransactionFilters(tx, criteria, users[tx.user_id]));
 
         // Sorting (including notes?)
         if (sortConfig) {
@@ -207,6 +182,11 @@ export const TransactionView = () => {
         return data;
     }, [transactions, users, searchTerm, actionFilter, locationFilter, userFilter, dateRange, sortConfig]);
 
+
+    // คำนวณจาก `transactions` ทั้งชุดที่โหลดมา ไม่ใช่จากแถวที่ผ่านตัวกรอง -- รายงาน
+    // ความเสียหายที่เป็นเหตุของการตัดออกมักไม่ผ่านตัวกรองเดียวกับแถวตัดออกเอง
+    // (คนละประเภทรายการ คนละวัน) การจับคู่หลังกรองจึงจะพลาดเกือบทุกครั้ง
+    const inheritedEvidence = useMemo(() => scrapEvidenceByTxId(transactions), [transactions]);
 
     // Handlers (Sort, Clear, Export, Cleanup remain)
     const handleSort = (key: keyof Transaction) => {
@@ -449,6 +429,7 @@ export const TransactionView = () => {
                 userMap={users}
                 onClearFilters={handleClearFilters}
                 onViewImage={handleViewImage}
+                inheritedEvidence={inheritedEvidence}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 // Was a full-page `if (loading) return <div>Loading...</div>`,

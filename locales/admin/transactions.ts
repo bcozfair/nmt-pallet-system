@@ -53,7 +53,7 @@ export const transactionsEn = {
     },
 
     // --- Filters ---
-    searchPlaceholder: 'Search by Pallet ID, Notes...',
+    searchPlaceholder: 'Search by pallet ID, person, location, notes...',
     allUsers: 'All Users',
     allLocations: 'All Locations',
     allActions: 'All Actions',
@@ -80,8 +80,19 @@ export const transactionsEn = {
     colDateTime: 'Date & Time',
     colAction: 'Action',
     colPerformedBy: 'Performed By',
+    // The two halves of one movement. `common.location` used to head the
+    // destination column on its own, which read as the whole answer -- and for a
+    // check-in it always said 'Warehouse' and for a damage report it said
+    // nothing at all. Named as a pair, each row states where the pallet came
+    // from and where it went.
+    colOrigin: 'From',
+    colDest: 'To',
     colEvidence: 'Evidence',
     viewEvidence: 'View Evidence Image',
+    // A scrap row carries no photo of its own -- the picture that justified
+    // writing the asset off belongs to the damage report before it. The button
+    // opens that photo, and says so, rather than claiming this row has one.
+    viewDamageEvidence: 'View the damage report photo behind this write-off',
     deleteRecord: 'Delete Record',
     emptyFiltered: 'No transactions found matching your filters.',
     loading: 'Loading transactions...',
@@ -150,7 +161,7 @@ export const transactionsTh: TransactionsDict = {
         hasEvidence: 'มี',
     },
 
-    searchPlaceholder: 'ค้นหาด้วยรหัสพาเลท หรือหมายเหตุ...',
+    searchPlaceholder: 'ค้นหาด้วยรหัสพาเลท ชื่อคน สถานที่ หรือหมายเหตุ...',
     allUsers: 'ผู้ใช้งานทั้งหมด',
     allLocations: 'สถานที่ทั้งหมด',
     allActions: 'ทุกประเภทรายการ',
@@ -166,8 +177,11 @@ export const transactionsTh: TransactionsDict = {
     colDateTime: 'วันที่และเวลา',
     colAction: 'ประเภทรายการ',
     colPerformedBy: 'ผู้ทำรายการ',
+    colOrigin: 'จาก',
+    colDest: 'ไปยัง',
     colEvidence: 'หลักฐาน',
     viewEvidence: 'ดูรูปหลักฐาน',
+    viewDamageEvidence: 'ดูรูปหลักฐานจากรายงานความเสียหายที่เป็นเหตุให้ตัดออก',
     deleteRecord: 'ลบรายการนี้',
     emptyFiltered: 'ไม่พบรายการที่ตรงกับตัวกรอง',
     loading: 'กำลังโหลดประวัติรายการ...',

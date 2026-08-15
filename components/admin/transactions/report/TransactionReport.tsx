@@ -61,19 +61,19 @@ export const TransactionReport: React.FC<TransactionReportProps> = ({
         {
             key: 'timestamp',
             header: t.transactions.colDateTime,
-            width: 15,
+            width: 13,
             render: (tx) => formatDateTime(tx.timestamp),
         },
         {
             key: 'pallet',
             header: t.common.palletId,
-            width: 11,
+            width: 10,
             render: (tx) => <span className="font-mono font-semibold text-slate-800">{tx.pallet_id}</span>,
         },
         {
             key: 'action',
             header: t.transactions.colAction,
-            width: 13,
+            width: 12,
             render: (tx) => (
                 <ReportPill
                     label={t.action[tx.action_type as ActionType] ?? tx.action_type}
@@ -84,7 +84,7 @@ export const TransactionReport: React.FC<TransactionReportProps> = ({
         {
             key: 'user',
             header: t.transactions.colPerformedBy,
-            width: 16,
+            width: 14,
             // A person's name prints verbatim. The id fallback is truncated the
             // same way the screen truncates it, so a row whose user has been
             // deleted reads the same in both places rather than turning into a
@@ -94,10 +94,19 @@ export const TransactionReport: React.FC<TransactionReportProps> = ({
                     <span className="font-mono text-slate-400">{tx.user_id.substring(0, 8)}…</span>
                 ),
         },
+        // สองคอลัมน์ ไม่ใช่คอลัมน์ 'location' เดี่ยวแบบเดิม ด้วยเหตุผลเดียวกับบนหน้าจอ
+        // (ดู TransactionTable.tsx) -- และเพราะกระดาษไม่มีตัวกรองให้กดดูต่อ แถวที่พิมพ์
+        // ออกมาจึงต้องตอบให้ครบในตัวมันเองว่าของย้ายจากไหนไปไหน
+        {
+            key: 'origin',
+            header: t.transactions.colOrigin,
+            width: 13,
+            render: (tx) => tx.department_origin || <span className="text-slate-300">—</span>,
+        },
         {
             key: 'location',
-            header: t.common.location,
-            width: 16,
+            header: t.transactions.colDest,
+            width: 13,
             render: (tx) => tx.department_dest || <span className="text-slate-300">—</span>,
         },
         {
@@ -115,7 +124,7 @@ export const TransactionReport: React.FC<TransactionReportProps> = ({
         {
             key: 'remark',
             header: t.common.remark,
-            width: 21,
+            width: 18,
             render: (tx) => tx.transaction_remark || <span className="text-slate-300">—</span>,
         },
     ];

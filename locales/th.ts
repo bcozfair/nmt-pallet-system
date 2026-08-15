@@ -108,6 +108,8 @@ export const th: Dictionary = {
             evidenceLink: 'ลิงก์ไฟล์หลักฐาน',
             actionType: 'ประเภทรายการ',
             performedBy: 'ผู้ทำรายการ',
+            // ต้นทางมาก่อนปลายทาง เพื่อให้ลำดับคอลัมน์ในไฟล์ตรงกับลำดับบนหน้าจอ
+            locationOrigin: 'สถานที่/ต้นทาง',
             locationDest: 'สถานที่/ปลายทาง',
         },
     },

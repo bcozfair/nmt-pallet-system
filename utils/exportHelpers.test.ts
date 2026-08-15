@@ -296,7 +296,7 @@ describe('exportHistoryCSV', () => {
         ]);
 
         const row = cells((await csv.text()).split('\n')[1]);
-        expect(row[7]).toBe('https://example.supabase.co/storage/v1/object/sign/damage-1.jpg?token=abc');
+        expect(row[8]).toBe('https://example.supabase.co/storage/v1/object/sign/damage-1.jpg?token=abc');
         expect(getEvidenceSignedUrlMap).toHaveBeenCalledWith(expect.anything(), 60 * 60 * 24 * 7);
     });
 
@@ -307,8 +307,36 @@ describe('exportHistoryCSV', () => {
         await exportHistoryCSV([transaction({ transaction_remark: 'ล้อแตกหนึ่งข้าง' })]);
 
         const [headerLine, rowLine] = (await csv.text()).split('\n');
-        expect(cells(headerLine)).toHaveLength(8);
-        expect(cells(rowLine)[6]).toBe('ล้อแตกหนึ่งข้าง');
+        expect(cells(headerLine)).toHaveLength(9);
+        expect(cells(rowLine)[7]).toBe('ล้อแตกหนึ่งข้าง');
+    });
+
+    // ไฟล์ที่ส่งออกต้องตอบได้เท่าที่หน้าจอตอบได้ ไม่ใช่ครึ่งเดียวของการเคลื่อนย้าย
+    it('มีคอลัมน์ต้นทางอยู่ก่อนคอลัมน์ปลายทาง', async () => {
+        const csv = captureCsv();
+        await exportHistoryCSV([
+            transaction({ department_origin: 'ฝ่ายบรรจุ', department_dest: 'ฝ่ายผลิต' }),
+        ]);
+
+        const [headerLine, rowLine] = (await csv.text()).split('\n');
+        expect(cells(headerLine)[5]).toBe('สถานที่/ต้นทาง');
+        expect(cells(headerLine)[6]).toBe('สถานที่/ปลายทาง');
+        expect(cells(rowLine)[5]).toBe('ฝ่ายบรรจุ');
+        expect(cells(rowLine)[6]).toBe('ฝ่ายผลิต');
+    });
+
+    // การรับคืนไม่มีปลายทางเพราะปลายทางคือคลัง -- แต่การแจ้งชำรุดไม่มีปลายทางเพราะ
+    // ไม่ได้ย้ายของไปไหน การเติมคำว่าคลังให้ทั้งสองกรณีทำให้ไฟล์บอกว่าพาเลทชำรุดที่คลัง
+    it('เติม "คลังกลาง" ให้เฉพาะแถวรับคืน ไม่ใช่ทุกแถวที่ปลายทางว่าง', async () => {
+        const csv = captureCsv();
+        await exportHistoryCSV([
+            transaction({ action_type: 'check_in', department_dest: null }),
+            transaction({ action_type: 'report_damage', department_dest: null }),
+        ]);
+
+        const [, checkIn, damage] = (await csv.text()).split('\n');
+        expect(cells(checkIn)[6]).not.toBe('');
+        expect(cells(damage)[6]).toBe('');
     });
 
     it('แยกคอลัมน์วันที่กับเวลาออกจากกัน ไม่ใช่เซลล์รวม', async () => {

@@ -151,6 +151,8 @@ export const en = {
             evidenceLink: 'Evidence Link',
             actionType: 'Action Type',
             performedBy: 'Performed By',
+            // ต้นทางมาก่อนปลายทาง เพื่อให้ลำดับคอลัมน์ในไฟล์ตรงกับลำดับบนหน้าจอ
+            locationOrigin: 'Location/Origin',
             locationDest: 'Location/Destination',
         },
     },

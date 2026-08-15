@@ -3,6 +3,7 @@ import {
     MapPin, User, History, Image as ImageIcon, Edit2, Trash2, FileText
 } from 'lucide-react';
 import { Transaction } from '../../../types';
+import { IMAGE_DELETED } from '../../../services/storageService';
 import { formatDateTime } from '../common/AdminHelpers';
 import { Pagination } from '../common/Pagination';
 import { useT } from '../../../hooks/useT';
@@ -36,6 +37,13 @@ interface TransactionTableProps {
     userMap: Record<string, string>;
     onClearFilters: () => void;
     onViewImage: (url: string) => void;
+    /**
+     * id ของแถว -> ค่า evidence_image_url ที่แถวนั้น "ยืม" มาแสดง
+     *
+     * มีเฉพาะแถวตัดออกจากระบบ ซึ่งไม่มีรูปเป็นของตัวเองแต่มีรายงานความเสียหาย
+     * ก่อนหน้าที่เป็นเหตุผลของมันอยู่ -- ดู services/transactionEvidence.ts
+     */
+    inheritedEvidence: Record<string, string>;
     // Actions
     onEdit: (tx: Transaction) => void;
     onDelete: (id: string) => void;
@@ -66,6 +74,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
     userMap,
     onClearFilters,
     onViewImage,
+    inheritedEvidence,
     onEdit,
     onDelete,
     isLoading,
@@ -98,10 +107,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 
     return (
         <DataTable
-            minWidth={880}
+            minWidth={1000}
             isLoading={isLoading}
             loadingRows={10}
-            loadingCols={8}
+            loadingCols={9}
             // `t.transactions.loading` rather than the generic `t.common.loading`
             // the inventory table uses: this is the string the old full-page
             // loading screen announced, and it says which list is on its way.
@@ -135,7 +144,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     <SortableTh<TxSortKey> label={t.common.palletId} sortKey="pallet_id" sortConfig={sortConfig} onSort={onSort} />
                     <SortableTh<TxSortKey> label={t.transactions.colAction} sortKey="action_type" sortConfig={sortConfig} onSort={onSort} />
                     <SortableTh<TxSortKey> label={t.transactions.colPerformedBy} sortKey="user_id" sortConfig={sortConfig} onSort={onSort} />
-                    <SortableTh<TxSortKey> label={t.common.location} sortKey="department_dest" sortConfig={sortConfig} onSort={onSort} />
+                    {/* สองคอลัมน์นี้คือครึ่งหนึ่งของการเคลื่อนย้ายหนึ่งครั้ง คนละครึ่ง
+                        ของเดิมมีแต่ปลายทางภายใต้ป้ายกลาง ๆ ว่า "สถานที่" ซึ่งอ่านแล้ว
+                        เหมือนเป็นคำตอบทั้งหมด ทั้งที่แถวรับคืนเขียน 'Warehouse' ทุกแถว
+                        และแถวแจ้งชำรุด/ตัดออกไม่มีค่าเลย -- สามในห้าประเภทรายการจึงมี
+                        คอลัมน์นี้เป็นที่ว่าง ทั้งที่ department_origin ถูกเก็บมาตั้งแต่
+                        migration 01 แล้วและไม่มีใครฝั่งแอดมินอ่านมันเลย */}
+                    <SortableTh<TxSortKey> label={t.transactions.colOrigin} sortKey="department_origin" sortConfig={sortConfig} onSort={onSort} />
+                    <SortableTh<TxSortKey> label={t.transactions.colDest} sortKey="department_dest" sortConfig={sortConfig} onSort={onSort} />
                     {/* หมายเหตุยาวและไม่มีค่าเรียงลำดับ ซ่อนต่ำกว่า xl ให้เหลือ 7
                         คอลัมน์พอดีกับ minWidth ข้างบน ข้อความเต็มยังอ่านได้ครบใน
                         โมดัลแก้ไขและในไฟล์ CSV ที่ส่งออก -- เกณฑ์เดียวกับที่หน้า
@@ -186,6 +202,12 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                                 {userMap[tx.user_id] || <span className="font-mono text-xs text-slate-400">{tx.user_id.substring(0, 8)}...</span>}
                             </div>
                         </td>
+                        {/* หมุดปักที่ปลายทางอย่างเดียว ไม่ใช่ทั้งสองช่อง: หมุดสองอันติดกัน
+                            ในแถวเดียวไม่ได้บอกอะไรเพิ่ม นอกจากกินความกว้าง อันเดียวที่
+                            ปลายทางทำให้กวาดตาลงมาแล้วรู้ว่าของไปจบที่ไหน */}
+                        <td className="px-3 py-1.5 text-sm text-slate-500">
+                            {tx.department_origin || <span className="text-slate-300">-</span>}
+                        </td>
                         <td className="px-3 py-1.5 text-slate-600">
                             {tx.department_dest ? (
                                 <div className="flex items-center gap-2">
@@ -214,22 +236,39 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                             ทันทีว่าแถวไหนมีรูปหลักฐาน และพื้นสีคือสิ่งที่ทำให้กวาดตาได้
                             เปลี่ยนเป็นไอคอนเปล่าคือถอดความสามารถนั้นออกไปเงียบ ๆ */}
                         <td className="px-3 py-1.5 text-center">
-                            {tx.evidence_image_url && tx.evidence_image_url !== 'image_deleted' ? (
-                                <button
-                                    onClick={() => onViewImage(tx.evidence_image_url!)}
-                                    className={
-                                        'inline-flex items-center justify-center rounded-lg bg-red-50 p-1.5 ' +
-                                        'text-red-600 transition hover:bg-red-100 focus-visible:outline-2 ' +
-                                        'focus-visible:outline-offset-2 focus-visible:outline-brand-500'
-                                    }
-                                    title={t.transactions.viewEvidence}
-                                    aria-label={t.transactions.viewEvidence}
-                                >
-                                    <ImageIcon size={16} />
-                                </button>
-                            ) : (
-                                <span className="text-xs text-slate-300">-</span>
-                            )}
+                            {(() => {
+                                const own =
+                                    tx.evidence_image_url && tx.evidence_image_url !== IMAGE_DELETED
+                                        ? tx.evidence_image_url
+                                        : null;
+                                // แถวตัดออกจากระบบไม่มีรูปเป็นของตัวเอง แต่รูปที่เป็น
+                                // เหตุผลของมันยังอยู่ที่รายงานความเสียหายก่อนหน้า --
+                                // ของเดิมช่องนี้จึงว่างเปล่าทั้งที่หลักฐานยังอยู่ครบ
+                                const borrowed = own ? null : inheritedEvidence[tx.id];
+                                const stored = own ?? borrowed;
+                                if (!stored) return <span className="text-xs text-slate-300">-</span>;
+
+                                // ชิปสีเดียวกันทั้งสองแบบโดยตั้งใจ -- งานจริงของคอลัมน์นี้คือ
+                                // ให้กวาดตาลงมาแล้วรู้ว่าแถวไหนมีรูปให้เปิดดู ส่วนความต่างว่า
+                                // รูปเป็นของแถวนี้เองหรือยืมมา อยู่ในป้ายชื่อของปุ่ม
+                                const label = borrowed
+                                    ? t.transactions.viewDamageEvidence
+                                    : t.transactions.viewEvidence;
+                                return (
+                                    <button
+                                        onClick={() => onViewImage(stored)}
+                                        className={
+                                            'inline-flex items-center justify-center rounded-lg bg-red-50 p-1.5 ' +
+                                            'text-red-600 transition hover:bg-red-100 focus-visible:outline-2 ' +
+                                            'focus-visible:outline-offset-2 focus-visible:outline-brand-500'
+                                        }
+                                        title={label}
+                                        aria-label={label}
+                                    >
+                                        <ImageIcon size={16} />
+                                    </button>
+                                );
+                            })()}
                         </td>
                         <td className="px-3 py-1.5 text-right">
                             <div className="flex items-center justify-end gap-1">

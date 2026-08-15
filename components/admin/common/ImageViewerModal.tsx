@@ -144,8 +144,18 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ src, onClose
                 </>
             }
         >
+            {/* ความสูงคงที่ ไม่ใช่ min-h-[60vh] -- และนี่คือเหตุผลที่รูปเคยไม่พอดีจอ
+                ตอนเปิด: `max-h-full` ของ <img> คิดจากความสูงของกล่องแม่ แต่กล่องที่มีแค่
+                ความสูง "ขั้นต่ำ" ถือว่าความสูงไม่ชี้ขาด เบราว์เซอร์จึงตีความ max-height
+                เปอร์เซ็นต์นั้นเป็น none รูปจากมือถือที่สูง 3000px จึงเรนเดอร์เต็มขนาดจริง
+                แล้วถูก overflow-hidden ตัดหัวตัดท้าย เหลือให้เห็นแค่ช่วงกลาง ต้องกดย่อ
+                เองทุกครั้งกว่าจะเห็นทั้งใบ
+
+                พอความสูงชี้ขาด max-h-full/max-w-full + object-contain ก็ทำงานตามที่ตั้งใจ
+                ไว้แต่แรก คือย่อรูปให้พอดีกรอบตั้งแต่ scale 1 -- ค่าเริ่มต้นคือเห็นเต็มรูป
+                ส่วนปุ่มขยายมีไว้ให้ซูมดูรอยชำรุดใกล้ ๆ ทีหลัง */}
             <div
-                className="-mx-5 -mb-5 flex min-h-[60vh] items-center justify-center overflow-hidden bg-slate-950"
+                className="-mx-5 -mb-5 flex h-[70vh] items-center justify-center overflow-hidden bg-slate-950"
                 onWheel={handleWheel}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
@@ -158,8 +168,14 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ src, onClose
                     draggable={false}
                     // ค่าที่คำนวณตอนรันไทม์ต้องไปทาง style ไม่ใช่คลาสที่ประกอบเป็น
                     // สตริง -- Tailwind สแกนแต่ข้อความในซอร์ส
+                    // ลำดับสำคัญ: translate มาก่อน scale
+                    //
+                    // ของเดิมเป็น scale() แล้วค่อย translate() ซึ่ง CSS อ่านจากขวาไปซ้าย
+                    // -- ระยะเลื่อนจึงถูกคูณด้วยอัตราซูมไปด้วย ลากเมาส์ 100px ตอนซูม 300%
+                    // รูปวิ่งไป 300px ยิ่งซูมเข้าไปดูรอยชำรุดใกล้ ๆ ยิ่งบังคับตำแหน่งไม่ได้
+                    // สลับลำดับแล้วระยะที่ลากเท่ากับระยะที่รูปขยับเสมอ ไม่ว่าซูมเท่าไร
                     style={{
-                        transform: `scale(${scale}) translate(${position.x}px, ${position.y}px)`,
+                        transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
                         cursor: isDragging ? 'grabbing' : 'grab',
                     }}
                     className="max-h-full max-w-full object-contain transition-transform duration-100"
