@@ -66,9 +66,10 @@ export const DataTableView: React.FC<DataTableViewProps> = ({
                                 // No `uppercase` and no positive tracking -- both
                                 // are silent one-language regressions in Thai.
                                 className={
-                                    // bg-canvas + line-overlay: หัวที่เลื่อนตามจอทับแถว
-                                    // ข้อมูลอยู่ ถ้าพื้นเป็นขาวเท่าแถวข้างล่างจะแยกไม่ออก
-                                    'sticky top-0 z-10 border-b border-line-overlay bg-canvas px-3 py-2 text-xs font-bold text-slate-600 ' +
+                                    // surface-band + line-band: ชุดเดียวกับ TH_BASE ใน
+                                    // DataTable.tsx -- หัวที่เลื่อนตามจอทับแถวข้อมูลอยู่
+                                    // ถ้าพื้นเป็นขาวเท่าแถวข้างล่างจะแยกไม่ออก
+                                    'sticky top-0 z-10 border-b border-line-band bg-surface-band px-3 py-2 text-xs font-bold text-slate-600 ' +
                                     (col.numeric ? 'text-right tabular-nums' : 'text-left')
                                 }
                             >

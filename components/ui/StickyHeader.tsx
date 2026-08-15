@@ -179,9 +179,15 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({ children, className 
                 //
                 // เงาย้ายมาอยู่บน ::before ด้วย ถ้าทิ้งไว้บนตัว element เงาจะจบตรง
                 // ขอบคอลัมน์ ทั้งที่พื้นหลังกินเต็มจอ -- เส้นขอบล่างจะขาดหายไปสองข้าง
+                //
+                // `bg-canvas` ไม่ใช่ `bg-slate-50`: ค่าเดิมคือพื้นหน้าจอ *ก่อน*
+                // รีดีไซน์ ซึ่งไม่ได้ถูกเปลี่ยนตามตอนพื้นหน้าจอย้ายไปอยู่ในโทเคน
+                // เพราะบรรทัดนี้เขียนค่าไว้ตรง ๆ ผลคือแถบตอนติดจอสว่างกว่าพื้นที่
+                // มันลอยอยู่บน 1.07:1 -- อ่านเป็นแผ่นซีดพาดขวางจอ ไม่ใช่พื้นหน้าที่
+                // เลื่อนตามมา สิ่งเดียวที่ควรบอกว่าแถบติดจออยู่คือเงาบรรทัดถัดไป
                 'xl:data-[stuck=false]:before:bg-transparent ' +
                 'xl:data-[stuck=false]:before:shadow-none ' +
-                'xl:data-[stuck=true]:before:bg-slate-50 ' +
+                'xl:data-[stuck=true]:before:bg-canvas ' +
                 'xl:data-[stuck=true]:before:shadow-[0_14px_22px_-18px_rgba(15,42,82,0.5)] ' +
                 className
             }

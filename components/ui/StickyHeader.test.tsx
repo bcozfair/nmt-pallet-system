@@ -106,7 +106,7 @@ describe('StickyHeader', () => {
     it('ถือชุดคลาสเต็มทั้งสองฝั่งไว้พร้อมกัน แล้วให้ selector เป็นตัวเลือก', () => {
         const { container } = render(<StickyHeader>x</StickyHeader>);
         const el = container.firstElementChild!;
-        expect(el.className).toContain('xl:data-[stuck=true]:before:bg-slate-50');
+        expect(el.className).toContain('xl:data-[stuck=true]:before:bg-canvas');
         expect(el.className).toContain('xl:data-[stuck=false]:before:bg-transparent');
     });
 
@@ -126,7 +126,7 @@ describe('StickyHeader', () => {
 
         // และต้องไม่เหลือคู่เดิมที่ทาลงบนตัว element ค้างอยู่ ไม่งั้นจะได้พื้นสองชั้น
         // ชั้นในกว้างเท่าคอลัมน์ ซึ่งคือรอยต่อเดิมกลับมาอีกครั้ง
-        expect(el.className).not.toContain('xl:data-[stuck=true]:bg-slate-50');
+        expect(el.className).not.toContain('xl:data-[stuck=true]:bg-canvas');
     });
 
     it('ส่ง className ที่รับมาลงไปพร้อมกับคลาสของตัวเอง', () => {
