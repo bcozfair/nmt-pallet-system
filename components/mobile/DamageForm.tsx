@@ -213,9 +213,13 @@ export const DamageManualEntry: React.FC<DamageManualEntryProps> = ({ onSubmit }
                         />
                     )}
                 </Field>
+                {/* `primary` ชุดเดียวกับปุ่ม "ยืนยันและบันทึก" ใน BatchScanList.tsx
+                    -- แผ่นล่างสองใบนี้ขึ้นมาจากหน้าสแกนเดียวกัน ปุ่มที่ปิดงานของทั้งคู่
+                    จึงต้องเป็นวัตถุเดียวกัน ของเดิมเป็น `secondary` ซึ่งเป็นปุ่มพื้นขาว
+                    ทั้งที่มันคือปุ่มหลักของกล่องนี้ และไม่มีปุ่มอื่นในกล่องให้ต้องถอยให้ */}
                 <Button
                     type="submit"
-                    variant="secondary"
+                    variant="primary"
                     size="lg"
                     icon={Keyboard}
                     disabled={value.trim().length === 0}

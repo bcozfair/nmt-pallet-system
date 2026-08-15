@@ -4,7 +4,6 @@ import { Department } from '../../types';
 import { useT } from '../../hooks/useT';
 import { StaffHeader } from './StaffHeader';
 import { ActionTile } from './ActionTile';
-import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
 import { Skeleton } from '../ui/Skeleton';
 
@@ -15,6 +14,10 @@ interface LocationSelectorProps {
     onCancel: () => void;
 }
 
+// ไม่มีปุ่ม "ยกเลิก" ท้ายหน้า และนี่เป็นการตัดสินใจ ไม่ใช่ของที่ตกหล่น: ทางออกจาก
+// หน้านี้มีทางเดียวคือลูกศรย้อนกลับบน StaffHeader ซึ่งเรียก `onCancel` ตัวเดียวกัน
+// ปุ่มเต็มความกว้างท้ายหน้าเคยทำหน้าที่ซ้ำกับลูกศรนั้นเป๊ะ ๆ -- ทางออกสองทางที่ทำ
+// อย่างเดียวกันไม่ได้ให้ทางเลือก มันแค่ทำให้ต้องอ่านทั้งสองอันก่อนจะรู้ว่าเหมือนกัน
 export const LocationSelector = ({
     departments,
     isLoading,
@@ -60,10 +63,6 @@ export const LocationSelector = ({
                         ))}
                     </div>
                 )}
-
-                <Button variant="secondary" size="lg" onClick={onCancel} className="mt-auto w-full">
-                    {t.common.cancel}
-                </Button>
             </main>
         </div>
     );

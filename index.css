@@ -561,37 +561,44 @@
   animation: toast-slide-down 0.3s var(--ease-brand) forwards;
 }
 
-/* --- Sign-in and password-reset screens --- */
+/* --- พื้นหลังของทั้งแอป: หน้าแอดมิน หน้าฝั่งพนักงาน และหน้าก่อนเข้าสู่ระบบ ---
 
-/* One soft brand wash falling from the top of the viewport, so the card sits in
-   light instead of on flat grey. Deliberately weak: the brief is low contrast,
-   and anything stronger starts competing with the card for attention. */
+   ประกาศครั้งเดียวสำหรับทุกหน้า ต่างกันได้อย่างเดียวคือ "ตำแหน่งของแสง"
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   สองคลาสนี้เคยเป็นสองบล็อกที่เขียนค่าของตัวเองครบชุด ผลคือตอนพื้นหน้าจอของแอดมิน
+   ย้ายไปอ่านโทเคน `--color-canvas` (#eef2f8) ฝั่ง `.auth-canvas` ไม่ได้ตามไปด้วย
+   เพราะไม่มีอะไรผูกมันไว้ด้วยกัน หน้าเข้าสู่ระบบและหน้าตั้งรหัสผ่านใหม่จึงค้างอยู่
+   ที่ `#f8fafc` ของพาเลทเก่า -- ผู้ใช้เห็นพื้นเปลี่ยนสีตอนกดเข้าสู่ระบบสำเร็จ
+
+   ตอนนี้ทั้งคู่อ่าน `--color-canvas` ตัวเดียวกัน สีพื้นจึงเปลี่ยนพร้อมกันเสมอ
+   และไล่สีเป็นชุดเดียวกันเป๊ะ -- ค่าเก่าของฝั่ง auth (115% 75% / -15% / 0.1 / 62%)
+   ถูกยุบมาใช้ชุดของ `.app-canvas` เพื่อไม่ให้เหลือตัวเลขสองชุดที่ต้องแก้คู่กัน
+
+   สิ่งเดียวที่ยังต่างคือตำแหน่งของจุดสว่าง เพราะสองเลย์เอาต์วางของคนละที่ใต้จุดนั้น:
+   หน้าเข้าสู่ระบบมีการ์ดอยู่กลางจอ 50% จึงถูก ส่วนหน้าแอดมินมีคอลัมน์เนื้อหาเริ่ม
+   หลังแถบข้าง 256px -- ถ้าใช้ 50% จุดสว่างจะไปตกใต้แถบข้างซึ่งทึบ แสงทั้งดวงจะถูก
+   ใช้ไปกับพิกเซลที่ไม่มีใครเห็น และคอลัมน์เนื้อหาก็จะไปนั่งบนเทาเรียบ ซึ่งเป็น
+   สิ่งเดียวที่ไล่สีนี้มีอยู่เพื่อกัน
+
+   จงใจให้อ่อน: โจทย์คือคอนทราสต์ต่ำ อะไรที่แรงกว่านี้เริ่มแย่งความสนใจไปจากการ์ด
+
+   หมายเหตุ: หน้าสแกน QR ของฝั่งพนักงาน (QRScanner.tsx) เป็น `bg-black` เต็มจอ
+   โดยตั้งใจ ไม่ใช่หน้าที่หลุดจากชุดนี้ -- มันคือภาพจากกล้อง ไม่ใช่พื้นหน้า
+
+   ตัวแปรเก็บ "ตำแหน่ง" ทั้งคู่ (แกน X และ Y) ไม่ใช่แกน X อย่างเดียว เพราะถ้าเขียน
+   `at var(--x) -12%` ตัวย่อ CSS จะบีบช่องว่างออกจนได้ `at var(--x)-12%` ซึ่งอ่านยาก
+   ว่าจะถูกตีความอย่างไร การเก็บทั้งคู่ไว้ในตัวแปรเดียวทำให้ค่าที่ออกมาปิดท้ายด้วย
+   `)` แล้วตามด้วยคอมมาเสมอ ไม่มีโอกาสไปติดกับตัวเลขถัดไป */
+.app-canvas,
 .auth-canvas {
-  background-color: #f8fafc;
-  /* slate-50 */
-  background-image: radial-gradient(115% 75% at 50% -15%,
-      rgba(26, 81, 164, 0.1) 0%,
-      rgba(26, 81, 164, 0) 62%);
-}
-
-/* The same wash as `.auth-canvas`, re-anchored for the admin shell. It is a
-   separate class rather than a shared one because the two layouts put different
-   things under the bright spot: on the sign-in screen the gradient falls behind
-   a horizontally centred card, so a 50% origin is correct, but in the admin
-   shell the content column only starts after a 256px sidebar. Reusing 50% there
-   would park the brightest point under the sidebar -- which is opaque, so the
-   wash would be spent entirely on pixels nobody can see, and the content column
-   would sit on the flat grey the gradient exists to avoid. Pulling the origin
-   to 22% puts the light back over the content. */
-.app-canvas {
-  /* `#f8fafc` เดิมอยู่ห่างจากการ์ดสีขาวแค่ 1.05:1 -- ดูเหตุผลเต็มที่โทเคน
-     `--color-canvas` ด้านบน นี่คือค่าเดียวที่ทำให้การ์ด แถบตัวกรอง หัวตาราง
-     และเมนูทุกใบในหน้าแอดมินลอยขึ้นมาพร้อมกัน โดยไม่ต้องแตะหน้าไหนเลย
-     เพราะไม่มีหน้าไหนประกาศพื้นหลังของตัวเอง */
   background-color: var(--color-canvas);
-  background-image: radial-gradient(120% 60% at 22% -12%,
+  background-image: radial-gradient(120% 60% at var(--canvas-light, 22% -12%),
       rgba(26, 81, 164, 0.08) 0%,
       rgba(26, 81, 164, 0) 60%);
+}
+
+.auth-canvas {
+  --canvas-light: 50% -12%;
 }
 
 @keyframes auth-card-in {
