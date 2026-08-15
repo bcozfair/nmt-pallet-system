@@ -44,7 +44,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
             // pr-9 เผื่อปุ่มล้าง ไว้ตลอดแม้ตอนไม่มีปุ่ม ไม่งั้นข้อความจะขยับตอนพิมพ์
             // ตัวแรกซึ่งเป็นจังหวะที่สายตากำลังจับอยู่ที่ข้อความพอดี
             className={
-                // border-line-control: ช่องค้นหาเป็นตัวควบคุม ไม่ใช่กล่องตกแต่ง
+                // border-line-control: ช่องค้นหาเป็นช่องกรอก ไม่ใช่กล่องตกแต่ง
                 // -- เหตุผลเต็มที่ TextInput.tsx และที่โทเคนใน index.css
                 'min-h-10 w-full rounded-xl border border-line-control bg-white py-2 pl-9 pr-9 ' +
                 'text-sm text-slate-900 placeholder:text-slate-400 transition ' +

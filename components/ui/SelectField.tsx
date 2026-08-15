@@ -34,8 +34,9 @@ export interface SelectFieldProps {
 // -- ชุดเดียวกับ TextInput.tsx:19-23 เป๊ะ เพื่อให้ select กับ input ที่นั่งอยู่ใน
 // ฟอร์มเดียวกันดูเป็นวัตถุชิ้นเดียวกันตอนผิดพลาด
 // `border-line-control` ไม่ใช่ `border-slate-200`: กล่องขาวใบนี้วางอยู่บนการ์ดขาว
-// เส้นขอบจึงเป็นสิ่งเดียวที่บอกว่ามันเป็นตัวควบคุม ค่าเดิมวัดได้ 1.23:1 ซึ่งไม่ผ่าน
-// WCAG 1.4.11 (ขั้นต่ำ 3:1 สำหรับขอบเขตของ UI component) ดูโทเคนใน index.css
+// เส้นขอบจึงเป็นสิ่งเดียวที่บอกว่ามันเป็นช่องกรอก ค่าเดิมวัดได้ 1.23:1 ซึ่งจางจน
+// ช่องกรอกละลายไปกับการ์ด ตัวเลขที่ใช้อยู่และเหตุผลที่มันไม่ถึง 3:1 อยู่ที่โทเคน
+// `--color-line-control` ใน index.css ที่เดียว -- อย่าคัดตัวเลขมาเขียนซ้ำที่นี่
 const SURFACE_IDLE = 'border-line-control focus-visible:outline-brand-500';
 const SURFACE_INVALID = 'border-red-300 focus-visible:outline-red-500';
 

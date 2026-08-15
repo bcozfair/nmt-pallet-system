@@ -59,8 +59,8 @@ export const AuthField: React.FC<AuthFieldProps> = ({
         isPassword ? 'pr-12' : 'pr-4',
         invalid
             ? 'border-red-300 focus:border-red-400 focus:ring-red-500/15'
-            // เกณฑ์เดียวกับ SURFACE_IDLE ใน components/ui/TextInput.tsx: ขอบช่องกรอก
-            // เป็น affordance ต้องผ่าน WCAG 1.4.11 ที่ 3:1 -- `slate-200` ได้ 1.23:1
+            // โทเคนเดียวกับ SURFACE_IDLE ใน components/ui/TextInput.tsx -- ช่องกรอก
+            // ทั้งแอปมีเส้นขอบเฉดเดียว ไม่ว่าจะอยู่ก่อนหรือหลังเข้าสู่ระบบ
             : 'border-line-control focus:border-brand-500 focus:ring-accent-400/20',
     ].join(' ');
 

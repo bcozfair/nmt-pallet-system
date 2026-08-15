@@ -19,7 +19,8 @@ export interface CheckboxProps {
 const BOX =
     'relative h-4 w-4 shrink-0 cursor-pointer appearance-none rounded-md border-2 ' +
     // ช่องที่ยังไม่ติ๊กมีแต่เส้นขอบ ไม่มีพื้น ไม่มีเครื่องหมาย -- เส้นคือทั้งหมด
-    // ที่ผู้ใช้เห็น `border-slate-300` เดิมวัดได้ 1.49:1 บนขาว ไม่ผ่าน 3:1
+    // ที่ผู้ใช้เห็น จึงใช้โทเคนเดียวกับช่องกรอก ไม่ใช่ `slate-300` (1.48:1) ที่
+    // จางจนช่องเปล่าหายไปกับการ์ด
     'border-line-control bg-white transition ' +
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ' +
     'checked:border-brand-600 checked:bg-brand-600 ' +
