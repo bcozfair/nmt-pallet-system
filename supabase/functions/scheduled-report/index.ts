@@ -260,14 +260,19 @@ const C = {
     redDeep: '#B91C1C',
     blue: '#1D4ED8',
     blueWash: '#D7E2FF',
-    // redWash is subtitle text on the red header; redPill is a fill behind dark
-    // red text, so it has to be lighter than redWash rather than the same tint.
+    // Each accent needs two tints, and they are not interchangeable. *Wash is
+    // subtitle text sitting ON the coloured header, so it is a light text
+    // colour. *Pill is a fill sitting BEHIND dark text, so it has to be lighter
+    // still rather than the same tint.
     redWash: '#FFD9D9',
     redPill: '#FEE2E2',
     green: '#16A34A',
     greenText: '#15803D',
-    greenWash: '#DCFCE7',
+    greenWash: '#C6F0D5',
+    greenPill: '#DCFCE7',
     amber: '#CA8A04',
+    amberText: '#A16207',
+    amberPill: '#FEF3C7',
 }
 
 /** Status wording is taken from locales/th.ts so the card and the app agree. */
@@ -295,13 +300,24 @@ const UNIT = 'ตัว'
  */
 function bkkStamp(): { date: string; time: string } {
     const now = new Date()
-    const date = new Intl.DateTimeFormat('th-TH-u-ca-gregory', {
-        timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric',
-    }).format(now)
     const time = new Intl.DateTimeFormat('th-TH-u-ca-gregory', {
         timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', hour12: false,
     }).format(now)
-    return { date, time }
+    return { date: bkkDayText(now), time }
+}
+
+/**
+ * A stored date as Thai day text, in Bangkok.
+ *
+ * Split out of bkkStamp so a checkout date from the database is formatted by
+ * exactly the same rules as the card's own timestamp -- a card that stamps
+ * itself in one calendar and prints its rows in another is worse than one that
+ * is consistently in the less familiar era.
+ */
+function bkkDayText(value: string | number | Date): string {
+    return new Intl.DateTimeFormat('th-TH-u-ca-gregory', {
+        timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric',
+    }).format(new Date(value))
 }
 
 /** Deepens from amber to near-black red as a pallet runs further past the threshold. */
@@ -310,6 +326,21 @@ function severityColor(days: number, threshold: number): string {
     if (days > threshold * 2) return '#DC2626'
     if (days > threshold * 1.5) return '#EA580C'
     return '#D97706'
+}
+
+/**
+ * The mirror of severityColor for a pallet that is still inside the threshold.
+ *
+ * severityColor cannot answer this: every value at or below the threshold
+ * falls through to its amber base case, so a pallet checked out this morning
+ * would be painted the same as one a day from breaching.
+ *
+ * Amber in the last fifth of the allowance is the whole point of the clear-day
+ * card -- it is the one state that says "green today, red this week" while the
+ * card is still green.
+ */
+function runwayColor(days: number, threshold: number): string {
+    return days >= threshold * 0.8 ? C.amber : C.green
 }
 
 /**
@@ -367,21 +398,27 @@ function fleetBar(segments: Array<{ value: number; color: string }>, height: str
 }
 
 /**
- * The centred headline block both cards open with: caption, big percentage,
- * then the raw counts on a tinted pill.
+ * The centred headline block every card opens with: caption, one big figure,
+ * then the supporting numbers on a tinted pill.
+ *
+ * `headline` is the finished string rather than a number the block formats
+ * itself. It used to take a number and append '%', which meant a card whose
+ * headline is not a percentage -- the clear-day card leads with a count of
+ * days -- could not use this block at all, and the alternative was a second
+ * near-identical hero to keep in step with this one forever.
  *
  * The pill is wrapped in a horizontal box set to justifyContent: 'center'
  * because a box cannot centre itself -- with the pill as the only child and
  * flex: 0, the parent centres it. Putting the pill straight into the vertical
  * stack would stretch it edge to edge instead.
  */
-function heroBlock(caption: string, percent: number, detail: string, tone: string, pillBackground: string) {
+function heroBlock(caption: string, headline: string, detail: string, tone: string, pillBackground: string) {
     return {
         type: 'box',
         layout: 'vertical',
         contents: [
             { type: 'text', text: caption, size: 'xs', color: C.muted, align: 'center', wrap: true },
-            { type: 'text', text: `${percent}%`, size: '4xl', weight: 'bold', color: tone, align: 'center', margin: 'xs' },
+            { type: 'text', text: headline, size: '4xl', weight: 'bold', color: tone, align: 'center', margin: 'xs' },
             {
                 type: 'box',
                 layout: 'horizontal',
@@ -419,6 +456,92 @@ function locationRow(name: string, count: number) {
     }
 }
 
+type AgedPallet = { palletId: string; location: string; checkoutDate: string; days: number }
+type LocationGroup = { name: string; count: number; maxDays: number }
+
+/**
+ * Collapses aged pallets into one row per location, keeping the worst age in
+ * each so a row can show both how many are there and how long the oldest has
+ * been.
+ *
+ * Shared by both halves of the morning report. It lived inside the "something
+ * is overdue" branch before, which meant the clear-day card could not show the
+ * same table without a second copy of this loop to keep in step.
+ *
+ * Sorting is left to the caller: the two cards rank by different things.
+ */
+function groupByLocation(items: AgedPallet[]): LocationGroup[] {
+    const byLocation = new Map<string, { count: number; maxDays: number }>()
+    for (const p of items) {
+        const row = byLocation.get(p.location) ?? { count: 0, maxDays: 0 }
+        row.count += 1
+        row.maxDays = Math.max(row.maxDays, p.days)
+        byLocation.set(p.location, row)
+    }
+    return [...byLocation.entries()].map(([name, row]) => ({ name, ...row }))
+}
+
+/** Most pallets first, oldest breaking the tie -- the overdue card's order. */
+const byCountThenAge = (a: LocationGroup, b: LocationGroup) => b.count - a.count || b.maxDays - a.maxDays
+
+/**
+ * Closest to breaching first -- the clear-day card's order.
+ *
+ * That card leads with the oldest pallet in the fleet, so the row that pallet
+ * belongs to has to be the first row under the headline. Ranked by count, as
+ * the overdue card does, it could sit anywhere in the list.
+ */
+const byAgeThenCount = (a: LocationGroup, b: LocationGroup) => b.maxDays - a.maxDays || b.count - a.count
+
+/**
+ * One location row of the aged table: severity stripe, name, worst age, count.
+ *
+ * Both morning cards render this identically -- the stripe and age colour are
+ * the only things that differ, and they come in as `tone`, so the two cards
+ * cannot drift apart in column widths or spelling of the unit.
+ */
+function agedLocationRow(group: LocationGroup, tone: string) {
+    return {
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        contents: [
+            {
+                type: 'box',
+                layout: 'vertical',
+                flex: 0,
+                width: '3px',
+                cornerRadius: '2px',
+                backgroundColor: tone,
+                contents: [{ type: 'filler' }],
+            },
+            { type: 'text', text: group.name, size: 'sm', color: C.inkSoft, flex: 6, wrap: true, gravity: 'center' },
+            { type: 'text', text: `${group.maxDays} วัน`, size: 'xs', color: tone, weight: 'bold', flex: 3, align: 'end', gravity: 'center' },
+            { type: 'text', text: `${group.count} ${UNIT}`, size: 'sm', color: C.ink, weight: 'bold', flex: 3, align: 'end', gravity: 'center' },
+        ],
+    }
+}
+
+/**
+ * Column labels for the aged table, so each row can print a bare "23 วัน"
+ * instead of repeating "นานสุด" on every row. The 7px inset lines them up with
+ * the row text, past the 3px stripe and its 4px gap.
+ */
+function agedTableHead() {
+    return {
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        margin: 'lg',
+        paddingStart: '7px',
+        contents: [
+            { type: 'text', text: 'สถานที่', size: 'xxs', color: C.faint, flex: 6 },
+            { type: 'text', text: 'นานสุด', size: 'xxs', color: C.faint, flex: 3, align: 'end' },
+            { type: 'text', text: 'จำนวน', size: 'xxs', color: C.faint, flex: 3, align: 'end' },
+        ],
+    }
+}
+
 /** LINE truncates altText past 400 characters, so cut it cleanly ourselves. */
 function clampAlt(text: string): string {
     return text.length <= 400 ? text : `${text.slice(0, 397)}...`
@@ -442,51 +565,51 @@ async function sendMorningReport(supabase: any, settings: any) {
     // replaces: a checkout dated in the future is a clock or data problem, and
     // abs() turned it into a pallet that looks weeks overdue.
     const now = Date.now()
-    const overdue = (pallets ?? [])
+
+    // Every checked-out pallet with its age, kept whole rather than filtered on
+    // the spot. The overdue card only ever needed the tail of this list, but
+    // the clear-day card is built from all of it: it reports how close the
+    // fleet is to breaching, which the filtered list no longer knows.
+    const aged: AgedPallet[] = (pallets ?? [])
         .filter((p: any) => p.status === 'in_use' && p.last_checkout_date)
         .map((p: any) => ({
             palletId: p.pallet_id,
             location: p.current_location || 'ไม่ระบุสถานที่',
+            checkoutDate: p.last_checkout_date,
             days: Math.ceil((now - new Date(p.last_checkout_date).getTime()) / 86400000),
         }))
-        .filter((p: any) => p.days > threshold)
 
-    // A silent morning is indistinguishable from a broken cron job, so the
-    // clear day gets its own small card rather than nothing at all.
-    if (overdue.length === 0) {
-        const inUse = (pallets ?? []).filter((p: any) => p.status === 'in_use').length
-        await sendLine(
-            token,
-            targetId,
-            `✅ ไม่มีพาเลทค้างเกิน ${threshold} วัน (ตรวจ ${stamp.date} ${stamp.time} น.)`,
-            allClearFlex(stamp, threshold, inUse),
-        )
-        return
-    }
-
-    // Group by location, keeping the worst age in each so a row can show both
-    // how many are stuck there and how long the oldest has been.
-    const byLocation = new Map<string, { count: number; maxDays: number }>()
-    for (const p of overdue) {
-        const row = byLocation.get(p.location) ?? { count: 0, maxDays: 0 }
-        row.count += 1
-        row.maxDays = Math.max(row.maxDays, p.days)
-        byLocation.set(p.location, row)
-    }
-
-    // Insertion order is whatever the query happened to return, which is not a
-    // priority order. Most pallets first, oldest breaking the tie.
-    const locations = [...byLocation.entries()]
-        .map(([name, row]) => ({ name, ...row }))
-        .sort((a, b) => b.count - a.count || b.maxDays - a.maxDays)
-
-    const worst = overdue.reduce((a: any, b: any) => (b.days > a.days ? b : a))
+    const overdue = aged.filter((p) => p.days > threshold)
 
     // The divisor is everything checked out, not the whole fleet: a pallet
     // sitting in the warehouse cannot be overdue, so counting it would only
     // flatter the number. Overdue pallets are a subset of in_use ones, so this
-    // is never zero here and never exceeds 100%.
+    // is never zero on the overdue path and never exceeds 100%.
+    //
+    // Counted from `pallets` rather than from `aged`, so a checked-out pallet
+    // with no checkout date is still counted here. The clear-day card says so
+    // out loud rather than quietly reporting a smaller fleet.
     const inUseTotal = (pallets ?? []).filter((p: any) => p.status === 'in_use').length
+
+    // A silent morning is indistinguishable from a broken cron job, so the
+    // clear day gets a card of its own -- the same card as the overdue day,
+    // with a different verdict on it.
+    if (overdue.length === 0) {
+        await sendLine(
+            token,
+            targetId,
+            allClearAlt(stamp, threshold, aged, inUseTotal),
+            allClearFlex(stamp, threshold, aged, inUseTotal),
+        )
+        return
+    }
+
+    // Insertion order is whatever the query happened to return, which is not a
+    // priority order.
+    const locations = groupByLocation(overdue).sort(byCountThenAge)
+
+    const worst = overdue.reduce((a, b) => (b.days > a.days ? b : a))
+
     const overduePct = Math.round((overdue.length / inUseTotal) * 100)
     const overdueBar = fleetBar([
         { value: overdue.length, color: C.red },
@@ -509,7 +632,7 @@ async function sendMorningReport(supabase: any, settings: any) {
             contents: [
                 heroBlock(
                     'ค้างเกินกำหนด',
-                    overduePct,
+                    `${overduePct}%`,
                     `${overdue.length} จาก ${inUseTotal} ${UNIT}`,
                     C.redDeep,
                     C.redPill,
@@ -525,48 +648,13 @@ async function sendMorningReport(supabase: any, settings: any) {
                     wrap: true,
                 },
                 separator(),
-                // Column labels, so each row can print a bare "23 วัน" instead
-                // of repeating "นานสุด" on every row. The 7px inset lines them
-                // up with the row text, past the 3px stripe and its 4px gap.
-                {
-                    type: 'box',
-                    layout: 'horizontal',
-                    spacing: 'sm',
-                    margin: 'lg',
-                    paddingStart: '7px',
-                    contents: [
-                        { type: 'text', text: 'สถานที่', size: 'xxs', color: C.faint, flex: 6 },
-                        { type: 'text', text: 'นานสุด', size: 'xxs', color: C.faint, flex: 3, align: 'end' },
-                        { type: 'text', text: 'จำนวน', size: 'xxs', color: C.faint, flex: 3, align: 'end' },
-                    ],
-                },
+                agedTableHead(),
                 {
                     type: 'box',
                     layout: 'vertical',
                     margin: 'md',
                     spacing: 'md',
-                    contents: locations.map((l) => {
-                        const tone = severityColor(l.maxDays, threshold)
-                        return {
-                            type: 'box',
-                            layout: 'horizontal',
-                            spacing: 'sm',
-                            contents: [
-                                {
-                                    type: 'box',
-                                    layout: 'vertical',
-                                    flex: 0,
-                                    width: '3px',
-                                    cornerRadius: '2px',
-                                    backgroundColor: tone,
-                                    contents: [{ type: 'filler' }],
-                                },
-                                { type: 'text', text: l.name, size: 'sm', color: C.inkSoft, flex: 6, wrap: true, gravity: 'center' },
-                                { type: 'text', text: `${l.maxDays} วัน`, size: 'xs', color: tone, weight: 'bold', flex: 3, align: 'end', gravity: 'center' },
-                                { type: 'text', text: `${l.count} ${UNIT}`, size: 'sm', color: C.ink, weight: 'bold', flex: 3, align: 'end', gravity: 'center' },
-                            ],
-                        }
-                    }),
+                    contents: locations.map((l) => agedLocationRow(l, severityColor(l.maxDays, threshold))),
                 },
             ],
         },
@@ -584,24 +672,165 @@ async function sendMorningReport(supabase: any, settings: any) {
     await sendLine(token, targetId, altText, flex)
 }
 
-/** The clear-day companion to the overdue card: small enough not to crowd the group. */
-function allClearFlex(stamp: { date: string; time: string }, threshold: number, inUse: number) {
+/**
+ * How many location rows the clear-day card prints before collapsing the rest
+ * into a single "และอีก N แห่ง" line.
+ *
+ * The overdue card prints every row it has and needs no cap: only locations
+ * with a breached pallet appear there, which is a handful even on a bad day.
+ * This card lists every location holding a checked-out pallet, which on a busy
+ * fleet is unbounded -- and it is the card sent on the days nothing is wrong,
+ * so it is the one that must not turn into a wall of text in the group.
+ */
+const CLEAR_CARD_ROWS = 5
+
+/**
+ * The clear-day face of the morning report.
+ *
+ * Same bubble, same blocks, same order as the overdue card -- header, hero,
+ * bar, watch line, aged table -- so the two read as one report with two
+ * verdicts rather than two unrelated messages. It replaces a micro bubble that
+ * shared nothing with its sibling but the hour it was sent at.
+ *
+ * The headline is the oldest pallet's age rather than a percentage. On a clear
+ * day the percentage is 100 by definition, which the reader already knows
+ * before opening the card; the age is the number that moves, and watching it
+ * climb across a week is the only warning anyone gets before this card turns
+ * red.
+ */
+function allClearFlex(
+    stamp: { date: string; time: string },
+    threshold: number,
+    aged: AgedPallet[],
+    inUseTotal: number,
+) {
+    // Nothing is checked out: there is no oldest pallet, and "100% within the
+    // threshold" would be 100% of nothing. Both the hero and the table would be
+    // reporting on an empty set, so the card drops to the header plus one line.
+    if (aged.length === 0) {
+        return {
+            type: 'bubble',
+            styles: { body: { backgroundColor: C.paper } },
+            header: cardHeader(
+                C.green,
+                '✅ ไม่มีพาเลทค้างส่งคืน',
+                `${stamp.date} · ${stamp.time} น. · เกณฑ์ ${threshold} วัน`,
+                C.greenWash,
+            ),
+            body: {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: C.paper,
+                contents: [
+                    { type: 'text', text: 'ไม่มีพาเลทถูกเบิกออกอยู่', size: 'sm', color: C.faint, align: 'center', wrap: true },
+                    { type: 'text', text: 'พาเลททั้งกองอยู่ในคลังครบ', size: 'xs', color: C.muted, align: 'center', margin: 'md', wrap: true },
+                ],
+            },
+        }
+    }
+
+    const oldest = aged.reduce((a, b) => (b.days > a.days ? b : a))
+    const tone = runwayColor(oldest.days, threshold)
+    const pill = tone === C.amber ? C.amberPill : C.greenPill
+    const headlineTone = tone === C.amber ? C.amberText : C.greenText
+
+    // The bar reads as a runway rather than a proportion of the fleet: how much
+    // of the allowance the oldest pallet has spent, against what is left. The
+    // remainder is painted in the rule colour, which is also fleetBar's own
+    // ground -- a single segment would stretch to fill the whole bar, since a
+    // lone child in a horizontal box has nothing to share the width with.
+    const runwayBar = fleetBar([
+        { value: oldest.days, color: tone },
+        { value: Math.max(threshold - oldest.days, 0), color: C.rule },
+    ], '14px')
+
+    const locations = groupByLocation(aged).sort(byAgeThenCount)
+    const shown = locations.slice(0, CLEAR_CARD_ROWS)
+    const hidden = locations.length - shown.length
+
+    // A checked-out pallet with no checkout date cannot be aged, so it is
+    // missing from every row above. Saying so is the difference between a card
+    // that is quietly wrong and one that reports a data problem: without this
+    // line the rows would simply fail to add up to the count in the header.
+    const undated = inUseTotal - aged.length
+
     return {
         type: 'bubble',
-        size: 'micro',
-        styles: { body: { backgroundColor: '#F0FDF4' } },
+        styles: { body: { backgroundColor: C.paper } },
+        header: cardHeader(
+            C.green,
+            '✅ ไม่มีพาเลทค้างส่งคืน',
+            `${stamp.date} · ${stamp.time} น. · ${STATUS_TH.in_use} ${inUseTotal} ${UNIT}`,
+            C.greenWash,
+        ),
         body: {
             type: 'box',
             layout: 'vertical',
-            backgroundColor: '#F0FDF4',
-            paddingAll: '16px',
+            backgroundColor: C.paper,
             contents: [
-                { type: 'text', text: '✅ ไม่มีพาเลทค้าง', size: 'sm', weight: 'bold', color: C.greenText, wrap: true },
-                { type: 'text', text: `ตรวจแล้ว ${stamp.date} ${stamp.time} น.`, size: 'xs', color: '#4D7C5F', margin: 'md', wrap: true },
-                { type: 'text', text: `เกณฑ์ ${threshold} วัน · ${STATUS_TH.in_use} ${inUse} ${UNIT}`, size: 'xs', color: '#4D7C5F', wrap: true },
+                heroBlock(
+                    'ค้างนานสุดตอนนี้',
+                    `${oldest.days} วัน`,
+                    `เกณฑ์ ${threshold} วัน · เหลืออีก ${Math.max(threshold - oldest.days, 0)} วัน`,
+                    headlineTone,
+                    pill,
+                ),
+                ...(runwayBar ? [runwayBar] : []),
+                separator(),
+                // Names the pallet behind the headline. The overdue card spends
+                // this line on its worst pallet; this one spends it on the
+                // pallet that will become that one first.
+                {
+                    type: 'text',
+                    text: `${oldest.palletId} ที่ ${oldest.location} · เบิกออก ${bkkDayText(oldest.checkoutDate)}`,
+                    size: 'xs',
+                    color: headlineTone,
+                    margin: 'lg',
+                    wrap: true,
+                },
+                separator(),
+                agedTableHead(),
+                {
+                    type: 'box',
+                    layout: 'vertical',
+                    margin: 'md',
+                    spacing: 'md',
+                    contents: shown.map((l) => agedLocationRow(l, runwayColor(l.maxDays, threshold))),
+                },
+                ...(hidden > 0
+                    ? [{ type: 'text', text: `และอีก ${hidden} แห่ง`, size: 'xxs', color: C.faint, margin: 'md', paddingStart: '7px', wrap: true }]
+                    : []),
+                ...(undated > 0
+                    ? [{ type: 'text', text: `⚠️ อีก ${undated} ${UNIT} ไม่มีวันที่เบิกออก จึงนับอายุไม่ได้`, size: 'xxs', color: C.faint, margin: 'lg', wrap: true }]
+                    : []),
             ],
         },
     }
+}
+
+/**
+ * The clear-day notification preview.
+ *
+ * Carries the oldest pallet's age rather than only the all-clear, because the
+ * preview line is often the whole message as far as the group is concerned --
+ * and on this card that number is the only part worth reading.
+ */
+function allClearAlt(
+    stamp: { date: string; time: string },
+    threshold: number,
+    aged: AgedPallet[],
+    inUseTotal: number,
+): string {
+    if (aged.length === 0) {
+        return clampAlt(`✅ ไม่มีพาเลทค้างส่งคืน · ไม่มีพาเลทถูกเบิกออกอยู่ (ตรวจ ${stamp.date} ${stamp.time} น.)`)
+    }
+
+    const oldest = aged.reduce((a, b) => (b.days > a.days ? b : a))
+    return clampAlt(
+        `✅ ไม่มีพาเลทค้างส่งคืน · ค้างนานสุด ${oldest.days} วัน จากเกณฑ์ ${threshold} วัน`
+        + ` (เหลืออีก ${Math.max(threshold - oldest.days, 0)} วัน) · ${oldest.palletId} ที่ ${oldest.location}`
+        + ` · ${STATUS_TH.in_use} ${inUseTotal} ${UNIT}`,
+    )
 }
 
 async function sendEveningReport(supabase: any, settings: any) {
@@ -684,10 +913,10 @@ async function sendEveningReport(supabase: any, settings: any) {
                 // someone opens this card at the end of a shift to answer.
                 heroBlock(
                     STATUS_TH.available,
-                    readyPct,
+                    `${readyPct}%`,
                     `${available} จาก ${total} ${UNIT}`,
                     C.greenText,
-                    C.greenWash,
+                    C.greenPill,
                 ),
                 ...(bar ? [bar] : []),
                 separator(),
