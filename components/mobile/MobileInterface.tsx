@@ -3,7 +3,7 @@ import { User, Department, PalletStatus } from '../../types';
 import { PENDING_SCANS_KEY } from '../../constants';
 import { activeStore } from '../../services/sessionPolicy';
 import { fetchDepartments, subscribeToDepartments } from '../../services/departmentService';
-import { checkOutPallet, checkInPallet } from '../../services/transactionService';
+import { createBulkTransaction } from '../../services/transactionService';
 import { getPalletById } from '../../services/palletService';
 import { supabase } from '../../services/supabase';
 import { toast } from '../../services/toast';
@@ -220,16 +220,31 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
     setIsSubmitting(true);
 
     try {
-      if (mode === 'checkout_scanning' && selectedDept) {
-        await Promise.all(pendingScans.map(item =>
-          checkOutPallet(item.id, selectedDept.id, selectedDept.name, user.id)
-        ));
-        toast.success(t.batch.checkedOut(pendingScans.length));
-      } else if (mode === 'checkin_scanning') {
-        await Promise.all(pendingScans.map(item =>
-          checkInPallet(item.id, user.id)
-        ));
-        toast.success(t.batch.returned(pendingScans.length));
+      // หนึ่งครั้งที่กด = หนึ่งครั้งที่เรียก ไม่ใช่วนเรียกทีละใบ
+      //
+      // ของเดิมคือ Promise.all ที่ยิง checkOutPallet/checkInPallet ใบละครั้ง และแต่ละตัว
+      // อ่านนาฬิกาของตัวเอง -- คืน 5 ใบพร้อมกันจึงได้ timestamp ต่างกันหลักมิลลิวินาที
+      // แล้วหน้าประวัติแตกมันเป็น 5 ชุด ทั้งที่พนักงานกดบันทึกครั้งเดียว
+      //
+      // createBulkTransaction คำนวณ timestamp ครั้งเดียวก่อนเข้าลูป จึงเป็นทางเดียวที่
+      // "หนึ่งครั้งที่กด" ยังเป็นหนึ่งชุดตลอดทางจนถึงหน้าประวัติ
+      const ids = pendingScans.map(item => item.id);
+      const result = mode === 'checkout_scanning' && selectedDept
+        ? await createBulkTransaction(ids, 'check_out', user.id, selectedDept.name)
+        : mode === 'checkin_scanning'
+          ? await createBulkTransaction(ids, 'check_in', user.id)
+          : null;
+
+      if (result) {
+        // createBulkTransaction ไม่โยนเมื่อบางใบล้ม มันคืนรายชื่อที่ล้มมาให้ -- ถ้าไม่อ่าน
+        // ตรงนี้ ใบที่ไม่ผ่านจะเงียบหายไปพร้อมข้อความ "สำเร็จ" ที่นับรวมมันด้วย
+        if (result.failed.length > 0) {
+          toast.error(t.batch.partial(result.success.length, result.failed.join(', ')));
+        } else if (mode === 'checkout_scanning') {
+          toast.success(t.batch.checkedOut(result.success.length));
+        } else {
+          toast.success(t.batch.returned(result.success.length));
+        }
       }
       // Reset
       setModeState('idle');

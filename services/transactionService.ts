@@ -13,6 +13,34 @@ import { batchKeyOf } from './transactionBatch';
 
 // --- TRANSACTIONS (Check In/Out/Damage) ---
 
+/**
+ * "สถานที่ที่ทำรายการล่าสุด" ของพาเลทกลุ่มหนึ่ง อ่าน ณ วินาทีก่อนจะเขียนทับ
+ *
+ * ทุกเส้นทางที่บันทึกธุรกรรมอัปเดต pallets ก่อนแล้วค่อย insert transactions ค่า
+ * current_location ที่เป็น "ที่มา" ของธุรกรรมนั้นจึงถูกทับไปแล้วเมื่อถึงบรรทัด insert
+ * ต้องอ่านเก็บไว้ก่อน ไม่ใช่ไปคำนวณย้อนหลังทีหลัง
+ *
+ * ทำไมไม่คำนวณตอนอ่าน: กฎคือ "ปลายทางของธุรกรรมก่อนหน้าของพาเลทใบเดียวกัน" ซึ่งแปลว่า
+ * ต้องหาแถวล่าสุดก่อนหน้าของแต่ละพาเลท -- PostgREST ไม่มี DISTINCT ON ให้เขียน และแถว
+ * ก่อนหน้ามักเป็นของพนักงานคนอื่นซึ่งไม่ได้อยู่ในชุดข้อมูลที่หน้าประวัติโหลดมา ตรงจุดเขียน
+ * คำตอบอยู่ในมืออยู่แล้วด้วย query เดียวต่อหนึ่งครั้งที่บันทึก
+ */
+const readOrigins = async (palletIds: string[]): Promise<Map<string, string | null>> => {
+    if (palletIds.length === 0) return new Map();
+
+    const { data, error } = await supabase
+        .from('pallets')
+        .select('pallet_id, current_location')
+        .in('pallet_id', palletIds);
+
+    if (error) throw error;
+    return new Map((data ?? []).map((row) => [row.pallet_id as string, row.current_location ?? null]));
+};
+
+/** ที่ตั้งล่าสุดของพาเลทใบเดียว -- ตัวห่อบางของ readOrigins ให้เส้นทางที่ทำทีละใบอ่านง่าย */
+const readOrigin = async (palletId: string): Promise<string | null> =>
+    (await readOrigins([palletId])).get(palletId) ?? null;
+
 export const fetchPalletHistory = async (palletId: string): Promise<Transaction[]> => {
     let query = supabase.from('transactions').select('*').order('timestamp', { ascending: false });
     if (palletId) {
@@ -343,6 +371,9 @@ export const fetchDamagedWithEvidence = async (): Promise<(Pallet & { evidence_u
 export const resolveDamage = async (palletId: string, userId?: string): Promise<boolean> => {
     const timestamp = new Date().toISOString();
 
+    // ต้องอ่านก่อน update ข้างล่างซึ่งรีเซ็ต current_location เป็น 'Warehouse'
+    const origin = await readOrigin(palletId);
+
     // The pallet row is updated FIRST, before any destructive cleanup. The old
     // order deleted the evidence image first, so a failure on this update left
     // the photo permanently gone while the pallet was still 'damaged' -- an
@@ -407,6 +438,7 @@ export const resolveDamage = async (palletId: string, userId?: string): Promise<
             user_id: userId,
             action_type: 'repair',
             transaction_remark: 'Pallet repaired (returned to stock)',
+            department_origin: origin,
             department_dest: 'Warehouse', // Usually returned to stock
             timestamp
         });
@@ -449,7 +481,9 @@ export const scrapPallet = async (palletId: string, userId?: string, reason?: st
     // would skip the damage report that is supposed to justify it.
     const { data: pallet, error: readError } = await supabase
         .from('pallets')
-        .select('status')
+        // current_location มาด้วยใน query เดิม ไม่ยิงเพิ่มอีกรอบ -- การตัดออกจากระบบไม่ได้
+        // ย้ายของไปไหน แต่แถวยังต้องบอกได้ว่าตอนถูกตัดออกพาเลทอยู่ที่ไหน
+        .select('status, current_location')
         .eq('pallet_id', palletId)
         .maybeSingle();
 
@@ -479,6 +513,7 @@ export const scrapPallet = async (palletId: string, userId?: string, reason?: st
         user_id: userId,
         action_type: 'scrap',
         transaction_remark: reason?.trim() || 'Pallet scrapped (written off, beyond repair)',
+        department_origin: pallet.current_location ?? null,
         department_dest: null,
         timestamp
     });
@@ -487,73 +522,23 @@ export const scrapPallet = async (palletId: string, userId?: string, reason?: st
     return true;
 };
 
-export const checkOutPallet = async (palletId: string, destinationId: string, destinationName: string, userId: string): Promise<boolean> => {
-    const timestamp = new Date().toISOString();
-
-    // UPDATE, not upsert. The previous upsert meant scanning any unrecognised QR
-    // code silently created a pallet record, so the inventory could be polluted
-    // by anything that happened to be a valid QR. Pallet INSERT is now
-    // admin-only at the database level too
-    // (supabase/migrations/20260719_02_enable_rls.sql), so an upsert here would
-    // fail the policy check on its insert path regardless.
-    //
-    // The caller already verified existence: handleScan() rejects unknown ids
-    // via getPalletById() before an item can reach the pending list.
-    const { data: updated, error: palletError } = await supabase
-        .from('pallets')
-        .update({
-            status: 'in_use',
-            current_location: destinationName,
-            last_checkout_date: timestamp,
-            last_transaction_date: timestamp,
-        })
-        .eq('pallet_id', palletId)
-        .select('pallet_id');
-
-    if (palletError) throw palletError;
-    if (!updated || updated.length === 0) {
-        throw new AppError('pallet_missing_for_checkout', { palletId });
-    }
-
-    const { error: transError } = await supabase.from('transactions').insert({
-        pallet_id: palletId,
-        user_id: userId,
-        action_type: 'check_out',
-        department_dest: destinationName,
-        timestamp
-    });
-
-    if (transError) throw transError;
-    return true;
-};
-
-export const checkInPallet = async (palletId: string, userId: string): Promise<boolean> => {
-    const timestamp = new Date().toISOString();
-
-    // Update Status
-    const { error: palletError } = await supabase.from('pallets').update({
-        status: 'available',
-        current_location: 'Warehouse',
-        last_checkout_date: null,
-        last_transaction_date: timestamp
-    }).eq('pallet_id', palletId);
-
-    if (palletError) throw palletError;
-
-    // Log Transaction
-    const { error: transError } = await supabase.from('transactions').insert({
-        pallet_id: palletId,
-        user_id: userId,
-        action_type: 'check_in',
-        department_dest: 'Warehouse',
-        timestamp
-    });
-    if (transError) throw transError;
-    return true;
-};
+// checkOutPallet()/checkInPallet() -- ฟังก์ชันบันทึกทีละใบ -- ถูกลบทิ้งพร้อมกับการแก้บั๊ก
+// "กดบันทึกครั้งเดียวแต่ประวัติแตกเป็นหลายชุด"
+//
+// ไม่ได้ลบเพราะไม่มีใครเรียกแล้วอย่างเดียว แต่เพราะรูปร่างของมันคือกับดัก: มันรับพาเลท
+// ทีละใบและอ่านนาฬิกาเอง หน้าจอที่ต้องบันทึกหลายใบจึงวนเรียกมันอย่างเป็นธรรมชาติที่สุด
+// แล้วได้ timestamp ต่างกันใบละไม่กี่มิลลิวินาที ซึ่งพอ transactionBatch.ts จับกลุ่มด้วย
+// timestamp ก็กลายเป็นคนละชุดกัน -- เป็นบั๊กที่ไม่มีอะไรฟ้อง เห็นอีกทีตอนเปิดหน้าประวัติ
+//
+// createBulkTransaction() ทำงานแทนได้ทั้งหมด รวมถึงกรณีใบเดียว (ชุดที่มีสมาชิกหนึ่งใบ)
+// การเหลือไว้แค่ทางเดียวคือสิ่งที่ทำให้บั๊กเดิมกลับมาไม่ได้อีก
 
 export const reportDamage = async (palletId: string, userId: string, imageFile: File | null): Promise<boolean> => {
     const timestamp = new Date().toISOString();
+    // การแจ้งชำรุดไม่ได้ย้ายของ แถวจึงไม่มีปลายทาง สิ่งที่ต้องตอบให้ได้คือ "ชำรุดอยู่ที่ไหน"
+    // ซึ่งคือที่ตั้งล่าสุดของพาเลท -- update ข้างล่างแตะแค่ status จึงอ่านตรงไหนก็ได้ แต่วางไว้
+    // ต้นฟังก์ชันให้เหมือนเส้นทางอื่นทั้งหมด
+    const origin = await readOrigin(palletId);
     let imageUrl: string | null = null;
 
     // Storage Logic
@@ -586,6 +571,7 @@ export const reportDamage = async (palletId: string, userId: string, imageFile: 
         pallet_id: palletId,
         user_id: userId,
         action_type: 'report_damage',
+        department_origin: origin,
         department_dest: null,
         evidence_image_url: imageUrl,
         timestamp
@@ -596,6 +582,17 @@ export const reportDamage = async (palletId: string, userId: string, imageFile: 
     return true;
 };
 
+/**
+ * บันทึกการเบิกออก/รับคืนของพาเลทหลายใบเป็น "หนึ่งครั้ง"
+ *
+ * ทุกหน้าจอที่บันทึกทีละหลายใบต้องเข้าทางนี้ ห้ามวนเรียก checkOutPallet/checkInPallet เอง
+ * เพราะสองฟังก์ชันนั้นอ่านนาฬิกาของตัวเองใบละครั้ง -- 5 ใบที่กดบันทึกครั้งเดียวจะได้
+ * timestamp ต่างกันหลักมิลลิวินาที และหน้าประวัติซึ่งจับกลุ่มด้วย timestamp (ดู
+ * transactionBatch.ts) จะแตกมันเป็น 5 ชุด ทั้งที่ผู้ใช้กดบันทึกครั้งเดียว
+ *
+ * ที่นี่คำนวณ timestamp ครั้งเดียวก่อนเข้าลูปแล้วประทับให้ทุกแถว ซึ่งเป็นสัญญาที่การ
+ * จัดกลุ่มทั้งระบบพึ่งพา และมีเทสต์ล็อกไว้ที่ transactionService.test.ts
+ */
 export const createBulkTransaction = async (
     palletIds: string[],
     actionType: 'check_out' | 'check_in',
@@ -608,6 +605,10 @@ export const createBulkTransaction = async (
     const success: string[] = [];
     const failed: string[] = [];
 
+    // อ่านทีเดียวทั้งชุดก่อนเข้าลูป ไม่ใช่ยิงต่อพาเลทหนึ่งใบ -- ชุดหนึ่งมีได้ถึง 50 ใบ และ
+    // ลูปข้างล่างอัปเดต pallets ทีละใบ พออัปเดตใบแรกไปแล้วค่าเดิมของใบนั้นก็หายไป
+    const origins = await readOrigins(palletIds);
+
     // Process sequentially to be safe, or Promise.all if we trust DB concurrency
     // Given Supabase, Promise.all is usually fine but let's do safe iteration for better error tracking per item
     for (const id of palletIds) {
@@ -616,20 +617,32 @@ export const createBulkTransaction = async (
                 if (!departmentDest) throw new AppError('destination_required');
 
                 // Update Pallet
-                const { error: palletError } = await supabase.from('pallets').update({
+                //
+                // .select() ต่อท้ายเพื่อให้รู้ว่ามีแถวถูกแก้จริงไหม -- UPDATE ที่ไม่ตรงแถวไหนเลย
+                // ไม่ใช่ error ใน PostgREST มันสำเร็จเงียบ ๆ แล้วปล่อยให้ไปพังตอน insert
+                // ธุรกรรมด้วย foreign key violation ซึ่งเป็นข้อความที่โยงกลับมาหาสาเหตุไม่ได้
+                //
+                // เดิมการ์ดใบนี้อยู่ใน checkOutPallet() ซึ่งเป็นเส้นทางที่หน้ามือถือเคยใช้
+                // พอย้ายมาใช้ createBulkTransaction ทั้งหมด การ์ดต้องตามมาด้วย ไม่ใช่หายไป
+                // พร้อมกับฟังก์ชันเดิม
+                const { data: updated, error: palletError } = await supabase.from('pallets').update({
                     status: 'in_use',
                     current_location: departmentDest,
                     last_checkout_date: timestamp,
                     last_transaction_date: timestamp
-                }).eq('pallet_id', id);
+                }).eq('pallet_id', id).select('pallet_id');
 
                 if (palletError) throw palletError;
+                if (!updated || updated.length === 0) {
+                    throw new AppError('pallet_missing_for_checkout', { palletId: id });
+                }
 
                 // Log Transaction
                 const { error: transError } = await supabase.from('transactions').insert({
                     pallet_id: id,
                     user_id: userId,
                     action_type: 'check_out',
+                    department_origin: origins.get(id) ?? null,
                     department_dest: departmentDest,
                     transaction_remark: remark,
                     timestamp
@@ -637,21 +650,25 @@ export const createBulkTransaction = async (
                 if (transError) throw transError;
 
             } else if (actionType === 'check_in') {
-                // Update Pallet
-                const { error: palletError } = await supabase.from('pallets').update({
+                // Update Pallet -- .select() ด้วยเหตุผลเดียวกับฝั่ง check_out ข้างบน
+                const { data: updated, error: palletError } = await supabase.from('pallets').update({
                     status: 'available',
                     current_location: 'Warehouse',
                     last_checkout_date: null,
                     last_transaction_date: timestamp
-                }).eq('pallet_id', id);
+                }).eq('pallet_id', id).select('pallet_id');
 
                 if (palletError) throw palletError;
+                if (!updated || updated.length === 0) {
+                    throw new AppError('pallet_missing_for_checkout', { palletId: id });
+                }
 
                 // Log Transaction
                 const { error: transError } = await supabase.from('transactions').insert({
                     pallet_id: id,
                     user_id: userId,
                     action_type: 'check_in',
+                    department_origin: origins.get(id) ?? null,
                     department_dest: 'Warehouse',
                     transaction_remark: remark,
                     timestamp

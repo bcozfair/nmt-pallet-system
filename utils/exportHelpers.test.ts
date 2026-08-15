@@ -84,6 +84,7 @@ const transaction = (over: Partial<Transaction> = {}): Transaction => ({
     pallet_id: 'P001',
     user_id: 'user-1',
     action_type: 'check_out',
+    department_origin: 'Warehouse',
     department_dest: 'ฝ่ายผลิต',
     evidence_image_url: null,
     timestamp: new Date(2026, 6, 22, 9, 5).toISOString(),

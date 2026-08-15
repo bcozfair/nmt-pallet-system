@@ -286,6 +286,8 @@ export const th: Dictionary = {
         checkedOut: (count: number) => `เบิกออกสำเร็จ ${count} พาเลท`,
         returned: (count: number) => `รับคืนสำเร็จ ${count} พาเลท`,
         failed: 'บันทึกรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+        partial: (done: number, failed: string) =>
+            `บันทึกสำเร็จ ${done} พาเลท ไม่สำเร็จ: ${failed}`,
         removeItem: (id: string) => `นำ ${id} ออกจากรายการ`,
     },
 
@@ -334,6 +336,9 @@ export const th: Dictionary = {
         emptyHint: 'ลองเปลี่ยนวันที่ หรือล้างตัวกรอง',
         clearFilters: 'ล้างตัวกรอง',
         to: 'ไปยัง:',
+        from: 'จาก:',
+        // ชุดเดียวที่รับคืนพาเลทจากหลายแผนกพร้อมกัน -- รายชื่อเต็มอยู่ในรายละเอียดที่กดกาง
+        fromMany: (count: number) => `${count} จุด`,
         showing: (count: number) => `แสดง ${count} รายการ`,
         // ป้ายบนการ์ดของชุด (batch) ในหน้าประวัติพนักงาน
         //

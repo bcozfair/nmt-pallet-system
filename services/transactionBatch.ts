@@ -15,6 +15,14 @@ export interface TransactionBatch {
     timestamp: string;
     /** หมายเหตุเป็นของทั้งชุด (createBulkTransaction เขียนค่าเดียวกันลงทุกแถว) */
     remark?: string;
+    /**
+     * ที่มาของสมาชิกในชุด ไม่ซ้ำกัน และไม่มี null ปน
+     *
+     * เป็นรายการ ไม่ใช่ค่าเดียว เพราะที่มาเป็นของ "พาเลทแต่ละใบ" ไม่ใช่ของชุด: การรับคืน
+     * ครั้งเดียวรับพาเลทที่กลับมาจากคนละแผนกพร้อมกันได้ ต่างจากปลายทางกับหมายเหตุซึ่ง
+     * ทั้งชุดใช้ค่าเดียวกันเสมอเพราะผู้ใช้กรอกทีเดียวตอนกดบันทึก
+     */
+    origins: string[];
     /** สมาชิกที่ผ่านตัวกรองแล้ว -- อาจน้อยกว่า total */
     items: Transaction[];
     /** ขนาดจริงของชุด ก่อนถูกตัวกรองใด ๆ ตัด */
@@ -58,11 +66,17 @@ export const groupIntoBatches = (rows: Transaction[]): TransactionBatch[] => {
         if (batch) {
             batch.items.push(tx);
             batch.total++;
+            if (tx.department_origin && !batch.origins.includes(tx.department_origin)) {
+                batch.origins.push(tx.department_origin);
+            }
             continue;
         }
 
         byKey.set(key, {
             key,
+            // ที่มาที่ยังไม่ทราบ (แถวก่อน migration 01) ไม่ใส่ลงรายการ ไม่ใช่ใส่เป็นช่องว่าง --
+            // หน้าจอจะได้แยกออกระหว่าง "ไม่มีข้อมูล" กับ "มาจากที่ที่ชื่อว่างเปล่า"
+            origins: tx.department_origin ? [tx.department_origin] : [],
             action_type: tx.action_type,
             department_dest: tx.department_dest,
             timestamp: tx.timestamp,

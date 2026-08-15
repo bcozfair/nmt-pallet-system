@@ -30,11 +30,14 @@ const DAMAGE_TIME = '2026-08-15T02:00:00.000Z';
 const tx = (over: Partial<Transaction> & Pick<Transaction, 'id' | 'pallet_id'>): Transaction => ({
     user_id: 'staff-1',
     action_type: 'check_out',
+    department_origin: 'Warehouse',
     department_dest: 'คลังกลาง',
     evidence_image_url: null,
     timestamp: BATCH_TIME,
     ...over,
 });
+
+const RETURN_TIME = '2026-08-15T01:00:00.000Z';
 
 const ROWS: Transaction[] = [
     tx({ id: '1', pallet_id: 'P001', transaction_remark: 'ด่วน' }),
@@ -44,9 +47,27 @@ const ROWS: Transaction[] = [
         id: '4',
         pallet_id: 'P010',
         action_type: 'report_damage',
+        department_origin: 'ฝ่ายผลิต',
         department_dest: null,
         timestamp: DAMAGE_TIME,
         transaction_remark: 'ขาแตก',
+    }),
+    // รับคืนครั้งเดียว แต่พาเลทกลับมาจากคนละแผนก -- ที่มาเป็นของพาเลทแต่ละใบ ไม่ใช่ของชุด
+    tx({
+        id: '5',
+        pallet_id: 'P020',
+        action_type: 'check_in',
+        department_origin: 'ฝ่ายผลิต',
+        department_dest: 'Warehouse',
+        timestamp: RETURN_TIME,
+    }),
+    tx({
+        id: '6',
+        pallet_id: 'P021',
+        action_type: 'check_in',
+        department_origin: 'ฝ่ายบรรจุ',
+        department_dest: 'Warehouse',
+        timestamp: RETURN_TIME,
     }),
 ];
 
@@ -57,6 +78,11 @@ beforeEach(() => {
 });
 
 const renderHistory = () => render(<MobileHistory userId="staff-1" onBack={() => {}} />);
+
+// การ์ดที่ล้อมข้อความหนึ่ง ๆ อยู่ -- หน้านี้มีหลายการ์ดที่ใช้คำเดียวกันได้ (Warehouse เป็นทั้ง
+// ต้นทางของการเบิกออกและปลายทางของการรับคืน) การตรวจจึงต้องระบุว่ากำลังพูดถึงการ์ดใบไหน
+const cardOf = (text: string) =>
+    screen.getByText(text).closest('div[class*="rounded-3xl"]') as HTMLElement;
 
 describe('MobileHistory -- การจัดกลุ่มเป็นชุด', () => {
     it('การเบิกออกสามพาเลทครั้งเดียวเป็นการ์ดเดียว บอกจำนวน และยังไม่กางรหัสพาเลทออกมา', async () => {
@@ -108,6 +134,45 @@ describe('MobileHistory -- การจัดกลุ่มเป็นชุ�
         // หมายเหตุคือเหตุผลที่พาเลทถูกแจ้งชำรุด และฝั่งพนักงานไม่มีหน้ารายละเอียดให้กดดูต่อ
         expect(await screen.findByText('"ขาแตก"')).toBeTruthy();
         expect(screen.getByText('คลังกลาง')).toBeTruthy();
+    });
+
+    it('การเบิกออกบอกเส้นทางครบทั้งต้นทางและปลายทาง', async () => {
+        renderHistory();
+        await screen.findByText('3 พาเลท');
+
+        const card = cardOf('3 พาเลท');
+        expect(within(card).getByText('Warehouse')).toBeTruthy();
+        expect(within(card).getByText('คลังกลาง')).toBeTruthy();
+    });
+
+    it('การแจ้งชำรุดบอกที่มาอย่างเดียว ไม่มีปลายทาง เพราะไม่ได้ย้ายของไปไหน', async () => {
+        renderHistory();
+
+        await screen.findByText('"ขาแตก"');
+        const damageCard = cardOf('"ขาแตก"');
+        expect(within(damageCard).getByText('ฝ่ายผลิต')).toBeTruthy();
+        expect(within(damageCard).queryByText('ไปยัง:')).toBeNull();
+    });
+
+    it('ชุดที่พาเลทมาจากคนละจุด หัวการ์ดบอกจำนวนจุด ไม่ใช่หยิบจุดใดจุดหนึ่งมาแสดง', async () => {
+        renderHistory();
+
+        // ไม่ใช่ "จาก: ฝ่ายผลิต" ซึ่งจะทำให้ P021 ที่มาจากฝ่ายบรรจุถูกกลบหายไปเงียบ ๆ
+        expect(await screen.findByText('2 จุด')).toBeTruthy();
+    });
+
+    it('กางชุดที่มาจากหลายจุดแล้วต้องบอกได้ว่าพาเลทใบไหนมาจากไหน', async () => {
+        renderHistory();
+
+        const toggle = await screen.findByRole('button', { name: /2 จุด/ });
+        await userEvent.click(toggle);
+
+        const panel = screen.getByRole('list');
+        const rows = within(panel).getAllByRole('listitem');
+        expect(rows.map((row) => row.textContent)).toEqual([
+            'P020จาก:ฝ่ายผลิต',
+            'P021จาก:ฝ่ายบรรจุ',
+        ]);
     });
 
     it('ค้นหารหัสพาเลท: ชุดที่ตรงกางเอง และป้ายบอกว่าเจอกี่พาเลทจากทั้งชุด', async () => {

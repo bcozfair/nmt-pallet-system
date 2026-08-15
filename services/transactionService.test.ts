@@ -279,11 +279,26 @@ describe('fetchUserTransactions -- โหมดล่าสุด: นับเ�
 // คือสิ่งที่ทำให้มันพังเสียงดังแทน
 describe('createBulkTransaction -- timestamp เดียวทั้งชุด', () => {
     it('ทุกแถวที่เขียนในครั้งเดียวกันได้ timestamp ค่าเดียวกัน จึงตกอยู่ในชุดเดียวกัน', async () => {
+        // UPDATE ต้องรายงานว่ามีแถวถูกแก้จริง ไม่งั้นการ์ดกันพาเลทหายจะปัดทุกใบเป็น failed
+        results.select = { data: [{ pallet_id: 'P001' }] as any, error: null };
+
         await createBulkTransaction(['P001', 'P002', 'P003'], 'check_out', 'staff-1', 'คลังกลาง');
 
         expect(mocks.inserted).toHaveLength(3);
         expect(new Set(mocks.inserted.map((row) => row.timestamp)).size).toBe(1);
         // ตรวจผ่านฟังก์ชันตัวจริงที่หน้าประวัติใช้ ไม่ใช่แค่เทียบ timestamp เอง
         expect(new Set(mocks.inserted.map((row) => batchKeyOf(row))).size).toBe(1);
+    });
+
+    // การ์ดใบนี้เคยอยู่ใน checkOutPallet() ซึ่งถูกลบไปพร้อมการแก้บั๊ก "กดครั้งเดียวแต่แตกหลายชุด"
+    // ถ้ามันไม่ตามมาอยู่ที่นี่ พาเลทที่ไม่มีในระบบจะถูกรายงานว่าเบิกออกสำเร็จ
+    it('พาเลทที่ UPDATE ไม่ตรงสักแถว ต้องเป็น failed และต้องไม่มีแถวธุรกรรมถูกเขียน', async () => {
+        results.select = { data: [], error: null };
+
+        const result = await createBulkTransaction(['P404'], 'check_out', 'staff-1', 'คลังกลาง');
+
+        expect(result.failed).toEqual(['P404']);
+        expect(result.success).toEqual([]);
+        expect(mocks.inserted).toHaveLength(0);
     });
 });

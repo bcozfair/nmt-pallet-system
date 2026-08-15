@@ -43,6 +43,11 @@ export interface Transaction {
   pallet_id: string;
   user_id: string;
   action_type: ActionType;
+  /**
+   * "สถานที่ที่ทำรายการล่าสุด" ก่อนธุรกรรมนี้ -- คือ pallets.current_location ณ วินาทีก่อนบันทึก
+   * null ได้เมื่อเป็นแถวก่อน migration 01 หรือเป็นธุรกรรมแรกสุดของพาเลทใบนั้น
+   */
+  department_origin: string | null;
   department_dest: string | null;
   evidence_image_url: string | null;
   timestamp: string;

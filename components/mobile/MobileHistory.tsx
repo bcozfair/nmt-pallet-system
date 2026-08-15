@@ -114,8 +114,9 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
         const matchesSearch = (tx: Transaction) => {
             const matchesId = tx.pallet_id.toLowerCase().includes(query);
             const matchesDest = tx.department_dest?.toLowerCase().includes(query);
+            const matchesOrigin = tx.department_origin?.toLowerCase().includes(query);
             const matchesRemark = tx.transaction_remark?.toLowerCase().includes(query);
-            return matchesId || matchesDest || matchesRemark;
+            return matchesId || matchesDest || matchesOrigin || matchesRemark;
         };
 
         return groupIntoBatches(transactions)
@@ -377,28 +378,52 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                                         </div>
                                     </div>
 
-                                    {/* แถวที่ 2: ปลายทาง / หมายเหตุ (ถ้ามี) -- ทั้งคู่เป็นของทั้งชุด ไม่ใช่
+                                    {/* แถวที่ 2: เส้นทาง / หมายเหตุ -- ทั้งหมดเป็นของทั้งชุด ไม่ใช่
                                         ของพาเลทใดพาเลทหนึ่ง จึงอยู่บนหัวการ์ด ไม่ใช่ในรายละเอียดที่ต้องกดกาง
 
                                         เรียงลงเป็นบรรทัด ไม่ใช่วางเรียงกันในแถวเดียว: ตอนที่ทั้งสองอย่าง
                                         แย่งพื้นที่บรรทัดเดียวกัน หมายเหตุเหลือที่ครึ่งเดียวแล้วโดน truncate
                                         ตัดทิ้ง -- และหมายเหตุคือเหตุผลที่พาเลทถูกแจ้งชำรุด ส่วนฝั่งพนักงาน
                                         ไม่มีหน้ารายละเอียดให้กดดูต่อ ข้อความที่ถูกตัดจึงหายไปเลย */}
-                                    {(batch.department_dest || batch.remark) && (
-                                        <div className="flex min-w-0 flex-col gap-0.5 pl-9 text-xs">
-                                            {batch.department_dest && (
-                                                <span className="truncate font-medium text-slate-700">
-                                                    <span className="mr-1 text-slate-400">{t.history.to}</span>
-                                                    {batch.department_dest}
-                                                </span>
-                                            )}
-                                            {batch.remark && (
-                                                <span className="italic leading-relaxed text-slate-500">
-                                                    "{batch.remark}"
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
+                                    <div className="flex min-w-0 flex-col gap-0.5 pl-9 text-xs">
+                                        {/* เส้นทางของการเคลื่อนย้าย: จากไหน -> ไปไหน
+                                            "จาก" คือที่ตั้งของพาเลทก่อนรายการนี้ (สถานที่ที่ทำ
+                                            รายการล่าสุด) ส่วนการแจ้งชำรุดกับการตัดออกไม่มีปลายทาง
+                                            เพราะไม่ได้ย้ายของไปไหน เหลือแค่ "จาก" ที่บอกว่าตอนนั้น
+                                            พาเลทอยู่ที่ไหน -- ซึ่งเป็นคำถามแรกที่คนอ่านรายงานชำรุดถาม
+
+                                            แถวที่ยังไม่ทราบที่มา (บันทึกไว้ก่อน migration 01) ไม่ขึ้น
+                                            บรรทัดนี้เลย ดีกว่าขึ้นว่า "จาก: -" ซึ่งอ่านเหมือนของหายไป */}
+                                        {(batch.origins.length > 0 || batch.department_dest) && (
+                                            <span className="truncate font-medium text-slate-700">
+                                                {batch.origins.length > 0 && (
+                                                    <>
+                                                        <span className="mr-1 text-slate-400">
+                                                            {t.history.from}
+                                                        </span>
+                                                        <span>
+                                                            {batch.origins.length === 1
+                                                                ? batch.origins[0]
+                                                                : t.history.fromMany(batch.origins.length)}
+                                                        </span>
+                                                    </>
+                                                )}
+                                                {batch.department_dest && (
+                                                    <>
+                                                        <span className="mx-1 text-slate-400">
+                                                            {t.history.to}
+                                                        </span>
+                                                        <span>{batch.department_dest}</span>
+                                                    </>
+                                                )}
+                                            </span>
+                                        )}
+                                        {batch.remark && (
+                                            <span className="italic leading-relaxed text-slate-500">
+                                                "{batch.remark}"
+                                            </span>
+                                        )}
+                                    </div>
                                 </>
                             );
 
@@ -425,20 +450,50 @@ export const MobileHistory: React.FC<MobileHistoryProps> = ({ userId, onBack }) 
                                         <div id={panelId} className="mt-2.5 border-t border-slate-100 pt-2.5 pl-9">
                                             {/* สามคอลัมน์: รหัสพาเลทเป็นข้อความสั้น (P001) การเรียงลงเป็น
                                                 แถวเดี่ยวจะทำให้ชุด 20 พาเลทยาวเกินหนึ่งหน้าจอ จนการยุบชุดไม่ได้
-                                                ช่วยอะไรเลยเมื่อกางออกมาแล้ว */}
-                                            <ul
-                                                className="grid grid-cols-3 gap-1.5"
-                                                aria-label={t.history.batchItemsAria(batch.items.length)}
-                                            >
-                                                {batch.items.map((tx) => (
-                                                    <li
-                                                        key={tx.id}
-                                                        className="truncate rounded bg-slate-50 px-1.5 py-1 text-center font-mono text-xs font-semibold text-slate-600"
-                                                    >
-                                                        {tx.pallet_id}
-                                                    </li>
-                                                ))}
-                                            </ul>
+                                                ช่วยอะไรเลยเมื่อกางออกมาแล้ว
+
+                                                ยกเว้นตอนที่ชุดนั้นมาจากหลายจุด -- หัวการ์ดบอกได้แค่ "จาก 3 จุด"
+                                                ซึ่งเป็นข้อมูลที่ยังตอบไม่ครบ ตรงนี้คือที่เดียวที่ตอบต่อได้ว่า
+                                                ใบไหนมาจากไหน จึงยอมสละความหนาแน่นของสามคอลัมน์ */}
+                                            {batch.origins.length > 1 ? (
+                                                <ul
+                                                    className="flex flex-col gap-1"
+                                                    aria-label={t.history.batchItemsAria(batch.items.length)}
+                                                >
+                                                    {batch.items.map((tx) => (
+                                                        <li
+                                                            key={tx.id}
+                                                            className="flex items-baseline justify-between gap-2 rounded bg-slate-50 px-2 py-1"
+                                                        >
+                                                            <span className="shrink-0 font-mono text-xs font-semibold text-slate-600">
+                                                                {tx.pallet_id}
+                                                            </span>
+                                                            {tx.department_origin && (
+                                                                <span className="truncate text-[11px] text-slate-500">
+                                                                    <span className="mr-1 text-slate-400">
+                                                                        {t.history.from}
+                                                                    </span>
+                                                                    <span>{tx.department_origin}</span>
+                                                                </span>
+                                                            )}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <ul
+                                                    className="grid grid-cols-3 gap-1.5"
+                                                    aria-label={t.history.batchItemsAria(batch.items.length)}
+                                                >
+                                                    {batch.items.map((tx) => (
+                                                        <li
+                                                            key={tx.id}
+                                                            className="truncate rounded bg-slate-50 px-1.5 py-1 text-center font-mono text-xs font-semibold text-slate-600"
+                                                        >
+                                                            {tx.pallet_id}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
                                         </div>
                                     )}
                                 </Card>

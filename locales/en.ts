@@ -353,6 +353,8 @@ export const en = {
         checkedOut: (count: number) => `Successfully Checked Out ${count} pallets.`,
         returned: (count: number) => `Successfully Returned ${count} pallets.`,
         failed: 'Error processing batch. Please try again.',
+        partial: (done: number, failed: string) =>
+            `Saved ${done} pallets. Failed: ${failed}`,
         removeItem: (id: string) => `Remove ${id} from list`,
     },
 
@@ -405,6 +407,8 @@ export const en = {
         emptyHint: 'Try a different date or clear the filters.',
         clearFilters: 'Clear filters',
         to: 'To:',
+        from: 'From:',
+        fromMany: (count: number) => `${count} locations`,
         showing: (count: number) => `Showing ${count} items`,
         // ป้ายบนการ์ดของชุด (batch) ในหน้าประวัติพนักงาน
         //
