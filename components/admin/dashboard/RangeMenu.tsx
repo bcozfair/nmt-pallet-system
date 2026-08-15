@@ -84,10 +84,14 @@ const CHIP_BASE =
     'inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium leading-snug whitespace-nowrap';
 
 const TRIGGER =
-    // ชิปนี้เป็นปุ่ม -- เส้นขอบคือสิ่งเดียวที่บอกว่ามันกดได้ ใช้เกณฑ์เดียวกับ
-    // ปุ่ม secondary ใน Button.tsx (WCAG 1.4.11 ขั้นต่ำ 3:1)
-    `${CHIP_BASE} border border-line-control bg-white text-slate-700 transition duration-200 ` +
-    'hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 ' +
+    // พื้นผิวเดียวกับ variant `secondary` ใน Button.tsx: พื้นขาว + `shadow-raised`
+    // ไม่มีเส้นขอบ ชิปนี้เป็นปุ่มเหมือนกัน จึงต้องอ่านว่าเป็นวัสดุเดียวกัน ไม่ใช่
+    // "ชิปที่บังเอิญกดได้" -- เหตุผลเต็มของตระกูลนี้อยู่เหนือ BUTTON_VARIANT
+    //
+    // hover เดิมเปลี่ยนสีขอบด้วย (`hover:border-brand-300`) ซึ่งตกไปพร้อมขอบ
+    // พื้น `brand-50` กับตัวหนังสือ `brand-700` ยังบอกสถานะ hover ครบเหมือนเดิม
+    `${CHIP_BASE} bg-white text-slate-700 shadow-raised transition duration-200 ` +
+    'hover:bg-brand-50 hover:text-brand-700 ' +
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500';
 
 const MENU_ITEM =

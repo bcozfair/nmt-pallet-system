@@ -35,10 +35,16 @@ export const ToggleChip: React.FC<ToggleChipProps> = ({
             'inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl ' +
             'border px-3 py-2 text-sm font-semibold leading-snug transition duration-200 ' +
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ' +
+            // สองสถานะนี้ต่างกันที่ "ความสูง" ไม่ใช่แค่สี ซึ่งตรงกับความหมายของมันพอดี:
+            //   ยังไม่เลือก = แผ่นขาวที่ลอยอยู่ (`shadow-raised` ชุดเดียวกับปุ่มรอง)
+            //   เลือกแล้ว   = แผ่นที่ถูกกดจมลงไป จึงแบน ไม่มีเงา และมีสีค้างไว้
+            // `border-transparent` ไม่ใช่การถอดคลาส `border` ออกจากสตริงฐาน: Tailwind v4
+            // ตั้งค่าสีขอบเริ่มต้นเป็น `currentColor` การปล่อย `border` ไว้เฉย ๆ จะได้
+            // เส้นสีเดียวกับตัวหนังสือ -- เส้นเทาเข้มรอบชิปทุกใบ ส่วนการถอด `border`
+            // ออกจากฐานจะทำให้สองสถานะมีเมตริกต่างกัน 2px
             (pressed
                 ? TONE_ON[tone]
-                // ชิปที่ยังไม่ถูกเลือกเป็นกล่องขาวบนการ์ดขาว เส้นขอบคือ affordance
-                : 'border-line-control bg-white text-slate-600 hover:bg-slate-50') +
+                : 'border-transparent bg-white text-slate-600 shadow-raised hover:bg-slate-50') +
             ` ${className}`
         }
     >
