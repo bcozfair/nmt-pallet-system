@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Upload, Info, Keyboard } from 'lucide-react';
+import { AlertTriangle, Camera, Info, Keyboard, Trash2, Upload } from 'lucide-react';
 import { reportDamage } from '../../services/transactionService';
 import { toast } from '../../services/toast';
 import { compressImage } from '../../utils/imageCompression';
@@ -71,7 +71,14 @@ export const DamageForm = ({ palletId, userId, onSuccess, onCancel }: DamageForm
                                     className="absolute inset-0 h-full w-full object-contain"
                                 />
                             </div>
-                            <Button variant="danger" onClick={() => setDamageFile(null)} className="shrink-0">
+                            {/* Trash2 ตัวเดียวกับปุ่มลบรายการใน BatchScanList.tsx:105 --
+                                การลบของออกจากรายการที่กำลังทำอยู่เป็นท่าเดียวกันทั้งสองที่ */}
+                            <Button
+                                variant="danger"
+                                icon={Trash2}
+                                onClick={() => setDamageFile(null)}
+                                className="shrink-0"
+                            >
                                 {t.damage.removePhoto}
                             </Button>
                         </div>
@@ -86,7 +93,12 @@ export const DamageForm = ({ palletId, userId, onSuccess, onCancel }: DamageForm
                                 title={t.damage.uploadEvidence}
                                 variant="plot"
                                 action={
-                                    <span className="inline-flex min-h-10 items-center rounded-xl bg-brand-50 px-3.5 py-2 text-sm font-semibold text-brand-700">
+                                    // `gap-2` กับไอคอน 16px ไม่ใช่ตัวเลขที่เลือกเอง --
+                                    // ลอกจาก BUTTON_BASE และ iconSize ของ size `md`
+                                    // ใน Button.tsx เป๊ะ ๆ span ใบนี้ต้องเป็นปุ่มใบเดียว
+                                    // กับที่อื่นในสายตา ทั้งที่มันเป็นปุ่มจริงไม่ได้
+                                    <span className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-brand-50 px-3.5 py-2 text-sm font-semibold text-brand-700">
+                                        <Camera size={16} aria-hidden="true" />
                                         {t.damage.openCamera}
                                     </span>
                                 }
@@ -136,9 +148,17 @@ export const DamageForm = ({ palletId, userId, onSuccess, onCancel }: DamageForm
                     )}
                 </Card>
 
+                {/* สีของสองปุ่มนี้สลับกันตามที่เจ้าของงานสั่ง และสลับกับธรรมเนียมที่
+                    ใช้ในโมดัลยืนยันของหน้าแอดมิน -- เขียนไว้เพื่อไม่ให้คนถัดไป "แก้กลับ"
+                    เพราะเห็นว่าแดง = ปุ่มทำลาย:
+                      - ปุ่มส่งเป็น `primary` ชุดเดียวกับ "ยืนยันและบันทึก" ของ
+                        BatchScanList.tsx:115 -- ปุ่มที่ปิดงานของหน้าฝั่งพนักงานทุกหน้า
+                        เป็นวัตถุเดียวกัน ไม่ว่างานนั้นจะเป็นการรับเข้าหรือการแจ้งชำรุด
+                      - สีแดงย้ายไปอยู่ที่ "ยกเลิก" ซึ่งเป็นทางเดียวในหน้านี้ที่ทิ้งรูป
+                        ที่เพิ่งถ่ายไปทั้งใบโดยไม่มีขั้นยืนยัน */}
                 <div className="flex shrink-0 flex-col gap-3">
                     <Button
-                        variant="dangerSolid"
+                        variant="primary"
                         size="lg"
                         disabled={!damageFile || isSubmitting}
                         onClick={submitReports}
@@ -146,7 +166,7 @@ export const DamageForm = ({ palletId, userId, onSuccess, onCancel }: DamageForm
                     >
                         {isSubmitting ? t.damage.submitting : t.damage.submit}
                     </Button>
-                    <Button variant="secondary" size="lg" onClick={onCancel} className="w-full">
+                    <Button variant="dangerSolid" size="lg" onClick={onCancel} className="w-full">
                         {t.common.cancel}
                     </Button>
                 </div>
