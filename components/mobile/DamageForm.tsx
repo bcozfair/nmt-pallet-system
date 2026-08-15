@@ -206,6 +206,7 @@ export const DamageManualEntry: React.FC<DamageManualEntryProps> = ({ onSubmit }
                         <TextInput
                             {...control}
                             mono
+                            uppercase
                             value={value}
                             onChange={(e) => setValue(e.target.value)}
                             placeholder={t.damage.idPlaceholder}

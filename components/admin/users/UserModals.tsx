@@ -178,6 +178,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
                                 ref={idInputRef}
                                 required
                                 mono
+                                uppercase
                                 className="pl-9"
                                 placeholder="EMP001"
                                 value={createForm.employee_id}

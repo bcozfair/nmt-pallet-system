@@ -151,6 +151,7 @@ export const UserTable: React.FC<UserTableProps> = ({
                                     <TextInput
                                         disabled
                                         mono
+                                        uppercase
                                         aria-label={t.users.employeeId}
                                         value={user.employee_id}
                                     />

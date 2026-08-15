@@ -215,6 +215,7 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({
                                     {...aria}
                                     ref={idInputRef}
                                     mono
+                                    uppercase
                                     required
                                     // Disabled only while the next number is on
                                     // its way, so it cannot be typed over
@@ -224,7 +225,7 @@ export const AddPalletModal: React.FC<AddPalletModalProps> = ({
                                     disabled={isLoadingNextId}
                                     value={newId}
                                     onChange={(e) => {
-                                        setNewId(e.target.value.toUpperCase());
+                                        setNewId(e.target.value);
                                         setIdError(null);
                                     }}
                                 />
@@ -399,10 +400,11 @@ export const EditPalletModal: React.FC<EditPalletModalProps> = ({
                             {...aria}
                             ref={idInputRef}
                             mono
+                            uppercase
                             required
                             value={id}
                             onChange={(e) => {
-                                setId(e.target.value.toUpperCase());
+                                setId(e.target.value);
                                 setSaveError(null);
                             }}
                         />
