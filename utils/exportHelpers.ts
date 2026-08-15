@@ -194,7 +194,7 @@ export const generateCSV = (headers: string[], rows: (string | number)[][], file
  *
  * Those three are not bugs to fix twice. `pallets` is the whole difference:
  *
- *   omitted -- fetch every pallet (the dashboard's Export Inventory CSV)
+ *   omitted -- fetch every pallet (the dashboard's Export Inventory (.csv))
  *   passed  -- write exactly these rows (the inventory screen, already filtered)
  * ---------------------------------------------------------------------------
  */
@@ -366,7 +366,7 @@ export const exportInventoryCSV = async (pallets?: Pallet[]) => {
  * The one thing it had that this did not -- the Remark column -- was kept, not
  * dropped. `transactions` is now the whole difference:
  *
- *   omitted -- fetch the entire history (the dashboard's Export History CSV)
+ *   omitted -- fetch the entire history (the dashboard's Export History (.csv))
  *   passed  -- write exactly these rows (the transactions screen, filtered)
  * ---------------------------------------------------------------------------
  */

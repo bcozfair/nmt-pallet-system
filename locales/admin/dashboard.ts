@@ -24,9 +24,16 @@ export const dashboardEn = {
     //
     // The three `export*Csv` keys below stay: they are the ITEMS in this
     // screen's dropdown, and no other screen has them.
-    exportSummary: 'Export Summary (Stats)',
-    exportInventoryCsv: 'Export Inventory CSV',
-    exportHistoryCsv: 'Export History CSV',
+    //
+    // All three end in `(.csv)` -- the file extension, not the format's name.
+    // The summary item used to read "(Stats)" and the other two ended in a bare
+    // "CSV", which made the dropdown look like one item that writes a summary
+    // and two that write files. All three write a .csv; the parenthetical is
+    // the same slot in all three so the only thing a reader compares is WHAT
+    // each one exports.
+    exportSummary: 'Export Summary (.csv)',
+    exportInventoryCsv: 'Export Inventory (.csv)',
+    exportHistoryCsv: 'Export History (.csv)',
 
     // Heads the printed sheet. Its own key rather than reusing `title` above:
     // that one names a screen you analyse things on, this one names a document
@@ -157,9 +164,9 @@ export const dashboardTh: DashboardDict = {
     // --- Header ---
     title: 'ภาพรวมระบบ',
     subtitle: 'วิเคราะห์การใช้งานและเฝ้าระวังความเสี่ยง',
-    exportSummary: 'ส่งออกสรุปภาพรวม',
-    exportInventoryCsv: 'ส่งออกคลังพาเลท (CSV)',
-    exportHistoryCsv: 'ส่งออกประวัติรายการ (CSV)',
+    exportSummary: 'ส่งออกสรุปภาพรวม (.csv)',
+    exportInventoryCsv: 'ส่งออกคลังพาเลท (.csv)',
+    exportHistoryCsv: 'ส่งออกประวัติรายการ (.csv)',
 
     reportTitle: 'รายงานภาพรวม',
 
