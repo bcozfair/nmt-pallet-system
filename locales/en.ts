@@ -406,6 +406,15 @@ export const en = {
         clearFilters: 'Clear filters',
         to: 'To:',
         showing: (count: number) => `Showing ${count} items`,
+        // ป้ายบนการ์ดของชุด (batch) ในหน้าประวัติพนักงาน
+        //
+        // หน่วยของสองชั้นนี้ต้องไม่ทับกัน: "item" คือชุด (การ์ดละหนึ่ง หน่วยเดียวกับเพดาน
+        // 50 ของโหมดล่าสุด) ส่วนสิ่งที่อยู่ในชุดเรียกว่า "pallet" เสมอ ไม่ใช่ "item"
+        batchCount: (count: number) => `${count} pallets`,
+        batchPartial: (matched: number, total: number) => `${matched} of ${total} pallets`,
+        batchItemsAria: (count: number) => `${count} pallets in this batch`,
+        showingGrouped: (batches: number, pallets: number) =>
+            `Showing ${batches} items (${pallets} pallets)`,
     },
 
     // Admin modules live in locales/admin/*.ts, one file per feature area,

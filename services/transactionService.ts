@@ -9,6 +9,7 @@ import {
     collectEvidenceOlderThan,
 } from './storageService';
 import { AppError } from './appError';
+import { batchKeyOf } from './transactionBatch';
 
 // --- TRANSACTIONS (Check In/Out/Damage) ---
 
@@ -116,39 +117,159 @@ export const fetchTransactions = async (q: TransactionQuery = {}): Promise<Trans
     return rows;
 };
 
-export const fetchUserTransactions = async (userId: string, dateStr?: string): Promise<Transaction[]> => {
-    let query = supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', userId)
-        .order('timestamp', { ascending: false });
+/**
+ * โหมด "ล่าสุด" นับเป็น *ชุด* ไม่ใช่แถว -- ค่าเริ่มต้นของหน้าประวัติพนักงาน
+ *
+ * หน้าประวัติแสดงหนึ่งชุดต่อหนึ่งการ์ด เพดานที่นับเป็นแถวจึงให้จำนวนการ์ดที่เดาไม่ได้:
+ * พนักงานที่เบิกออกทีละพาเลทเห็น 50 การ์ด ส่วนคนที่เบิกทีละ 20 พาเลทเห็น 3 การ์ดจากโควตาเท่ากัน
+ * ทั้งที่ทำงานมามากกว่า -- "ล่าสุด 50" ควรแปลว่าสิ่งที่ผู้ใช้นับได้บนจอ ซึ่งคือครั้งที่กดบันทึก
+ */
+const RECENT_BATCHES = 50;
 
-    // Filter by specific day if provided (YYYY-MM-DD)
-    if (dateStr) {
-        // Interpret dateStr as LOCAL day.
-        try {
-            // Construct YYYY-MM-DDT00:00:00 vs 23:59:59 in LOCAL TIME, then ISO for DB comparison
-            // Note: dateStr input is expected to be 'YYYY-MM-DD'
-            const startLocal = new Date(`${dateStr}T00:00:00`);
-            const endLocal = new Date(`${dateStr}T23:59:59.999`);
+/**
+ * กันลูปที่ไม่คืบหน้า (เช่นเซิร์ฟเวอร์เมิน Range header) = 10 x PAGE_SIZE แถว
+ *
+ * ไม่ใช่ตัวคุมขนาดผลลัพธ์ ตัวที่คุมจริงคือการหยุดตรงที่ชุดที่ 51 เริ่ม -- ค่านี้ทำหน้าที่
+ * เดียวกับ MAX_PAGES ข้างบน คือกันลูปที่วนไม่จบเมื่อมีอะไรผิดปกติในระดับที่โค้ดตรงนี้
+ * แก้ไม่ได้อยู่แล้ว
+ */
+const MAX_BATCH_PAGES = 10;
 
-            // If dateStr is invalid, these are Invalid Date
-            if (!isNaN(startLocal.getTime())) {
-                query = query.gte('timestamp', startLocal.toISOString()).lte('timestamp', endLocal.toISOString());
+/**
+ * แถวของ N ชุดล่าสุดของผู้ใช้คนหนึ่ง
+ *
+ * PostgREST ไม่มี DISTINCT และไม่มี GROUP BY ให้ใช้จากฝั่ง client จึงขอเป็นหน้า ๆ แล้วนับ
+ * ชุดไปด้วยระหว่างไล่แถว แทนที่จะสั่ง "เอา 50 ชุด" ตรง ๆ ในคำสั่งเดียว ทางเลือกอื่นคือ
+ * เขียน RPC ฝั่ง Postgres ซึ่งย้ายนิยามของ "ชุด" ไปอยู่อีกภาษาหนึ่งคนละที่กับ
+ * transactionBatch.ts -- แลกไม่คุ้มสำหรับข้อมูลระดับนี้
+ *
+ * หยุดตรงที่ชุดที่ 51 *เริ่ม* ไม่ใช่ตรงแถวที่ N: แถวทุกแถวของชุดที่ 50 จึงตามมาครบเสมอ
+ * ไม่ต้องมีขั้นตอนตามเก็บแถวที่ขาดทีหลัง
+ *
+ * ขอทีละ PAGE_SIZE (เพดานของเซิร์ฟเวอร์) ไม่ใช่ค่าที่จูนตามขนาดชุด -- เพราะขนาดชุดคือสิ่งที่
+ * เดาไม่ได้ตั้งแต่ต้น ชุดหนึ่งมีตั้งแต่ 1 ถึง 50+ พาเลท และเปลี่ยนไปตามคนใช้กับช่วงเวลา
+ * ค่าที่จูนไว้กับ "ชุดละไม่กี่พาเลท" จะกลายเป็นการยิงสิบรอบทันทีที่เจอวันที่เบิกทีละ 50
+ * ซึ่งเป็นวันที่ payload หนักที่สุดพอดี ขอเท่าที่เซิร์ฟเวอร์ยอมให้ต่อรอบแล้วให้ตัวนับชุด
+ * เป็นคนบอกว่าพอ จึงจบใน 1-3 รอบเสมอไม่ว่าชุดจะใหญ่แค่ไหน
+ *
+ * ผลที่ตามมาซึ่งต้องรู้ไว้: 50 ชุดที่ชุดละ 50 พาเลทคือ 2,500 แถวที่ถูกดึงมาทั้งหมดเพื่อวาด
+ * การ์ด 50 ใบ ตราบใดที่รายชื่อพาเลทถูกกางจากข้อมูลที่โหลดมาแล้ว (ไม่ยิงเพิ่มตอนกด) ราคานี้
+ * เลี่ยงไม่ได้ ทางออกถ้าวันหนึ่งมันหนักเกินไปคือเขียน RPC ฝั่ง Postgres ที่คืน "หัวชุด +
+ * จำนวนสมาชิก" มาก่อน แล้วค่อยดึงรหัสพาเลทตอนผู้ใช้กดกางทีละชุด -- ไม่ใช่การลดขนาดหน้า
+ * ซึ่งได้แค่ทำให้ round trip เยอะขึ้นโดยที่ payload รวมเท่าเดิม
+ */
+const fetchRecentBatches = async (userId: string, wantBatches: number): Promise<Transaction[]> => {
+    const rows: Transaction[] = [];
+    const keys = new Set<string>();
+
+    for (let page = 0; page < MAX_BATCH_PAGES; page++) {
+        // offset นับจากแถวที่เก็บมาแล้วจริง ไม่ใช่ page * PAGE_SIZE ทั้งสองค่าเท่ากันอยู่แล้ว
+        // ในตอนนี้ แต่ค่าแรกยังถูกต้องต่อไปถ้ามีใครใส่เงื่อนไขคัดแถวเพิ่มทีหลัง
+        const from = rows.length;
+
+        const { data, error } = await supabase
+            .from('transactions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('timestamp', { ascending: false })
+            // ตัวคั่นลำดับที่คงที่ ด้วยเหตุผลเดียวกับ fetchTransactions ข้างบน: ทั้งชุดมี
+            // timestamp เท่ากัน ถ้าไม่มีคีย์ที่สอง ลำดับภายในชุดจะสลับไปมาระหว่างสองรอบ
+            // ที่ขอต่อกัน แถวเดิมจะถูกส่งมาซ้ำและบางแถวจะหายไปเลย
+            .order('id', { ascending: false })
+            .range(from, from + PAGE_SIZE - 1);
+
+        if (error) throw error;
+
+        const pageRows = data ?? [];
+
+        for (const tx of pageRows) {
+            const key = batchKeyOf(tx);
+
+            if (!keys.has(key)) {
+                // เจอชุดใหม่ทั้งที่ครบโควตาแล้ว = จบพอดีที่ขอบชุด
+                if (keys.size >= wantBatches) return rows;
+                keys.add(key);
             }
-        } catch (e) {
-            console.warn("Invalid date filter", dateStr);
+
+            rows.push(tx);
         }
-        query = query.limit(500); // Higher limit for daily view
-    } else {
-        query = query.limit(50); // Default limit for "recent"
+
+        // หน้าที่สั้นกว่าที่ขอ แปลว่าหมดข้อมูลของผู้ใช้คนนี้แล้ว (ยังไม่ถึง 50 ชุดก็ได้)
+        if (pageRows.length < PAGE_SIZE) return rows;
     }
 
-    const { data, error } = await query;
-
-    if (error) throw error;
-    return data || [];
+    console.warn(
+        `[fetchRecentBatches] หยุดที่เพดาน ${MAX_BATCH_PAGES} หน้า ด้วย ${rows.length} แถว ผลลัพธ์อาจไม่ครบ`
+    );
+    return rows;
 };
+
+/**
+ * ทุกแถวของผู้ใช้คนหนึ่งในวันหนึ่ง -- ครบทั้งวัน ไม่มีเพดานจำนวนแถว
+ *
+ * เดิมตัดที่ 500 แถว ซึ่งเป็นตัวเลขที่ตั้งจากสมมติฐานว่าชุดหนึ่งมีไม่กี่พาเลท พอการใช้งาน
+ * จริงเบิกทีละ 20-50 พาเลท วันที่ทำงานหนัก ๆ เพียง 11 ครั้งก็ทะลุเพดานแล้ว แล้วชุดที่เกิน
+ * ไปจะหายจากหน้าประวัติเงียบ ๆ โดยที่ผู้ใช้เห็นแค่ "วันนี้ทำไปเท่านี้" ซึ่งน้อยกว่าความจริง
+ *
+ * วันหนึ่งมีขอบเขตของมันเองอยู่แล้ว การไล่ขอจนหมดจึงไม่ใช่ query ที่ไม่มีที่สิ้นสุด ต่างจาก
+ * โหมด "ล่าสุด" ที่ไม่มีอะไรมาปิดท้ายให้ จึงต้องนับชุดเอง
+ */
+const fetchUserDay = async (userId: string, dateStr: string): Promise<Transaction[]> => {
+    const rows: Transaction[] = [];
+
+    // Interpret dateStr as LOCAL day.
+    // Construct YYYY-MM-DDT00:00:00 vs 23:59:59 in LOCAL TIME, then ISO for DB comparison
+    // Note: dateStr input is expected to be 'YYYY-MM-DD'
+    const startLocal = new Date(`${dateStr}T00:00:00`);
+    const endLocal = new Date(`${dateStr}T23:59:59.999`);
+    // If dateStr is invalid, these are Invalid Date -- ปล่อยผ่านเป็น "ไม่กรองวัน" เหมือนเดิม
+    const validDay = !isNaN(startLocal.getTime());
+
+    if (!validDay) console.warn('Invalid date filter', dateStr);
+
+    for (let page = 0; page < MAX_BATCH_PAGES; page++) {
+        const from = rows.length;
+
+        let query = supabase
+            .from('transactions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('timestamp', { ascending: false })
+            .order('id', { ascending: false })
+            .range(from, from + PAGE_SIZE - 1);
+
+        if (validDay) {
+            query = query
+                .gte('timestamp', startLocal.toISOString())
+                .lte('timestamp', endLocal.toISOString());
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const pageRows = data ?? [];
+        rows.push(...pageRows);
+
+        if (pageRows.length < PAGE_SIZE) return rows;
+    }
+
+    console.warn(
+        `[fetchUserDay] หยุดที่เพดาน ${MAX_BATCH_PAGES} หน้า ด้วย ${rows.length} แถว ผลลัพธ์อาจไม่ครบ`
+    );
+    return rows;
+};
+
+/**
+ * ประวัติของพนักงานหนึ่งคน
+ *
+ * ระบุวัน -> ทุกแถวของวันนั้น / ไม่ระบุ -> 50 ชุดล่าสุด
+ *
+ * ไม่มีโหมดไหนตัดกลางชุดอีกแล้ว: โหมดวันดึงจนหมดวัน ส่วนโหมดล่าสุดหยุดตรงที่ชุดถัดไปเริ่ม
+ * ทั้งคู่จึงคืนชุดที่สมบูรณ์เสมอ ซึ่งเป็นเงื่อนไขที่หน้าประวัติต้องการ -- มันพิมพ์จำนวน
+ * สมาชิกของชุดออกมาบนการ์ด ชุดที่ขาดไปครึ่งหนึ่งจะกลายเป็นตัวเลขที่ผิดโดยไม่มีอะไรฟ้อง
+ */
+export const fetchUserTransactions = async (userId: string, dateStr?: string): Promise<Transaction[]> =>
+    dateStr ? fetchUserDay(userId, dateStr) : fetchRecentBatches(userId, RECENT_BATCHES);
 
 export const fetchUserTransactionDates = async (userId: string): Promise<string[]> => {
     // We fetch timestamps to find unique days. 

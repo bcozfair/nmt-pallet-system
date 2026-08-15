@@ -335,6 +335,17 @@ export const th: Dictionary = {
         clearFilters: 'ล้างตัวกรอง',
         to: 'ไปยัง:',
         showing: (count: number) => `แสดง ${count} รายการ`,
+        // ป้ายบนการ์ดของชุด (batch) ในหน้าประวัติพนักงาน
+        //
+        // หน่วยของสองชั้นนี้ต้องไม่ทับกัน: "รายการ" คือชุด (การ์ดละหนึ่ง หน่วยเดียวกับเพดาน
+        // 50 ของโหมดล่าสุด) ส่วนสิ่งที่อยู่ในชุดนับเป็น "พาเลท" เสมอ ไม่ใช่ "รายการ" -- ถ้าปล่อยให้
+        // คำเดียวกันหมายถึงสองอย่าง เมนูที่เขียนว่า "ล่าสุด (50 รายการ)" กับการ์ดที่เขียนว่า
+        // "12 รายการ" จะอ่านออกมาขัดกันเองทันที
+        batchCount: (count: number) => `${count} พาเลท`,
+        batchPartial: (matched: number, total: number) => `${matched} จาก ${total} พาเลท`,
+        batchItemsAria: (count: number) => `${count} พาเลทในชุดนี้`,
+        showingGrouped: (batches: number, pallets: number) =>
+            `แสดง ${batches} รายการ (${pallets} พาเลท)`,
     },
 
     dashboard: dashboardTh,
