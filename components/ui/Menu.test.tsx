@@ -25,25 +25,29 @@ describe('Menu -- matchTriggerWidth', () => {
         expect(screen.getByRole('menu').className).toContain('w-full');
     });
 
-    it('สลับความกว้างคงที่ออก ไม่ได้เอา w-full ไปทับ w-64', async () => {
+    it('สลับความกว้างปริยายออก ไม่ได้เอา w-full ไปทับ w-max', async () => {
         const user = userEvent.setup();
         render(<Menu label="ทดสอบส่ง" items={items} matchTriggerWidth />);
         await user.click(screen.getByRole('button', { name: /ทดสอบส่ง/ }));
         // คลาสความกว้างสองตัวบน element เดียวตัดสินผู้ชนะที่ลำดับใน CSS ที่ build
-        // ออกมา ไม่ใช่ลำดับในสตริง การมี w-64 ค้างอยู่จึงแปลว่าผลลัพธ์ขึ้นกับสิ่งที่
+        // ออกมา ไม่ใช่ลำดับในสตริง การมี w-max ค้างอยู่จึงแปลว่าผลลัพธ์ขึ้นกับสิ่งที่
         // ไฟล์นี้มองไม่เห็น
-        expect(screen.getByRole('menu').className).not.toContain('w-64');
+        expect(screen.getByRole('menu').className).not.toContain('w-max');
     });
 
-    it('ไม่ใส่ก็ยังได้พาเนลกว้างคงที่เหมือนเดิม', async () => {
+    it('ไม่ใส่ก็ได้พาเนลที่กว้างตามข้อความ พร้อมเพดานกันล้นจอ', async () => {
         const user = userEvent.setup();
         render(<Menu label="ส่งออก" items={items} />);
         const trigger = screen.getByRole('button', { name: /ส่งออก/ });
         expect(trigger.className).not.toContain('w-full');
         await user.click(trigger);
         const panel = screen.getByRole('menu');
-        expect(panel.className).toContain('w-64');
+        expect(panel.className).toContain('w-max');
         expect(panel.className).not.toContain('w-full');
+        // ทั้งพื้นและเพดานต้องมาคู่กันเสมอ: `w-max` ไม่มีเพดานของตัวเอง ถ้าเผลอถอด
+        // max-w ออก พาเนลจะห้อยพ้นจอเมื่อป้ายยาว โดยไม่มีอะไรฟ้อง
+        expect(panel.className).toContain('min-w-36');
+        expect(panel.className).toContain('max-w-[calc(100vw-2rem)]');
     });
 });
 
