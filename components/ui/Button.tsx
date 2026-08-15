@@ -53,9 +53,24 @@ export const BUTTON_VARIANT: Record<ButtonVariant, string> = {
     primary:
         'bg-brand-600 text-white shadow-lg shadow-brand-600/20 hover:bg-brand-700 ' +
         'active:scale-[0.99] disabled:hover:bg-brand-600',
+    // ปุ่มพื้นเทาอ่อน ไม่มีเส้นขอบ -- เจ้าของงานเลือกแบบนี้แทนขอบเข้ม
+    //
+    // ที่ต้องรู้ก่อนแก้ค่าตรงนี้: สิ่งที่ทำให้ปุ่มนี้ "เห็นเป็นปุ่ม" คือเงา ไม่ใช่พื้น
+    // พื้น `slate-100` วัดได้ 1.10:1 บนการ์ดขาว และ 1.03:1 บนพื้นหน้าจอ -- ทั้งสอง
+    // ค่าต่ำกว่าเกณฑ์ 3:1 ของ WCAG 1.4.11 ทั้งคู่ ไม่ต่างจากขอบ `slate-200` เดิมที่
+    // ได้ 1.23:1 การเปลี่ยนมาใช้พื้นจึงไม่ได้ทำให้ผ่านเกณฑ์ -- แต่ก็ไม่ได้แย่ลง และ
+    // พื้นที่สีเต็มใบอ่านง่ายกว่าเส้น 1px ที่คอนทราสต์เท่ากัน เพราะตาอ่าน "พื้นที่"
+    // ได้ไวกว่า "เส้น"
+    //
+    // `shadow-raised` คือชั้นความสูงชุดเดียวกับการ์ด (index.css) มันคือสิ่งที่ยกปุ่ม
+    // ขึ้นจากพื้นจริง ๆ อย่าถอดออกเพราะเห็นว่า "ปุ่มไม่น่าต้องมีเงา" -- ถ้าถอด ปุ่มนี้
+    // จะเหลือแค่แผ่นเทาอ่อน 1.03:1 บนพื้นหน้าจอ ซึ่งคือหายไปทั้งใบ
+    //
+    // ไม่มีคลาส `border` แล้ว: ตอนมีขอบ ปุ่มนี้เตี้ยกว่าปุ่ม primary ที่นั่งข้างกัน
+    // อยู่ 2px เสมอ (border-box กินจาก content) ตอนนี้ทั้งสองใบมีเมตริกเดียวกันพอดี
     secondary:
-        'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 ' +
-        'active:scale-[0.99] disabled:hover:bg-white',
+        'bg-slate-100 text-slate-700 shadow-raised hover:bg-slate-200 ' +
+        'active:scale-[0.99] disabled:hover:bg-slate-100',
     // ยกมาจากปุ่ม cleanup ใน components/admin/transactions/TransactionHeader.tsx
     // เพื่อให้รอบที่ย้ายหน้ารายการมาใช้ primitive ไม่ต้องคิดสีใหม่
     danger:

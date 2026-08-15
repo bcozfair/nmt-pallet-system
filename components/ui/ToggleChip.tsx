@@ -37,7 +37,8 @@ export const ToggleChip: React.FC<ToggleChipProps> = ({
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ' +
             (pressed
                 ? TONE_ON[tone]
-                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50') +
+                // ชิปที่ยังไม่ถูกเลือกเป็นกล่องขาวบนการ์ดขาว เส้นขอบคือ affordance
+                : 'border-line-control bg-white text-slate-600 hover:bg-slate-50') +
             ` ${className}`
         }
     >

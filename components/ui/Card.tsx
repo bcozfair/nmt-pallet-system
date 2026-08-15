@@ -37,10 +37,24 @@ export interface CardProps {
 // stylesheet, not the order of the string -- see the note at Button.tsx:53-59
 // for the case that established this. Composing here keeps one source of truth
 // for the box while letting that caller swap the paint from a single ternary.
-export const CARD_SHELL_SHAPE = 'rounded-3xl border shadow-[0_24px_60px_-32px_rgba(15,42,82,0.45)]';
+//
+// `shadow-raised` เป็นโทเคนใน index.css ไม่ใช่ค่าดิบในบรรทัดนี้ ค่าเก่าคือ
+// `shadow-[0_24px_60px_-32px_rgba(15,42,82,0.45)]` ซึ่ง Menu.tsx ประกาศไว้ซ้ำ
+// คำต่อคำ -- เมนูที่เปิดทับการ์ดจึงอยู่ระดับความสูงเดียวกับการ์ดพอดี และไม่ได้
+// อ่านว่าลอยอยู่ข้างบน ตอนนี้การ์ดอยู่ที่ `--shadow-raised` ส่วน overlay อยู่ที่
+// `--shadow-overlay` ที่หนักกว่าหนึ่งขั้น ทั้งสองค่าอยู่ในไฟล์เดียวกัน ห่างกันสอง
+// บรรทัด -- ถ้าใครแก้ค่าหนึ่งจะเห็นอีกค่าอยู่ตรงหน้าและรู้ว่ามันเป็นคู่กัน
+export const CARD_SHELL_SHAPE = 'rounded-3xl border shadow-raised';
 
-/** The idle paint: border colour and fill. Swap it wholesale, never append to it. */
-export const CARD_SURFACE = 'border-slate-200/80 bg-white';
+/**
+ * The idle paint: border colour and fill. Swap it wholesale, never append to it.
+ *
+ * `border-line-card` ไม่ใช่ `border-slate-200/80`: อัลฟา 80% ทำให้เส้นขอบวัดได้
+ * 1.18:1 บนการ์ดขาว และการ์ดเองก็ห่างจากพื้นหน้าจอเดิมแค่ 1.05:1 -- ไม่มีชั้นไหน
+ * เลยที่บอกขอบเขตของการ์ดได้ ตอนนี้พื้นหน้าจอเข้มลง (`--color-canvas`) เงามีเส้น
+ * คมชั้นแรก และเส้นขอบเป็นสีทึบ ทั้งสามอย่างทำงานร่วมกัน
+ */
+export const CARD_SURFACE = 'border-line-card bg-white';
 
 /**
  * The danger paint. A full replacement for CARD_SURFACE, which is the whole

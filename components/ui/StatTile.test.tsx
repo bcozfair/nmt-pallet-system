@@ -49,7 +49,8 @@ describe('StatTile', () => {
         // property เดียวกันสองตัวบน element เดียว แล้วผู้ชนะไปตัดสินที่ลำดับใน CSS
         rerender(<StatTile label="เสียหาย" value={2} onClick={() => {}} selected={false} />);
         const idle = screen.getByRole('button').className;
-        expect(idle).toContain('border-slate-200/80');
+        // `border-line-card` คือชื่อใหม่ของสีขอบใน CARD_SURFACE (เดิม slate-200/80)
+        expect(idle).toContain('border-line-card');
         expect(idle).toContain('bg-white');
         expect(idle).not.toContain('border-brand-500');
         expect(idle).not.toContain('bg-brand-50');

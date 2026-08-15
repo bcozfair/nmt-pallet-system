@@ -101,7 +101,9 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
         <div
             className={
                 'flex min-h-10 w-full items-center justify-between gap-2 rounded-xl border ' +
-                `border-slate-200 bg-slate-50 px-2 py-1.5 sm:w-auto sm:justify-start ${className}`
+                // border-line-control: กล่องนี้เป็นตัวควบคุมที่มีช่องกรอกวันที่อยู่ข้างใน
+                // เส้นขอบคือสิ่งที่มัดสองช่องให้อ่านเป็นฟิลด์เดียว -- ดูโทเคนใน index.css
+                `border-line-control bg-slate-50 px-2 py-1.5 sm:w-auto sm:justify-start ${className}`
             }
         >
             <Calendar size={16} className="shrink-0 text-slate-400" aria-hidden="true" />

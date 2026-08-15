@@ -319,7 +319,10 @@ export const StatTile: React.FC<StatTileProps> = ({
                 aria-pressed={selected}
                 className={`${CARD_SHELL_SHAPE} ${STAT_TILE_LAYOUT} ${
                     selected ? TILE_SURFACE_SELECTED : TILE_SURFACE_IDLE
-                } group block transition duration-200 hover:shadow-[0_28px_70px_-34px_rgba(15,42,82,0.55)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 active:scale-[0.99]`}
+                // hover ยกไปที่ชั้น overlay -- แอปมีความสูงสองระดับเท่านั้น
+                // บรรทัดนี้เคยเขียนเงาระดับที่สามไว้เอง (`0 28px 70px -34px`) ซึ่ง
+                // ไม่มีที่อื่นใช้และไม่มีใครรู้ว่ามันควรสัมพันธ์กับอีกสองค่าอย่างไร
+                } group block transition duration-200 hover:shadow-overlay focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 active:scale-[0.99]`}
             >
                 {body}
             </button>

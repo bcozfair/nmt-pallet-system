@@ -396,7 +396,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                     onClick={() => setShowDeep((v) => !v)}
                     aria-expanded={showDeep}
                     aria-controls={DEEP_PANEL_ID}
-                    className="flex w-full min-h-12 items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white/60 px-4 py-3 text-sm font-semibold text-slate-600 transition duration-200 hover:border-brand-300 hover:bg-white hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                    className="flex w-full min-h-12 items-center justify-center gap-2 rounded-2xl border border-dashed border-line-control bg-white/60 px-4 py-3 text-sm font-semibold text-slate-600 transition duration-200 hover:border-brand-300 hover:bg-white hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
                 >
                     <ChevronDown
                         size={16}

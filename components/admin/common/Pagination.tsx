@@ -66,7 +66,9 @@ export const Pagination: React.FC<PaginationProps> = ({
                 </button>
 
                 {/* Page Dropdown */}
-                <div className="flex items-center gap-2 px-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 min-h-10">
+                {/* border-line-control: กล่องนี้ห่อ <select> อยู่ เส้นขอบจึงเป็น
+                    ขอบเขตของตัวควบคุม ไม่ใช่เส้นตกแต่ง */}
+                <div className="flex items-center gap-2 px-2 bg-white border border-line-control rounded-xl text-sm text-slate-700 min-h-10">
                     <span className="text-slate-500 font-medium">{t.pagination.page}</span>
                     <select
                         value={currentPage}

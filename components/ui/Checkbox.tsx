@@ -18,7 +18,9 @@ export interface CheckboxProps {
 // -- ซึ่งไม่มีใครเห็นเพราะมันต่างกันไม่กี่พิกเซล ตอนนี้มีที่เดียว
 const BOX =
     'relative h-4 w-4 shrink-0 cursor-pointer appearance-none rounded-md border-2 ' +
-    'border-slate-300 bg-white transition ' +
+    // ช่องที่ยังไม่ติ๊กมีแต่เส้นขอบ ไม่มีพื้น ไม่มีเครื่องหมาย -- เส้นคือทั้งหมด
+    // ที่ผู้ใช้เห็น `border-slate-300` เดิมวัดได้ 1.49:1 บนขาว ไม่ผ่าน 3:1
+    'border-line-control bg-white transition ' +
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ' +
     'checked:border-brand-600 checked:bg-brand-600 ' +
     'indeterminate:border-brand-600 indeterminate:bg-brand-600';

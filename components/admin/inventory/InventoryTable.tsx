@@ -124,7 +124,10 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
             }
             head={
                 <tr>
-                    <th scope="col" className="w-10 border-b border-slate-200 px-3 py-2.5">
+                    {/* เส้นใต้ต้องเป็นค่าเดียวกับ TH_BASE ใน DataTable.tsx -- ช่องนี้
+                        เขียนคลาสเอง ไม่ได้ผ่าน SortableTh ถ้าปล่อยไว้ หัวตารางจะมี
+                        เส้นใต้สองเฉดในแถวเดียวกัน โดยเห็นชัดเฉพาะตอนหัวตารางเลื่อนติดจอ */}
+                    <th scope="col" className="w-10 border-b border-line-overlay px-3 py-2.5">
                         <Checkbox
                             id="select-all-pallets"
                             ariaLabel={t.inventory.selectAllPallets}

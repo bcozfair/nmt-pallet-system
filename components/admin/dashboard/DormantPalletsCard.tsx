@@ -55,8 +55,10 @@ export interface DormantPalletsCardProps {
 // loaded table within a couple of pixels of each other.
 const CELL = 'border-b border-slate-100 px-3 py-1.5';
 
+// พื้นและเส้นชุดเดียวกับหัวตารางใน DataTableView.tsx -- หัวที่เลื่อนตามจอต้อง
+// แยกออกจากแถวข้อมูลที่มันทับอยู่
 const HEAD_CELL =
-    'sticky top-0 z-10 border-b border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600';
+    'sticky top-0 z-10 border-b border-line-overlay bg-canvas px-3 py-2 text-xs font-bold text-slate-600';
 
 export const DormantPalletsCard: React.FC<DormantPalletsCardProps> = ({
     rows,

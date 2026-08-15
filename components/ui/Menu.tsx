@@ -64,10 +64,15 @@ const CHIP = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg';
 //
 // `overscroll-contain` กันไม่ให้การเลื่อนที่สุดรายการไปลากหน้าข้างหลังเลื่อนตาม
 // ส่วน `styled-scrollbar` เป็นสกรอลล์บาร์ชุดเดียวกับที่ AdminSidebar ใช้
+//
+// ขอบและเงาเป็นชุด "overlay" ไม่ใช่ชุดของการ์ด: พาเนลนี้เปิดทับการ์ดเสมอ ถ้ามัน
+// ใช้ความสูงเท่าการ์ด มันก็ไม่ได้อ่านว่าลอยอยู่ข้างบน -- ซึ่งเป็นสภาพเดิมพอดี
+// บรรทัดนี้เคยเขียนเงา `0 24px 60px -32px` ไว้เอง ค่าเดียวกับที่ Card.tsx เขียนไว้
+// คำต่อคำ ตอนนี้ทั้งคู่อ่านโทเคนคนละตัวที่วางไว้ติดกันใน index.css
 const PANEL_SHAPE =
     'absolute z-30 max-h-[60vh] overflow-y-auto overscroll-contain styled-scrollbar ' +
-    'rounded-2xl border border-slate-200 ' +
-    'bg-white p-1.5 shadow-[0_24px_60px_-32px_rgba(15,42,82,0.45)] animate-pop-in';
+    'rounded-2xl border border-line-overlay ' +
+    'bg-white p-1.5 shadow-overlay animate-pop-in';
 
 // max-w กันพาเนลไม่ให้ล้นจอ 360px: มันเกาะกับปุ่มที่อาจอยู่ชิดขอบจอ w-64 เปล่า ๆ
 // จึงห้อยพ้นจอได้เมื่อป้ายภาษาไทยดันให้กว้างขึ้น

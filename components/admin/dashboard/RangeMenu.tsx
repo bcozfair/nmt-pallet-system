@@ -84,7 +84,9 @@ const CHIP_BASE =
     'inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium leading-snug whitespace-nowrap';
 
 const TRIGGER =
-    `${CHIP_BASE} border border-slate-200 bg-white text-slate-700 transition duration-200 ` +
+    // ชิปนี้เป็นปุ่ม -- เส้นขอบคือสิ่งเดียวที่บอกว่ามันกดได้ ใช้เกณฑ์เดียวกับ
+    // ปุ่ม secondary ใน Button.tsx (WCAG 1.4.11 ขั้นต่ำ 3:1)
+    `${CHIP_BASE} border border-line-control bg-white text-slate-700 transition duration-200 ` +
     'hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 ' +
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500';
 
@@ -232,8 +234,10 @@ export const RangeMenu: React.FC<RangeMenuProps> = ({ value, onChange }) => {
                     // this file. Right-aligned and opening downward keeps it
                     // inside the card, which clips anything that escapes.
                     className={
-                        'absolute right-0 z-30 mt-1.5 w-40 rounded-xl border border-slate-200 bg-white p-1 ' +
-                        'shadow-[0_24px_60px_-32px_rgba(15,42,82,0.45)]'
+                        // ชั้น overlay ชุดเดียวกับ Menu.tsx -- พาเนลนี้เปิดทับการ์ด
+                        // จึงต้องอยู่สูงกว่าการ์ดหนึ่งขั้น ไม่ใช่ระดับเดียวกัน
+                        'absolute right-0 z-30 mt-1.5 w-40 rounded-xl border border-line-overlay bg-white p-1 ' +
+                        'shadow-overlay'
                     }
                 >
                     {RANGE_ORDER.map((option, index) => {

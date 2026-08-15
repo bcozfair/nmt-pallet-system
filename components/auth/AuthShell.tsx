@@ -21,7 +21,11 @@ export const AuthShell: React.FC<AuthShellProps> = ({ title, subtitle, busy = fa
 
     return (
         <div className="auth-canvas flex min-h-dvh items-center justify-center px-4 py-8">
-            <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_24px_60px_-32px_rgba(15,42,82,0.45)] animate-auth-card-in">
+            {/* โทเคนชุดเดียวกับ CARD_SHELL ใน components/ui/Card.tsx -- คอมเมนต์
+                ที่นั่นบันทึกไว้ว่าการ์ดใบนี้กับการ์ดในแอปห้ามหลุดจากกัน ตอนที่ทั้งคู่
+                เขียนค่าเงาเป็นตัวเลขดิบ การแก้ที่เดียวจึงทำให้สองครึ่งของแอปเพี้ยน
+                จากกันเงียบ ๆ ได้ ตอนนี้ทั้งคู่อ่านโทเคนตัวเดียวกัน */}
+            <div className="w-full max-w-md overflow-hidden rounded-3xl border border-line-card bg-white shadow-raised animate-auth-card-in">
                 {/* Brand hairline. Also the only progress indicator on these
                     screens: the gradient is twice the width of the bar, so
                     sliding it reads as motion along the edge of the card. */}

@@ -51,7 +51,8 @@ export const InventorySelectionBar: React.FC<InventorySelectionBarProps> = ({
             clearLabel={t.common.cancel}
             detail={
                 showIds && sortedIds.length > 0 ? (
-                    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
+                    // แผงนี้ห้อยจากแถบที่ลอยอยู่เหนือตาราง จึงเป็นชั้น overlay
+                    <div className="rounded-2xl border border-line-overlay bg-white p-3 shadow-overlay">
                         <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                             {sortedIds.map((id) => (
                                 <span

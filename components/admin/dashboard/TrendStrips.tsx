@@ -91,7 +91,8 @@ const StripTooltip: React.FC<{
     return (
         // HTML, never the SVG default: that one hard-codes a pixel width Thai
         // series names overflow. max-w plus wrapping for the same reason.
-        <div className="max-w-[15rem] rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-lg">
+        // ชั้น overlay ชุดเดียวกับเมนู: ทูลทิปลอยอยู่เหนือทั้งกราฟและการ์ดที่กราฟอยู่
+        <div className="max-w-[15rem] rounded-xl border border-line-overlay bg-white px-3 py-2 shadow-overlay">
             <p className="text-xs font-semibold text-slate-800">{point.label}</p>
             <p className="mt-1 flex items-center gap-1.5 text-xs">
                 <span

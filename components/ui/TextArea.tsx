@@ -12,7 +12,10 @@ const BASE =
     'placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-50 ' +
     'focus-visible:outline-2 focus-visible:outline-offset-2';
 
-const SURFACE_IDLE = 'border-slate-200 focus-visible:outline-brand-500';
+// `border-line-control` ไม่ใช่ `border-slate-200`: กล่องขาวใบนี้วางอยู่บนการ์ดขาว
+// เส้นขอบจึงเป็นสิ่งเดียวที่บอกว่ามันเป็นตัวควบคุม ค่าเดิมวัดได้ 1.23:1 ซึ่งไม่ผ่าน
+// WCAG 1.4.11 (ขั้นต่ำ 3:1 สำหรับขอบเขตของ UI component) ดูโทเคนใน index.css
+const SURFACE_IDLE = 'border-line-control focus-visible:outline-brand-500';
 const SURFACE_INVALID = 'border-red-300 focus-visible:outline-red-500';
 
 export const TextArea: React.FC<TextAreaProps> = ({

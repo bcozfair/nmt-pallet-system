@@ -27,7 +27,10 @@ const JUSTIFY = { left: 'justify-start', right: 'justify-end', center: 'justify-
 //
 // ไม่มี uppercase และไม่มี tracking ค่าบวก ทั้งคู่เป็น regression ที่เห็นเฉพาะ
 // ภาษาเดียว -- uppercase ไม่มีผลกับไทย ส่วน tracking บวกดันวรรณยุกต์ออกจากตัวอักษร
-const TH_BASE = 'border-b border-slate-200 px-3 py-2.5 text-xs font-bold text-slate-600';
+// เส้นใต้หัวตารางใช้ `line-overlay` ไม่ใช่ `slate-200`: หัวตารางเป็นแถวที่ต้อง
+// อ่านออกว่าไม่ใช่ข้อมูล และเมื่อมันเลื่อนตามจอ (sticky) มันคือแถบที่ลอยทับ
+// แถวข้อมูลจริง ๆ เส้นจึงต้องเข้มกว่าเส้นคั่นระหว่างแถว
+const TH_BASE = 'border-b border-line-overlay px-3 py-2.5 text-xs font-bold text-slate-600';
 
 export function SortableTh<K extends string>({
     label,
@@ -153,7 +156,11 @@ export const DataTable: React.FC<DataTableProps> = ({
                         ค่าความสูงจริงของกองนั้นถูกวัดตอนรันไทม์แล้วประกาศไว้ที่
                         <html> หน้าที่ไม่ได้ใช้ StickyHeader ก็ไม่มีตัวแปรนี้ จึงตกไป
                         ใช้ 0px ซึ่งเท่ากับ top-0 เดิมพอดี */}
-                    <thead className="bg-slate-50 text-slate-500 xl:sticky xl:top-[var(--sticky-head-h,0px)] xl:z-10">
+                    {/* bg-canvas ไม่ใช่ bg-slate-50: `#f8fafc` ห่างจากแถวข้อมูลสีขาว
+                        แค่ 1.05:1 หัวตารางจึงแทบไม่ต่างจากแถวแรก ตอนนี้ใช้ค่าเดียว
+                        กับพื้นหน้าจอ -- หัวตารางอ่านว่าเป็น "พื้น" ส่วนแถวข้อมูลอ่านว่า
+                        เป็น "แผ่นที่วางอยู่บนพื้น" ซึ่งตรงกับความจริงของทั้งหน้า */}
+                    <thead className="bg-canvas text-slate-500 xl:sticky xl:top-[var(--sticky-head-h,0px)] xl:z-10">
                         {head}
                     </thead>
                     {children}
