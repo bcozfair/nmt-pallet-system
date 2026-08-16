@@ -109,7 +109,7 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ src, onClose
             isOpen={!!src}
             onClose={onClose}
             title={t.modals.previewAlt}
-            size="xl"
+            size="square"
             // ชั้นสองจริง ๆ: กล่องนี้เปิดทับ PalletDetailModal เสมอ ค่านี้ทำให้มัน
             // ได้ z-[60] และเป็นตัวที่กิน Escape ก่อน ของเดิมไม่มี Escape เลย
             level={2}
@@ -144,18 +144,20 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({ src, onClose
                 </>
             }
         >
-            {/* ความสูงคงที่ ไม่ใช่ min-h-[60vh] -- และนี่คือเหตุผลที่รูปเคยไม่พอดีจอ
-                ตอนเปิด: `max-h-full` ของ <img> คิดจากความสูงของกล่องแม่ แต่กล่องที่มีแค่
-                ความสูง "ขั้นต่ำ" ถือว่าความสูงไม่ชี้ขาด เบราว์เซอร์จึงตีความ max-height
-                เปอร์เซ็นต์นั้นเป็น none รูปจากมือถือที่สูง 3000px จึงเรนเดอร์เต็มขนาดจริง
-                แล้วถูก overflow-hidden ตัดหัวตัดท้าย เหลือให้เห็นแค่ช่วงกลาง ต้องกดย่อ
-                เองทุกครั้งกว่าจะเห็นทั้งใบ
+            {/* จัตุรัส 1:1 -- `aspect-square` คู่กับ size="square" ของ Modal: ตัวหลัง
+                คุมความกว้างกล่องให้ไม่เกินความสูงที่จอเหลือ ตัวนี้จึงได้ความสูงเท่ากับ
+                ความกว้างเสมอโดยไม่ทะลุ max-h-[90vh] ของ panel (ถ้าใช้ size="xl" เดิม
+                กล่องจะกว้าง 896px แล้วจัตุรัสสูง 896px ไม่พอดีจอเตี้ย)
 
-                พอความสูงชี้ขาด max-h-full/max-w-full + object-contain ก็ทำงานตามที่ตั้งใจ
-                ไว้แต่แรก คือย่อรูปให้พอดีกรอบตั้งแต่ scale 1 -- ค่าเริ่มต้นคือเห็นเต็มรูป
-                ส่วนปุ่มขยายมีไว้ให้ซูมดูรอยชำรุดใกล้ ๆ ทีหลัง */}
+                ยังต้องเป็นความสูงที่ "ชี้ขาด" เหมือนตอนเป็น h-[70vh] ด้วยเหตุผลเดิม:
+                `max-h-full` ของ <img> คิดจากความสูงของกล่องแม่ ถ้ากล่องแม่มีแค่ความสูง
+                ขั้นต่ำ (min-h-*) เบราว์เซอร์ตีความ max-height เปอร์เซ็นต์เป็น none รูป
+                จากมือถือที่สูง 3000px จะเรนเดอร์เต็มขนาดจริงแล้วถูก overflow-hidden ตัด
+                หัวตัดท้าย -- aspect-square ให้ความสูงที่คำนวณจากความกว้าง จึงชี้ขาด
+                เหมือนกัน max-h-full/max-w-full + object-contain ย่อรูปให้พอดีกรอบตั้งแต่
+                scale 1 ค่าเริ่มต้นคือเห็นเต็มรูป ปุ่มขยายมีไว้ซูมดูรอยชำรุดทีหลัง */}
             <div
-                className="-mx-5 -mb-5 flex h-[70vh] items-center justify-center overflow-hidden bg-slate-950"
+                className="-mx-5 -mb-5 flex aspect-square items-center justify-center overflow-hidden bg-slate-950"
                 onWheel={handleWheel}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}

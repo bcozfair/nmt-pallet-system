@@ -68,6 +68,20 @@ describe('ImageViewerModal', () => {
         expect(img.style.transform).toContain('scale(1.1)');
     });
 
+    // กรอบรูปเป็นจัตุรัส 1:1 -- สองคลาสนี้ต้องมาคู่กันเสมอ ถ้ามีแค่ aspect-square
+    // แต่กล่องกลับไปกว้างตาม max-w-4xl ของ size="xl" จัตุรัสจะสูง 896px ซึ่งเกิน
+    // max-h-[90vh] ของ panel บนจอเตี้ย แล้วรูปจะถูกดันเข้า overflow-y-auto ของเนื้อ
+    // กล่อง กลายเป็นจัตุรัสที่ถูกตัดท้ายพร้อมแถบเลื่อน -- เทสต์นี้จึงเช็กทั้งคู่
+    it('กรอบรูปเป็นจัตุรัส 1:1 และความกว้างกล่องผูกกับความสูงจอ ไม่ให้จัตุรัสล้นออกนอกจอ', () => {
+        render(<ImageViewerModal src="https://example.com/evidence.jpg" onClose={() => {}} />);
+
+        const stage = screen.getByAltText(EVIDENCE_ALT).parentElement as HTMLElement;
+        expect(stage.className).toContain('aspect-square');
+
+        const panel = screen.getByRole('dialog');
+        expect(panel.className).toContain('max-w-[min(56rem,calc(90vh-5rem))]');
+    });
+
     // ค่า 0.5 / 3 มาจากตัว clamp จริงใน handleZoomOut/handleZoomIn
     // (Math.max(prev - 0.25, 0.5) และ Math.min(prev + 0.25, 3)) ไม่ใช่ตัวเลขที่คิดเอง
     it('ปุ่มขยายถูก disable ที่ขีดจำกัดบน (300%) และปุ่มย่อถูก disable ที่ขีดจำกัดล่าง (50%)', async () => {

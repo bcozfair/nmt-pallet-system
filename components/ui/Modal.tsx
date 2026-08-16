@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { BrandHairline, CARD_SURFACE } from './Card';
 
-export type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
+export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'square';
 export type ModalTone = 'brand' | 'accent' | 'danger';
 
 export interface ModalProps {
@@ -59,6 +59,16 @@ const SIZE: Record<ModalSize, string> = {
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-4xl',
+    // สำหรับกล่องที่ "เนื้อ" เป็นสี่เหลี่ยมจัตุรัส (aspect-square) -- ตัวเดียวในชุดที่
+    // ความกว้างผูกกับความสูงจอ ไม่ใช่ค่าคงที่ เพราะกล่องแบบนั้นความสูงเท่ากับความกว้าง
+    // เสมอ ถ้าปล่อยให้กว้างตาม max-w-4xl (896px) บนจอเตี้ย (เช่น 1536x730 -> 90vh
+    // = 657px) กล่องจะสูงเกิน max-h-[90vh] ข้างล่าง แล้วเนื้อถูกดันเข้า overflow-y-auto
+    // -- ได้จัตุรัสที่โดนตัดท้ายพร้อมแถบเลื่อน แทนที่จะได้จัตุรัสทั้งใบ
+    //
+    // 5rem ที่หักออกคือส่วนที่ไม่ใช่เนื้อ: หัวกล่อง (py-4 + ปุ่ม ✕ สูง 34px ~ 66px)
+    // + BrandHairline 3px เผื่อไว้เล็กน้อย ส่วน 56rem คือเพดานเดียวกับ xl ไม่ให้
+    // จอสูงมาก ๆ ดันกล่องกว้างเกินตระกูลเดิม
+    square: 'max-w-[min(56rem,calc(90vh-5rem))]',
 };
 
 // ระบายชิปไอคอนอย่างเดียว ชุดเดียวกับ TONE_CHIP ใน StatTile.tsx และชิปไอคอนของ Menu
