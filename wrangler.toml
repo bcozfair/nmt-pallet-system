@@ -1,0 +1,13 @@
+# Cloudflare Pages project config.
+#
+# Only `pages_build_output_dir` actually matters here: it tells Cloudflare that
+# the deployable site is dist/, so the same answer is recorded in the repo
+# rather than typed into a dashboard field nobody can see afterwards.
+#
+# The build command and environment variables are NOT set here -- Pages reads
+# those from the project settings (Git integration) or from the CI workflow in
+# .github/workflows/deploy.yml.
+
+name = "nmt-pallet-system"
+compatibility_date = "2026-09-15"
+pages_build_output_dir = "dist"

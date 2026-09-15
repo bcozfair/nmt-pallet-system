@@ -16,7 +16,15 @@
  * the cache is a fallback for when the phone briefly drops off the Wi-Fi.
  */
 
-const CACHE = 'nmt-shell-v1';
+// The `__BUILD_ID__` half is rewritten at build time by the
+// stampServiceWorker() plugin in vite.config.ts with a hash of everything in
+// dist/. That is what makes each deploy a *different* cache: the activate
+// handler below deletes every cache that is not this one, so the old shell --
+// and the old index.html pointing at asset filenames the server no longer
+// has -- is evicted instead of sitting there waiting for a dropped connection
+// to serve it. In `vite dev` the placeholder is left as-is, which is harmless;
+// it is only ever a cache key.
+const CACHE = 'nmt-shell-__BUILD_ID__';
 const SHELL = ['/', '/index.html', '/favicon.svg', '/icons/icon-192.png'];
 
 self.addEventListener('install', (event) => {

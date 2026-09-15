@@ -1,0 +1,15 @@
+# Cloudflare Pages header rules (also understood by Netlify).
+#
+# Everything under /assets/ is content-hashed by Vite, so the filename changes
+# whenever the contents do and it is safe to cache for a year.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# sw.js and the manifest are fetched by filename, not by hash. If an
+# intermediary holds on to them, a device keeps running the previous worker
+# after a deploy -- which is the exact staleness the build id was added to
+# prevent -- so they must be revalidated every time.
+/sw.js
+  Cache-Control: no-cache
+/manifest.json
+  Cache-Control: no-cache

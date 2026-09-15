@@ -1,0 +1,65 @@
+# Build and deploy the app to Cloudflare Pages.
+#
+# Use EITHER this workflow OR Cloudflare's own Git integration -- not both, or
+# every push produces two deployments racing for the same URL. This one exists
+# because it runs `typecheck` and `test` first: Cloudflare's built-in build
+# only runs `npm run build`, which is `vite build`, which happily ships code
+# that does not typecheck and tests that do not pass.
+#
+# Repository secrets required (Settings -> Secrets and variables -> Actions):
+#   CLOUDFLARE_API_TOKEN   token with the "Cloudflare Pages -- Edit" permission
+#   CLOUDFLARE_ACCOUNT_ID  from the right-hand sidebar of the Cloudflare dashboard
+#   VITE_SUPABASE_URL      same values as .env.local; Vite inlines them at BUILD
+#   VITE_SUPABASE_ANON_KEY time, so they must be present in this job, not at runtime
+
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  # Lets you re-deploy the current main from the Actions tab without an empty commit.
+  workflow_dispatch:
+
+# A second push while the first is still deploying should supersede it rather
+# than queue behind it and overwrite the newer build.
+concurrency:
+  group: deploy-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      # `npm ci` rather than `npm install`: it installs exactly what
+      # package-lock.json pins, so CI cannot quietly build against a different
+      # dependency tree than the one that was tested locally.
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy --project-name=nmt-pallet-system
