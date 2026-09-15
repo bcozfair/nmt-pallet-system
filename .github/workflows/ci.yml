@@ -1,0 +1,47 @@
+# Quality gate. This workflow does NOT deploy.
+#
+# Deploys are owned by Cloudflare's Git integration, which builds every push to
+# main by itself. Running a second deploy from here would mean two builds
+# racing for the same URL, so this workflow only answers the question
+# Cloudflare's build does not: does the code typecheck and do the tests pass?
+# `npm run build` is `vite build`, which will happily ship code that fails both.
+#
+# Note that this is advisory -- Cloudflare deploys whether or not this job is
+# green. It tells you the build you just shipped is broken; it cannot stop it.
+# Enable "Require status checks to pass" on the main branch if you want it to.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Reads .nvmrc, the same file Cloudflare's build image reads, so CI
+          # and the real build cannot drift onto different Node versions.
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      # `npm ci` rather than `npm install`: it installs exactly what
+      # package-lock.json pins, so CI cannot quietly test a different
+      # dependency tree than the one that gets deployed.
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
