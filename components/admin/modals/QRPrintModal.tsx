@@ -4,15 +4,17 @@ import { QrCode, Printer, ImageDown } from 'lucide-react';
 import { useT } from '../../../hooks/useT';
 import { getLang } from '../../../services/i18n';
 import { toast } from '../../../services/toast';
+import { qrPngDataUrl, qrSvgDataUrl } from '../../../services/qrImage';
 import { Button, Modal } from '../../ui';
 
-// A pallet id was previously dropped straight into both the QR service URL and
-// the print window's markup. Today's ids are all "P001"-shaped so nothing broke,
-// but an id containing & or = silently produced the wrong QR code, and one
-// containing < injected markup into a document built with innerHTML semantics.
-// Neither is acceptable for a value that reaches the UI from the database.
-const qrUrl = (palletId: string, size: number) =>
-    `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(palletId)}`;
+// A pallet id was previously dropped straight into the print window's markup.
+// Today's ids are all "P001"-shaped so nothing broke, but one containing <
+// injected markup into a document built with innerHTML semantics, which is not
+// acceptable for a value that reaches the UI from the database.
+//
+// The symbols themselves come from services/qrImage, which draws them here in
+// the browser. Nothing on this screen contacts a server any more, so a sheet of
+// labels prints with the warehouse offline.
 
 const escapeHtml = (value: string) =>
     value.replace(/[&<>"']/g, ch => (
@@ -70,10 +72,14 @@ export const QRPrintModal = ({ pallets, onClose }: { pallets: Pallet[], onClose:
                         align-items: center;
                         justify-content: center;
                     }
-                    img { 
-                        width: 100px; 
-                        height: 100px; 
-                        image-rendering: pixelated;
+                    /* No image-rendering here any more. It was worth having when
+                       the symbol arrived as a 150px bitmap and the printer had
+                       to enlarge it; the symbol is now an SVG, and asking a
+                       vector to render like a low-resolution bitmap only costs
+                       sharpness at print resolution. */
+                    img {
+                        width: 100px;
+                        height: 100px;
                     }
                     .title {
                         font-family: 'Courier New', monospace;
@@ -106,7 +112,7 @@ export const QRPrintModal = ({ pallets, onClose }: { pallets: Pallet[], onClose:
                     ${pallets.map(p => `
                         <div class="card">
                             <div class="title">${escapeHtml(p.pallet_id)}</div>
-                            <img src="${qrUrl(p.pallet_id, 150)}" />
+                            <img src="${qrSvgDataUrl(p.pallet_id)}" />
                             <div class="footer">${t.modals.propertyMark}</div>
                         </div>
                     `).join('')}
@@ -124,20 +130,18 @@ export const QRPrintModal = ({ pallets, onClose }: { pallets: Pallet[], onClose:
         printWindow.document.close();
     };
 
-    const handleDownloadImage = async (palletId: string) => {
+    // No longer async, and no longer a fetch: the PNG is drawn on a canvas in
+    // this tab. The try/catch stays because canvas encoding can still fail --
+    // a browser with canvas disabled for fingerprinting reasons, chiefly -- and
+    // a silent no-op on a button press is worse than a toast.
+    const handleDownloadImage = (palletId: string) => {
         try {
-            const url = qrUrl(palletId, 300);
-            const response = await fetch(url);
-            const blob = await response.blob();
-            const downloadUrl = URL.createObjectURL(blob);
-
             const link = document.createElement('a');
-            link.href = downloadUrl;
+            link.href = qrPngDataUrl(palletId, 300);
             link.download = `NMT_QR_${palletId}.png`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            URL.revokeObjectURL(downloadUrl);
         } catch (error: any) {
             console.error('Download failed', error);
             // toast ไม่ใช่ alert: alert() บล็อกเธรดทั้งหน้าจนกว่าจะกดตกลง ซึ่งบน
@@ -182,9 +186,9 @@ export const QRPrintModal = ({ pallets, onClose }: { pallets: Pallet[], onClose:
 
                             <div className="rounded-lg border border-slate-100 bg-white p-2">
                                 <img
-                                    src={qrUrl(p.pallet_id, 150)}
+                                    src={qrSvgDataUrl(p.pallet_id)}
                                     alt={p.pallet_id}
-                                    className="rendering-pixelated h-24 w-24 object-contain mix-blend-multiply"
+                                    className="h-24 w-24 object-contain mix-blend-multiply"
                                 />
                             </div>
 
