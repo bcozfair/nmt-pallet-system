@@ -48,6 +48,40 @@ export class AppError extends Error {
 export const isAppError = (e: unknown): e is AppError =>
     e instanceof AppError;
 
+// A bulk check-out/check-in is not all-or-nothing: 30 pallets go in, some are
+// written and some are refused, and the refusals are ordinary working states
+// rather than faults -- somebody else already issued that pallet, it is sitting
+// in the workshop with a damage report on it. So they are not AppErrors and are
+// never thrown. They come back in the result and are reported per pallet.
+//
+// The list used to be bare ids: "ไม่สำเร็จ: P005, P007". Once the status guard
+// in createBulkTransaction started refusing rows on purpose, that message became
+// actively misleading -- it reads as a malfunction, when the system is telling
+// the operator the floor does not match the screen. Naming the reason is what
+// turns it back into information they can act on.
+export type BulkFailureReason =
+    | 'not_found'
+    | 'already_checked_out'
+    | 'not_checked_out'
+    | 'damaged'
+    | 'scrapped'
+    // Lost a race: the row was in the expected state when it was read, and not
+    // when the update reached it. Two people scanning the same pallet is the
+    // way this happens in the warehouse.
+    | 'changed_by_other'
+    | 'error';
+
+export interface BulkFailure {
+    palletId: string;
+    reason: BulkFailureReason;
+}
+
+/** "P005 (ถูกเบิกออกไปแล้ว), P007 (ไม่พบในระบบ)" -- for the partial-success toast. */
+export const describeBulkFailures = (failures: BulkFailure[]): string => {
+    const reasons = dict().errors.bulkReason;
+    return failures.map(({ palletId, reason }) => `${palletId} (${reasons[reason]})`).join(', ');
+};
+
 // The single place an error becomes something a user reads. Call it wherever a
 // catch block needs a display string.
 //

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { ActionType, Pallet, Transaction } from '../types';
+import { ActionType, Pallet, PalletStatus, Transaction } from '../types';
 import { fetchPallets } from './palletService';
 import {
     DAMAGE_BUCKET,
@@ -8,13 +8,22 @@ import {
     removeEvidenceObjects,
     collectEvidenceOlderThan,
 } from './storageService';
-import { AppError } from './appError';
+import { AppError, BulkFailure, BulkFailureReason } from './appError';
 import { batchKeyOf } from './transactionBatch';
 
 // --- TRANSACTIONS (Check In/Out/Damage) ---
 
+interface PalletState {
+    /** current_location ณ วินาทีก่อนเขียน คือ "ที่มา" ของธุรกรรมที่กำลังจะบันทึก */
+    origin: string | null;
+    status: PalletStatus;
+}
+
 /**
- * "สถานที่ที่ทำรายการล่าสุด" ของพาเลทกลุ่มหนึ่ง อ่าน ณ วินาทีก่อนจะเขียนทับ
+ * สถานะและที่ตั้งของพาเลทกลุ่มหนึ่ง อ่าน ณ วินาทีก่อนจะเขียนทับ
+ *
+ * status อ่านมาด้วยเพราะ createBulkTransaction ต้องรู้ว่าพาเลทอยู่ในสถานะที่รับ
+ * ธุรกรรมนั้นได้หรือไม่ การอ่านทั้งสองค่าใน query เดียวถูกกว่ายิงสองรอบ
  *
  * ทุกเส้นทางที่บันทึกธุรกรรมอัปเดต pallets ก่อนแล้วค่อย insert transactions ค่า
  * current_location ที่เป็น "ที่มา" ของธุรกรรมนั้นจึงถูกทับไปแล้วเมื่อถึงบรรทัด insert
@@ -25,21 +34,24 @@ import { batchKeyOf } from './transactionBatch';
  * ก่อนหน้ามักเป็นของพนักงานคนอื่นซึ่งไม่ได้อยู่ในชุดข้อมูลที่หน้าประวัติโหลดมา ตรงจุดเขียน
  * คำตอบอยู่ในมืออยู่แล้วด้วย query เดียวต่อหนึ่งครั้งที่บันทึก
  */
-const readOrigins = async (palletIds: string[]): Promise<Map<string, string | null>> => {
+const readStates = async (palletIds: string[]): Promise<Map<string, PalletState>> => {
     if (palletIds.length === 0) return new Map();
 
     const { data, error } = await supabase
         .from('pallets')
-        .select('pallet_id, current_location')
+        .select('pallet_id, current_location, status')
         .in('pallet_id', palletIds);
 
     if (error) throw error;
-    return new Map((data ?? []).map((row) => [row.pallet_id as string, row.current_location ?? null]));
+    return new Map((data ?? []).map((row) => [
+        row.pallet_id as string,
+        { origin: row.current_location ?? null, status: row.status as PalletStatus },
+    ]));
 };
 
-/** ที่ตั้งล่าสุดของพาเลทใบเดียว -- ตัวห่อบางของ readOrigins ให้เส้นทางที่ทำทีละใบอ่านง่าย */
+/** ที่ตั้งล่าสุดของพาเลทใบเดียว -- ตัวห่อบางของ readStates ให้เส้นทางที่ทำทีละใบอ่านง่าย */
 const readOrigin = async (palletId: string): Promise<string | null> =>
-    (await readOrigins([palletId])).get(palletId) ?? null;
+    (await readStates([palletId])).get(palletId)?.origin ?? null;
 
 export const fetchPalletHistory = async (palletId: string): Promise<Transaction[]> => {
     let query = supabase.from('transactions').select('*').order('timestamp', { ascending: false });
@@ -582,6 +594,27 @@ export const reportDamage = async (palletId: string, userId: string, imageFile: 
     return true;
 };
 
+/** สถานะที่พาเลทต้องเป็นอยู่ จึงจะรับธุรกรรมนั้นได้ */
+const REQUIRED_STATUS: Record<'check_out' | 'check_in', PalletStatus> = {
+    check_out: 'available',
+    check_in: 'in_use',
+};
+
+/**
+ * แปลสถานะที่พบจริงเป็นเหตุผลที่ผู้ใช้อ่านแล้วรู้ว่าต้องทำอะไรต่อ
+ *
+ * ชำรุด/ตัดออก มาก่อนเสมอ เพราะสองอย่างนี้บล็อกทั้งเบิกและคืน การบอกว่า
+ * "ถูกเบิกออกไปแล้ว" กับพาเลทที่แจ้งชำรุดไว้ จะส่งพนักงานไปตามหาใบที่ไม่ได้หายไปไหน
+ */
+const rejectionFor = (
+    actionType: 'check_out' | 'check_in',
+    status: PalletStatus
+): BulkFailureReason => {
+    if (status === 'scrapped') return 'scrapped';
+    if (status === 'damaged') return 'damaged';
+    return actionType === 'check_out' ? 'already_checked_out' : 'not_checked_out';
+};
+
 /**
  * บันทึกการเบิกออก/รับคืนของพาเลทหลายใบเป็น "หนึ่งครั้ง"
  *
@@ -592,6 +625,13 @@ export const reportDamage = async (palletId: string, userId: string, imageFile: 
  *
  * ที่นี่คำนวณ timestamp ครั้งเดียวก่อนเข้าลูปแล้วประทับให้ทุกแถว ซึ่งเป็นสัญญาที่การ
  * จัดกลุ่มทั้งระบบพึ่งพา และมีเทสต์ล็อกไว้ที่ transactionService.test.ts
+ *
+ * สถานะเดิมถูกตรวจสองชั้น และทั้งสองชั้นจำเป็น: อ่านก่อนเพื่อบอกเหตุผลได้ว่าทำไมไม่ผ่าน
+ * และใส่เงื่อนไขเดียวกันนั้นลงใน WHERE ของ UPDATE ด้วย ของเดิมมีแต่เงื่อนไข pallet_id
+ * พนักงานสองคนที่สแกนพาเลทใบเดียวกันจึงเบิกออกสำเร็จทั้งคู่ ได้แถว check_out สองแถวของพาเลท
+ * ใบเดียว และ current_location เป็นของคนที่เขียนทีหลัง -- พาเลทหนึ่งใบอยู่สองแผนกพร้อมกัน
+ * ตามบันทึก เพราะ UPDATE ... WHERE status = ? เป็น atomic ในตัวมันเอง คนที่มาทีหลัง
+ * จึงได้ 0 แถว และรู้ตัวว่าแพ้ แทนที่จะเขียนทับกันเงียบ ๆ
  */
 export const createBulkTransaction = async (
     palletIds: string[],
@@ -600,86 +640,75 @@ export const createBulkTransaction = async (
     departmentDest?: string,
     remark?: string,
     manualTimestamp?: string
-): Promise<{ success: string[], failed: string[] }> => {
+): Promise<{ success: string[], failed: BulkFailure[] }> => {
+    // เงื่อนไขของทั้งชุด ไม่ใช่ของพาเลทใบใดใบหนึ่ง จึงต้องโยน ไม่ใช่ปัดทุกใบเป็น
+    // failed เงียบ ๆ อย่างที่เคยทำ -- ข้อความ "ต้องเลือกแผนกปลายทาง" แก้ได้
+    // ส่วน "P001, P002, ... ไม่สำเร็จ" บอกอะไรไม่ได้เลย
+    if (actionType === 'check_out' && !departmentDest) throw new AppError('destination_required');
+
     const timestamp = manualTimestamp || new Date().toISOString();
     const success: string[] = [];
-    const failed: string[] = [];
+    const failed: BulkFailure[] = [];
 
     // อ่านทีเดียวทั้งชุดก่อนเข้าลูป ไม่ใช่ยิงต่อพาเลทหนึ่งใบ -- ชุดหนึ่งมีได้ถึง 50 ใบ และ
     // ลูปข้างล่างอัปเดต pallets ทีละใบ พออัปเดตใบแรกไปแล้วค่าเดิมของใบนั้นก็หายไป
-    const origins = await readOrigins(palletIds);
+    const states = await readStates(palletIds);
+    const required = REQUIRED_STATUS[actionType];
 
     // Process sequentially to be safe, or Promise.all if we trust DB concurrency
     // Given Supabase, Promise.all is usually fine but let's do safe iteration for better error tracking per item
     for (const id of palletIds) {
+        const state = states.get(id);
+
+        if (!state) {
+            failed.push({ palletId: id, reason: 'not_found' });
+            continue;
+        }
+
+        if (state.status !== required) {
+            failed.push({ palletId: id, reason: rejectionFor(actionType, state.status) });
+            continue;
+        }
+
         try {
-            if (actionType === 'check_out') {
-                if (!departmentDest) throw new AppError('destination_required');
+            // ค่าที่เขียนต่างกันสองทาง นอกนั้นเหมือนกันทั้งคู่ จึงแยกแค่สองค่านี้
+            const write = actionType === 'check_out'
+                ? { status: 'in_use' as const, current_location: departmentDest!, last_checkout_date: timestamp }
+                : { status: 'available' as const, current_location: 'Warehouse', last_checkout_date: null };
 
-                // Update Pallet
-                //
-                // .select() ต่อท้ายเพื่อให้รู้ว่ามีแถวถูกแก้จริงไหม -- UPDATE ที่ไม่ตรงแถวไหนเลย
-                // ไม่ใช่ error ใน PostgREST มันสำเร็จเงียบ ๆ แล้วปล่อยให้ไปพังตอน insert
-                // ธุรกรรมด้วย foreign key violation ซึ่งเป็นข้อความที่โยงกลับมาหาสาเหตุไม่ได้
-                //
-                // เดิมการ์ดใบนี้อยู่ใน checkOutPallet() ซึ่งเป็นเส้นทางที่หน้ามือถือเคยใช้
-                // พอย้ายมาใช้ createBulkTransaction ทั้งหมด การ์ดต้องตามมาด้วย ไม่ใช่หายไป
-                // พร้อมกับฟังก์ชันเดิม
-                const { data: updated, error: palletError } = await supabase.from('pallets').update({
-                    status: 'in_use',
-                    current_location: departmentDest,
-                    last_checkout_date: timestamp,
-                    last_transaction_date: timestamp
-                }).eq('pallet_id', id).select('pallet_id');
+            // .eq('status', required) คือการ์ดตัวจริง ไม่ใช่การตรวจซ้ำ -- การอ่านข้างบน
+            // เกิดก่อนหน้านี้หนึ่งรอบ query และก่อนหน้านั้นพนักงานอาจสแกนค้างไว้เป็นนาทีก่อนกดบันทึก
+            // เงื่อนไขที่บังคับได้จริงคือเงื่อนไขที่อยู่ใน WHERE ของคำสั่งเขียนเท่านั้น
+            //
+            // .select() ต่อท้ายเพื่อให้รู้ว่ามีแถวถูกแก้จริงไหม -- UPDATE ที่ไม่ตรงแถวไหนเลย
+            // ไม่ใช่ error ใน PostgREST มันสำเร็จเงียบ ๆ
+            const { data: updated, error: palletError } = await supabase.from('pallets').update({
+                ...write,
+                last_transaction_date: timestamp,
+            }).eq('pallet_id', id).eq('status', required).select('pallet_id');
 
-                if (palletError) throw palletError;
-                if (!updated || updated.length === 0) {
-                    throw new AppError('pallet_missing_for_checkout', { palletId: id });
-                }
-
-                // Log Transaction
-                const { error: transError } = await supabase.from('transactions').insert({
-                    pallet_id: id,
-                    user_id: userId,
-                    action_type: 'check_out',
-                    department_origin: origins.get(id) ?? null,
-                    department_dest: departmentDest,
-                    transaction_remark: remark,
-                    timestamp
-                });
-                if (transError) throw transError;
-
-            } else if (actionType === 'check_in') {
-                // Update Pallet -- .select() ด้วยเหตุผลเดียวกับฝั่ง check_out ข้างบน
-                const { data: updated, error: palletError } = await supabase.from('pallets').update({
-                    status: 'available',
-                    current_location: 'Warehouse',
-                    last_checkout_date: null,
-                    last_transaction_date: timestamp
-                }).eq('pallet_id', id).select('pallet_id');
-
-                if (palletError) throw palletError;
-                if (!updated || updated.length === 0) {
-                    throw new AppError('pallet_missing_for_checkout', { palletId: id });
-                }
-
-                // Log Transaction
-                const { error: transError } = await supabase.from('transactions').insert({
-                    pallet_id: id,
-                    user_id: userId,
-                    action_type: 'check_in',
-                    department_origin: origins.get(id) ?? null,
-                    department_dest: 'Warehouse',
-                    transaction_remark: remark,
-                    timestamp
-                });
-                if (transError) throw transError;
+            if (palletError) throw palletError;
+            if (!updated || updated.length === 0) {
+                failed.push({ palletId: id, reason: 'changed_by_other' });
+                continue;
             }
+
+            // Log Transaction
+            const { error: transError } = await supabase.from('transactions').insert({
+                pallet_id: id,
+                user_id: userId,
+                action_type: actionType,
+                department_origin: state.origin,
+                department_dest: actionType === 'check_out' ? departmentDest : 'Warehouse',
+                transaction_remark: remark,
+                timestamp
+            });
+            if (transError) throw transError;
 
             success.push(id);
         } catch (e) {
             console.error(`Failed to process ${id}`, e);
-            failed.push(id);
+            failed.push({ palletId: id, reason: 'error' });
         }
     }
 

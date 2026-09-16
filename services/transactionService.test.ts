@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
     events: [] as string[],
     /** payload ทุกก้อนที่ถูก insert ใช้ตรวจสิ่งที่เขียนลงตาราง ไม่ใช่แค่ว่าเขียนสำเร็จ */
     inserted: [] as any[],
+    /** ทุก .eq() ที่ถูกเรียก ใช้พิสูจน์ว่าเงื่อนไขไปถึง WHERE จริง ไม่ใช่แค่ตรวจใน JS */
+    eqCalls: [] as [string, unknown][],
 }));
 
 vi.mock('./supabase', () => ({
@@ -46,9 +48,13 @@ const makeBuilder = () => {
     // lte/gt อยู่ในนี้ด้วยเพราะเส้นทางกรองรายวันเรียกมันจริง -- ตอนที่ยังไม่มี builder.lte
     // เป็น undefined, การเรียกมันโยน TypeError, และ catch ในโค้ดจริงกลืนมันเป็น 'Invalid date
     // filter' เทสต์จึงผ่านโดยที่เงื่อนไขวันไม่เคยถูกใส่ลงคำสั่งเลย
-    for (const method of ['not', 'lt', 'lte', 'gt', 'gte', 'eq', 'in', 'order', 'range', 'limit']) {
+    for (const method of ['not', 'lt', 'lte', 'gt', 'gte', 'in', 'order', 'range', 'limit']) {
         builder[method] = vi.fn(() => builder);
     }
+    builder.eq = vi.fn((column: string, value: unknown) => {
+        mocks.eqCalls.push([column, value]);
+        return builder;
+    });
     builder.select = vi.fn(() => {
         mode = 'select';
         return builder;
@@ -81,6 +87,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     mocks.events.length = 0;
     mocks.inserted.length = 0;
+    mocks.eqCalls.length = 0;
     results.select = { data: [], error: null };
     results.selectQueue = [];
     results.selectSingle = { data: null, error: null };
@@ -279,8 +286,16 @@ describe('fetchUserTransactions -- โหมดล่าสุด: นับเ�
 // คือสิ่งที่ทำให้มันพังเสียงดังแทน
 describe('createBulkTransaction -- timestamp เดียวทั้งชุด', () => {
     it('ทุกแถวที่เขียนในครั้งเดียวกันได้ timestamp ค่าเดียวกัน จึงตกอยู่ในชุดเดียวกัน', async () => {
-        // UPDATE ต้องรายงานว่ามีแถวถูกแก้จริง ไม่งั้นการ์ดกันพาเลทหายจะปัดทุกใบเป็น failed
-        results.select = { data: [{ pallet_id: 'P001' }] as any, error: null };
+        // คำตอบเดียวนี้ถูกใช้สองทาง: รอบอ่านสถานะก่อนเขียน (ต้องเป็น available จึงจะเบิกออกได้)
+        // และรอบ .select() ท้าย UPDATE ซึ่งต้องไม่ว่าง ไม่งั้นการ์ดกันแข่งจะปัดทุกใบเป็น failed
+        results.select = {
+            data: ['P001', 'P002', 'P003'].map((pallet_id) => ({
+                pallet_id,
+                status: 'available',
+                current_location: 'Warehouse',
+            })) as any,
+            error: null,
+        };
 
         await createBulkTransaction(['P001', 'P002', 'P003'], 'check_out', 'staff-1', 'คลังกลาง');
 
@@ -297,8 +312,81 @@ describe('createBulkTransaction -- timestamp เดียวทั้งชุ�
 
         const result = await createBulkTransaction(['P404'], 'check_out', 'staff-1', 'คลังกลาง');
 
-        expect(result.failed).toEqual(['P404']);
+        expect(result.failed).toEqual([{ palletId: 'P404', reason: 'not_found' }]);
         expect(result.success).toEqual([]);
         expect(mocks.inserted).toHaveLength(0);
+    });
+});
+
+// อาการที่ชุดนี้กัน คือข้อสังเกตของผู้เชี่ยวชาญที่ว่า "ควรตรวจสถานะเดิมก่อนปรับปรุงสถานะ"
+// ของเดิม UPDATE มีเงื่อนไขเดียวคือ pallet_id พาเลทที่เบิกออกไปแล้วจึงถูกเบิกซ้ำได้
+// ไม่มีอะไรฟ้อง ได้แถว check_out สองแถวของพาเลทใบเดียว และ current_location เป็นของคน
+// ที่เขียนทีหลัง -- ตามบันทึกคือพาเลทหนึ่งใบอยู่สองแผนกพร้อมกัน
+describe('createBulkTransaction -- การ์ดสถานะเดิม', () => {
+    /** แถวพาเลทตามที่ readStates จะอ่านได้ */
+    const row = (pallet_id: string, status: string) => ({ pallet_id, status, current_location: 'คลังกลาง' });
+
+    it('ไม่เบิกพาเลทที่ถูกเบิกออกไปแล้วซ้ำ และไม่เขียนแถวธุรกรรมให้มัน', async () => {
+        results.select = { data: [row('P001', 'in_use')] as any, error: null };
+
+        const result = await createBulkTransaction(['P001'], 'check_out', 'staff-1', 'คลังกลาง');
+
+        expect(result.failed).toEqual([{ palletId: 'P001', reason: 'already_checked_out' }]);
+        expect(result.success).toEqual([]);
+        expect(mocks.inserted).toHaveLength(0);
+    });
+
+    it('ไม่รับคืนพาเลทที่อยู่ในคลังอยู่แล้ว', async () => {
+        results.select = { data: [row('P001', 'available')] as any, error: null };
+
+        const result = await createBulkTransaction(['P001'], 'check_in', 'staff-1');
+
+        expect(result.failed).toEqual([{ palletId: 'P001', reason: 'not_checked_out' }]);
+        expect(mocks.inserted).toHaveLength(0);
+    });
+
+    // เหตุผลต้องตรงกับสิ่งที่เกิดขึ้นจริง ไม่ใช่แค่ "ไม่ผ่าน": พนักงานที่อ่านว่า "ถูกเบิก
+    // ออกไปแล้ว" จะออกไปตามหาพาเลทที่จริง ๆ จอดอยู่รอซ่อมและไม่ได้ไปไหน
+    it('พาเลทชำรุดและพาเลทที่ตัดออกแล้ว ได้เหตุผลของตัวเอง', async () => {
+        results.select = { data: [row('P001', 'damaged'), row('P002', 'scrapped')] as any, error: null };
+
+        const result = await createBulkTransaction(['P001', 'P002'], 'check_out', 'staff-1', 'คลังกลาง');
+
+        expect(result.failed).toEqual([
+            { palletId: 'P001', reason: 'damaged' },
+            { palletId: 'P002', reason: 'scrapped' },
+        ]);
+    });
+
+    // การ์ดตัวจริงอยู่ในคำสั่งเขียน ไม่ใช่ใน if ข้างบน -- ระหว่างที่พนักงานสแกนค้างไว้เป็น
+    // นาทีก่อนกดบันทึก อีกคนเบิกใบเดียวกันไปแล้วก็ได้ ถ้าเงื่อนไขสถานะไม่ติดไปกับ UPDATE
+    // ด้วย การตรวจข้างบนก็เป็นแค่การอ่านค่าที่หมดอายุแล้ว
+    it('ส่งเงื่อนไขสถานะไปกับ UPDATE ด้วย ไม่ใช่ตรวจแค่ในฝั่งเบราว์เซอร์', async () => {
+        results.select = { data: [row('P001', 'available')] as any, error: null };
+
+        await createBulkTransaction(['P001'], 'check_out', 'staff-1', 'คลังกลาง');
+
+        expect(mocks.eqCalls).toContainEqual(['status', 'available']);
+    });
+
+    it('แถวที่แพ้การแข่งขัน (UPDATE ไม่โดนสักแถว) แยกจากพาเลทที่ไม่มีในระบบ', async () => {
+        // อ่านแล้วยังว่าง แต่พอถึงคำสั่งเขียนกลับไม่เหลือแถวที่ตรงเงื่อนไข = มีคนชิงไปก่อน
+        results.selectQueue = [
+            { data: [row('P001', 'available')], error: null },
+            { data: [], error: null },
+        ];
+
+        const result = await createBulkTransaction(['P001'], 'check_out', 'staff-1', 'คลังกลาง');
+
+        expect(result.failed).toEqual([{ palletId: 'P001', reason: 'changed_by_other' }]);
+        expect(mocks.inserted).toHaveLength(0);
+    });
+
+    // ขาดปลายทางเป็นเงื่อนไขของทั้งชุด ของเดิมมันตกไปอยู่ใน catch ต่อใบ แล้วรายงานกลับมา
+    // เป็น "P001, P002, ... ไม่สำเร็จ" ซึ่งไม่มีทางเดาได้เลยว่าต้องไปเลือกแผนกปลายทาง
+    it('ขาดแผนกปลายทางแล้วโยน ไม่ใช่ปัดทุกใบเป็น failed', async () => {
+        await expect(createBulkTransaction(['P001'], 'check_out', 'staff-1')).rejects.toMatchObject({
+            code: 'destination_required',
+        });
     });
 });

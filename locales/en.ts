@@ -178,6 +178,17 @@ export const en = {
         // failure will try again and hit "employee ID already taken".
         adminPromotionFailed: (reason: string) =>
             `The account was created, but it is still a staff account -- granting admin rights failed (${reason}). Change the role from the user list.`,
+        // Why a pallet was skipped in a bulk check-out/check-in. Fragments, not
+        // sentences: describeBulkFailures() reads them inside "P005 (...)".
+        bulkReason: {
+            not_found: 'not in the system',
+            already_checked_out: 'already checked out',
+            not_checked_out: 'already in the warehouse',
+            damaged: 'reported damaged',
+            scrapped: 'scrapped',
+            changed_by_other: 'status changed while saving',
+            error: 'could not be saved',
+        },
     },
 
     // Returned by services/reportService.ts and rendered verbatim by the
@@ -339,6 +350,8 @@ export const en = {
         notFound: 'Pallet Not Found',
         scrapped: 'Pallet Scrapped',
         damaged: 'Pallet Damaged',
+        alreadyCheckedOut: 'Already Checked Out',
+        notCheckedOut: 'Already In Warehouse',
         alreadyScrapped: 'Already Scrapped',
         alreadyDamaged: 'Already Damaged',
         generic: 'Scan Error',

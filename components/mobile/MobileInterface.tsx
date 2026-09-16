@@ -4,6 +4,7 @@ import { PENDING_SCANS_KEY } from '../../constants';
 import { activeStore } from '../../services/sessionPolicy';
 import { fetchDepartments, subscribeToDepartments } from '../../services/departmentService';
 import { createBulkTransaction } from '../../services/transactionService';
+import { describeBulkFailures } from '../../services/appError';
 import { getPalletById } from '../../services/palletService';
 import { supabase } from '../../services/supabase';
 import { toast } from '../../services/toast';
@@ -159,6 +160,13 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
       // Check-in is the dangerous one: it sets status back to 'available', so
       // without this guard scanning a written-off pallet would silently return
       // it to the fleet and undo the fact that scrapped is terminal.
+      //
+      // The two status checks below it are the same idea one step further: a
+      // pallet that is already out cannot be checked out again, and one already
+      // in the warehouse cannot be returned. These are advisory -- the binding
+      // check is the WHERE clause in createBulkTransaction, which is what holds
+      // when two people scan the same pallet at the same moment. This is here
+      // so the scanner says so at the moment of the scan.
       if (mode === 'checkout_scanning' && selectedDept) {
         const pallet = await getPalletById(decodedText);
         if (!pallet) {
@@ -167,6 +175,11 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
           handleFeedback('error', t.scanError.scrapped);
         } else if (pallet.status === 'damaged') {
           handleFeedback('error', t.scanError.damaged);
+        } else if (pallet.status === 'in_use') {
+          // เคยรับเข้ารายการ แล้วค่อยไปตกที่การ์ดสถานะใน createBulkTransaction ตอนกดบันทึก
+          // ซึ่งอาจเป็นอีก 30 ใบถัดไป -- พนักงานถือพาเลทอยู่ในมือตอนนี้ การบอกตอนสแกน
+          // คือสิ่งที่ทำให้เขาเดินไปหาใบที่ถูกต้องได้ การบอกตอนท้ายคือการให้เขาเดินกลับมา
+          handleFeedback('error', t.scanError.alreadyCheckedOut);
         } else {
           setPendingScans(prev => [{ id: decodedText, status: pallet.status, location: pallet.current_location }, ...prev]);
           handleFeedback('success', decodedText);
@@ -180,6 +193,8 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
           handleFeedback('error', t.scanError.scrapped);
         } else if (pallet.status === 'damaged') {
           handleFeedback('error', t.scanError.damaged);
+        } else if (pallet.status === 'available') {
+          handleFeedback('error', t.scanError.notCheckedOut);
         } else {
           setPendingScans(prev => [{ id: decodedText, status: pallet.status, location: pallet.current_location }, ...prev]);
           handleFeedback('success', decodedText);
@@ -239,7 +254,7 @@ const MobileInterface: React.FC<MobileInterfaceProps> = ({ user, onLogout }) => 
         // createBulkTransaction ไม่โยนเมื่อบางใบล้ม มันคืนรายชื่อที่ล้มมาให้ -- ถ้าไม่อ่าน
         // ตรงนี้ ใบที่ไม่ผ่านจะเงียบหายไปพร้อมข้อความ "สำเร็จ" ที่นับรวมมันด้วย
         if (result.failed.length > 0) {
-          toast.error(t.batch.partial(result.success.length, result.failed.join(', ')));
+          toast.error(t.batch.partial(result.success.length, describeBulkFailures(result.failed)));
         } else if (mode === 'checkout_scanning') {
           toast.success(t.batch.checkedOut(result.success.length));
         } else {

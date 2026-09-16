@@ -6,7 +6,7 @@ import { deletePallet, updatePallet } from '../../services/palletService';
 import { resolveDamage, scrapPallet, createBulkTransaction } from '../../services/transactionService';
 import { toast } from '../../services/toast';
 import { dict } from '../../services/i18n';
-import { describeAppError } from '../../services/appError';
+import { describeAppError, describeBulkFailures } from '../../services/appError';
 
 // Text here is read through dict() rather than useT(). Every string below is
 // produced inside a handler -- either frozen into confirmAction state at click
@@ -162,7 +162,7 @@ export const useInventoryActions = (
             );
 
             if (result.failed.length > 0) {
-                toast.error(dict().inventory.bulkPartial(result.success.length, result.failed.join(', ')));
+                toast.error(dict().inventory.bulkPartial(result.success.length, describeBulkFailures(result.failed)));
             } else {
                 toast.success(dict().inventory.bulkDone(result.success.length));
             }
